@@ -18,6 +18,24 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="App.cpp" />
+    <ClCompile Include="Common.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="VulkanCookbook.cpp" />
+    <ClCompile Include="VulkanFunctions.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="App.hpp" />
+    <ClInclude Include="Common.hpp" />
+    <ClInclude Include="ExceptionMessage.hpp" />
+    <ClInclude Include="UnrecoverableException.hpp" />
+    <ClInclude Include="VulkanCookbook.hpp" />
+    <ClInclude Include="VulkanFunctions.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ListOfVulkanFunctions.inl" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{18DEF51D-F997-4D21-9900-2D818F43E010}</ProjectGuid>
@@ -84,6 +102,8 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.85.0\Include;</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>VK_NO_PROTOTYPES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -108,14 +128,14 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.85.0\Include;</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>VK_NO_PROTOTYPES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
