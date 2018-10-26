@@ -1,14 +1,17 @@
-#include "App.hpp"
+#include "AppBase.hpp"
 
 int main()
 {
-  App app;
-
+#if !defined(_DEBUG) && defined(_WIN32)
+  FreeConsole();
+#endif
 #if defined(_DEBUG)
   try
   {
 #endif
-    app.run();
+    AppBase app;
+    VulkanInterface::WindowFramework window("VulkanInterface App", 50, 25, 1280, 800, app);
+    window.Render();
 #if defined(_DEBUG)
   }
   catch (UnrecoverableRuntimeException const &e)

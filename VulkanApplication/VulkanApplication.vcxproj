@@ -19,17 +19,19 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="App.cpp" />
+    <ClCompile Include="AppBase.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="VulkanInterface.cpp" />
     <ClCompile Include="VulkanInterface.Functions.cpp" />
+    <ClCompile Include="VulkanInterface.OSWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="App.hpp" />
+    <ClInclude Include="AppBase.hpp" />
     <ClInclude Include="ExceptionMessage.hpp" />
     <ClInclude Include="UnrecoverableException.hpp" />
     <ClInclude Include="VulkanInterface.hpp" />
     <ClInclude Include="VulkanInterface.Functions.hpp" />
+    <ClInclude Include="VulkanInterface.OSWindow.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ListOfVulkanFunctions.inl" />
