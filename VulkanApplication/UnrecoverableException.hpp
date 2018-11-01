@@ -2,6 +2,17 @@
 #include <stdexcept>
 #include "ExceptionMessage.hpp"
 
+#ifdef EXECPTIONS_OFF
+#define throw(e) std::cerr << "Unrecoverable Exception!\n"\
+                          << "What: " << e.what() << "\n"\
+                          << e.message()\
+                          << "\nFile: " << e.fileName()\
+                          << "\nFunction: " << e.funcName()\
+                          << "\nLine: " << e.lineNumber() << std::endl;
+#else
+#define throw(e) throw
+#endif
+
 template<class BaseExceptionType>
 class UnrecoverableException : public BaseExceptionType
 {

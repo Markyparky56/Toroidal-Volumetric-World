@@ -3,24 +3,73 @@
 
 class AppBase
 {
+protected:
+  struct MouseState {
+    struct ButtonsState {
+      bool IsPressed;
+      bool WasClicked;
+      bool WasReleased;
+    } Buttons[2];
+    struct Position {
+      int X, Y;
+      struct Delta {
+        int X, Y;
+      } Delta;
+    } Position;
+    struct WheelState {
+      bool WasMoved;
+      float Distance;
+    } Wheel;
+
+    MouseState()
+      : Buttons{ { false, false, false }, { false, false, false } }
+      , Position{ 0, 0, {0, 0} }
+      , Wheel{ false, 0.f }
+    {}
+  } MouseState;
+
+  struct TimerState {
+    float GetTime() const {
+      auto duration = time.time_since_epoch();
+      auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+      return static_cast<float>(ms * 0.001f);
+    }
+    float GetDeltaTime() const {
+      return dt.count();
+    }
+    void Update() {
+      auto previous_time = time;
+      time = std::chrono::high_resolution_clock::now();
+      dt = std::chrono::high_resolution_clock::now() - previous_time;
+    }
+    TimerState() {
+      Update();
+    }
+  private:
+    std::chrono::time_point<std::chrono::high_resolution_clock> time;
+    std::chrono::duration<float> dt;
+  } TimerState;
 public: 
   AppBase();
   ~AppBase();
 
-  virtual bool InitVulkan(VulkanInterface::WindowParameters windowParameters);
-  virtual void Update();
-  virtual void Resize();
+  virtual bool Initialise(VulkanInterface::WindowParameters window_parameters);
+  virtual bool Update();
+  virtual bool Resize();
   virtual void Shutdown();
-  virtual void Run();
   virtual void MouseClick(size_t buttonIndex, bool state);
+  virtual void MouseMove(int x, int y);
   virtual void MouseWheel(float distance);
   virtual void MouseReset();
   virtual void UpdateTime();
   virtual bool IsReady();
 
-private:
+protected:
   bool ready;
-  void cleanup();
+  virtual bool initVulkan(VulkanInterface::WindowParameters windowParameters);
+  virtual bool createSwapchain(VkImageUsageFlags swapchainImageUsage, bool useDepth, VkImageUsageFlags depthAttacmentUsage);
+  void cleanupVulkan();
+  virtual void OnMouseEvent();
 
   std::vector<char const *> desiredLayers = {
 #ifdef _DEBUG
@@ -52,6 +101,12 @@ private:
   VulkanInterface::QueueParameters computeQueue;
   VulkanInterface::QueueParameters presentQueue;
   VulkanInterface::SwapchainParameters swapchain;
+  VkCommandPool commandPool;
+  std::vector<VkImage> depthImages;
+  std::vector<VkDeviceMemory> vkDeviceMemory;
+  std::vector<VulkanInterface::FrameResources> frameResources;
+  static uint32_t const numFrames;
+  static VkFormat const depthFormat;
 
   VkDebugUtilsMessengerEXT callback;
 

@@ -49,10 +49,10 @@
     <ClInclude Include="VulkanInterface.Functions.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="AppBase.hpp">
+    <ClInclude Include="VulkanInterface.OSWindow.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="VulkanInterface.OSWindow.hpp">
+    <ClInclude Include="AppBase.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

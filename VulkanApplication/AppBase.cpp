@@ -1,7 +1,12 @@
 #include "AppBase.hpp"
 
+const uint32_t AppBase::numFrames = 3;
+const VkFormat AppBase::depthFormat = VK_FORMAT_D16_UNORM;
+
 AppBase::AppBase()
   : vulkanLibrary(nullptr)
+  , ready(false)
+
 {
 
 }
@@ -11,12 +16,12 @@ AppBase::~AppBase()
 
 }
 
-void AppBase::Run()
+bool AppBase::Resize()
 {
-  // Loop
+
 }
 
-bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
+bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
 {
   // Load Library
   try
@@ -25,8 +30,8 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
   }
   catch (std::runtime_error const &e)
   {
-    cleanup();
-    throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to load Vulkan Library"), e);
+    cleanupVulkan();
+    throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to load Vulkan Library"), e));
     return false;
   }
 
@@ -37,8 +42,8 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
   }
   catch (std::runtime_error const &e)
   {
-    cleanup();
-    throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to load vkGetInstanceProcAddr function"), e);
+    cleanupVulkan();
+    throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to load vkGetInstanceProcAddr function"), e));
     return false;
   }
 
@@ -49,8 +54,8 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
   }
   catch (std::runtime_error const &e)
   {
-    cleanup();
-    throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to load Global-Level Functions"), e);
+    cleanupVulkan();
+    throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to load Global-Level Functions"), e));
     return false;
   } 
 
@@ -61,8 +66,8 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
   }
   catch (std::runtime_error const &e)
   {
-    cleanup();
-    throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to create Vulkan Instance"), e);
+    cleanupVulkan();
+    throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to create Vulkan Instance"), e));
     return false;
   }
 
@@ -75,8 +80,8 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
   catch (std::runtime_error const &e)
   {
     // Not really unrecoverable, but if this is failing in debug something is probably wrong
-    cleanup();
-    throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to attach debug callback to vulkan instance"), e);
+    cleanupVulkan();
+    throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to attach debug callback to vulkan instance"), e));
     return false;
   }
 #endif
@@ -88,8 +93,8 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
   }
   catch (std::runtime_error const &e)
   {
-    cleanup();
-    throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to load Instance-Level Functions"), e);
+    cleanupVulkan();
+    throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to load Instance-Level Functions"), e));
     return false;
   }
 
@@ -100,8 +105,8 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
   }
   catch (std::runtime_error const&e)
   {
-    cleanup();
-    throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Could not create presentation surface"), e);
+    cleanupVulkan();
+    throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Could not create presentation surface"), e));
     return false;
   }
 
@@ -113,8 +118,8 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
   }
   catch (std::runtime_error const &e)
   {
-    cleanup();
-    throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to enumerate available physical devices"), e);
+    cleanupVulkan();
+    throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to enumerate available physical devices"), e));
     return false;
   }
   
@@ -145,7 +150,7 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
     {
       // Exceptions thrown within this block are only relating to Vulkan outright failing to get queue families
       // to check against, I'm assuming if this fails there's an issue with Vulkan or the Device.
-      throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Failed to check queue families for available physical device"), e);
+      throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Failed to check queue families for available physical device"), e));
       return false;
     }
 
@@ -175,9 +180,9 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
     }
     catch (std::runtime_error const &e)
     {
-      std::cout << "Failed to create logical device from chosen physical device\n";
-      std::cout << e.what() << std::endl;
-      std::cout << "Attempting to find another device." << std::endl;
+      std::cerr << "Failed to create logical device from chosen physical device\n";
+      std::cerr << e.what() << std::endl;
+      std::cerr << "Attempting to find another device." << std::endl;
       continue;
     }
     
@@ -192,27 +197,98 @@ bool AppBase::InitVulkan(VulkanInterface::WindowParameters windowParameters)
 
   if (vulkanDevice == nullptr)
   {
-    cleanup();
-    throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Failed to create logical device!"), "vulkanDevice == nullptr");
+    cleanupVulkan();
+    throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Failed to create logical device!"), "vulkanDevice == nullptr"));
     return false;
   }
+
+  // Prepare Frame Resources
+
 
   return true;
 }
 
-void AppBase::Update()
+bool AppBase::createSwapchain(VkImageUsageFlags swapchainImageUsage, bool useDepth, VkImageUsageFlags depthAttacmentUsage)
 {
+  return false;
 }
 
-void AppBase::cleanup()
+bool AppBase::Initialise(VulkanInterface::WindowParameters window_parameters)
+{
+  if(initVulkan(window_parameters))
+    return false;
+
+  
+
+  return true;
+}
+
+bool AppBase::Update()
+{
+
+}
+
+void AppBase::Shutdown()
+{
+  cleanupVulkan();
+}
+
+void AppBase::cleanupVulkan()
 {
   // We need to work backwards, destroying device-level objects before instance-level objects, and so on
   if (vulkanDevice) VulkanInterface::vkDestroyDevice(vulkanDevice, nullptr);
 
 #if defined(_DEBUG)
-  if (callback) VulkanInterface::DestroyDebugUtilsMessengerEXT(vulkanInstance, callback, nullptr);
+  if (callback) VulkanInterface::vkDestroyDebugUtilsMessengerEXT(vulkanInstance, callback, nullptr);
 #endif
 
   if (presentationSurface) VulkanInterface::vkDestroySurfaceKHR(vulkanInstance, presentationSurface, nullptr);  
   if (vulkanInstance) VulkanInterface::vkDestroyInstance(vulkanInstance, nullptr);
+  if (vulkanLibrary) VulkanInterface::ReleaseVulkanLoaderLibrary(vulkanLibrary);
+}
+
+void AppBase::OnMouseEvent()
+{
+  // Empty
+}
+
+void AppBase::MouseClick(size_t buttonIndex, bool state)
+{
+  if (buttonIndex > 2)
+  {
+    MouseState.Buttons[buttonIndex] = { state, state, !state };
+    OnMouseEvent();
+  }
+}
+
+void AppBase::MouseMove(int x, int y)
+{
+  MouseState.Position.Delta = { x - MouseState.Position.X, y - MouseState.Position.Y };
+  MouseState.Position = { x, y };
+  OnMouseEvent();
+}
+
+void AppBase::MouseWheel(float distance)
+{
+  MouseState.Wheel.WasMoved = true;
+  MouseState.Wheel.Distance = distance;
+  OnMouseEvent();
+}
+
+void AppBase::MouseReset()
+{
+  MouseState.Position.Delta = { 0, 0 };
+  MouseState.Buttons[0] = { false, false };
+  MouseState.Buttons[1] = { false, false };
+  MouseState.Wheel = { false, 0.f };
+}
+
+void AppBase::UpdateTime()
+{
+  TimerState.Update();
+}
+
+bool AppBase::IsReady()
+{
+  return ready;
 }

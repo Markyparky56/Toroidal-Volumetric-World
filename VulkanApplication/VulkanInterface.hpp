@@ -13,6 +13,8 @@
 
 #include "UnrecoverableException.hpp"
 
+#undef CreateSemaphore
+
 namespace VulkanInterface
 {
   struct QueueInfo {
@@ -34,19 +36,37 @@ namespace VulkanInterface
     std::vector<VkImageView> imageViewsRaw;
   };
 
+  struct FrameResources {
+    VkCommandBuffer commandBuffer;
+    VkSemaphore imageAcquiredSemaphore;
+    VkSemaphore readyToPresentSemaphore;
+    VkFence drawingFinishedFence;
+    VkImageView depthAttachment;
+    VkFramebuffer framebuffer;
+  };
+
+  struct WaitSemaphoreInfo {
+    VkSemaphore Semaphore;
+    VkPipelineStageFlags WaitingStage;
+  };
+
+  struct PresentInfo {
+    VkSwapchainKHR swapchain;
+    uint32_t imageIndex;
+  };
+
   bool SetupDebugCallback(VkInstance instance
                         , PFN_vkDebugUtilsMessengerCallbackEXT debugCallbackFunc
                         , VkDebugUtilsMessengerEXT & callback);
-  void DestroyDebugUtilsMessengerEXT( VkInstance instance
-                                    , VkDebugUtilsMessengerEXT callback
-                                    , VkAllocationCallbacks const * pAllocator);
 
-  bool LoadVulkanLoaderLibrary(LIBRARY_TYPE &library);
-  bool LoadVulkanFunctionGetter(LIBRARY_TYPE &library);
+  bool LoadVulkanLoaderLibrary(LIBRARY_TYPE & library);
+  void ReleaseVulkanLoaderLibrary(LIBRARY_TYPE & library);
+  bool LoadVulkanFunctionGetter(LIBRARY_TYPE & library);
   bool LoadGlobalVulkanFunctions();
   bool LoadInstanceLevelVulkanFunctions(VkInstance instance
                                       , std::vector<char const *> const & enabledExtensions);
-  bool LoadDeviceLevelVulkanFunctions(VkDevice device, std::vector<char const *> const & enabledExtensions);
+  bool LoadDeviceLevelVulkanFunctions(VkDevice device
+                                    , std::vector<char const *> const & enabledExtensions);
 
   bool GetAvailableLayerSupport(std::vector<VkLayerProperties> & availableLayers);
   bool IsLayerSupported( std::vector<VkLayerProperties> const & availableLayers
@@ -72,7 +92,9 @@ namespace VulkanInterface
   bool SelectIndexOfQueueFamilyWithDesiredCapabilities( VkPhysicalDevice physicalDevice
                                                       , VkQueueFlags desiredCapabilities
                                                       , uint32_t &queueFamilyIndex);
-  bool SelectQueueFamilyThatSupportsPresentationToGivenSurface(VkPhysicalDevice physicalDevice, VkSurfaceKHR presentationSurface, uint32_t & queueFamilyIndex);
+  bool SelectQueueFamilyThatSupportsPresentationToGivenSurface( VkPhysicalDevice physicalDevice
+                                                              , VkSurfaceKHR presentationSurface
+                                                              , uint32_t & queueFamilyIndex);
 
   bool CreateLogicalDevice( VkPhysicalDevice physicalDevice
                           , std::vector<QueueInfo> queueInfos
@@ -81,6 +103,118 @@ namespace VulkanInterface
                           , VkPhysicalDeviceFeatures * desiredFeatures
                           , VkDevice & logicalDevice);
 
-  bool SelectDesiredPresentationMode(VkPhysicalDevice physicalDevice, VkSurfaceKHR presentationSurface, VkPresentModeKHR desiredPresentMode, VkPresentModeKHR & presentMode);
-  bool CreatePresentationSurface(VkInstance instance, WindowParameters windowParameters, VkSurfaceKHR & presentationSurface);
+  bool CreatePresentationSurface( VkInstance instance
+                                , WindowParameters windowParameters
+                                , VkSurfaceKHR & presentationSurface);
+  bool SelectDesiredPresentationMode( VkPhysicalDevice physicalDevice
+                                    , VkSurfaceKHR presentationSurface
+                                    , VkPresentModeKHR desiredPresentMode
+                                    , VkPresentModeKHR & presentMode);
+  bool GetCapabilitiesOfPresentationSurface(VkPhysicalDevice physicalDevice
+                                          , VkSurfaceKHR presentationSurface
+                                          , VkSurfaceCapabilitiesKHR & surfaceCapabilities);
+  bool SelectNumberOfSwapchainImages( VkSurfaceCapabilitiesKHR const & surfaceCapabilities
+                                    , uint32_t & numberOfImages);
+  bool ChooseSizeOfSwapchainImages( VkSurfaceCapabilitiesKHR const & surfaceCapabilities
+                                  , VkExtent2D & sizeOfImages);
+  bool SelectDesiredUsageScenariosOfSwapchainImages(VkSurfaceCapabilitiesKHR const & surfaceCapabilities
+                                                  , VkImageUsageFlags desiredUsages
+                                                  , VkImageUsageFlags & imageUsage);
+  bool SelectTransformationOfSwapchainImages( VkSurfaceCapabilitiesKHR const & surfaceCapabilities
+                                            , VkSurfaceTransformFlagBitsKHR desiredTransform
+                                            , VkSurfaceTransformFlagBitsKHR & surfaceTransform);
+  bool SelectFormatOfSwapchainImages( VkPhysicalDevice physicalDevice
+                                    , VkSurfaceKHR presentationSurface
+                                    , VkSurfaceFormatKHR desiredSurfaceFormat
+                                    , VkFormat & imageFormat
+                                    , VkColorSpaceKHR & imageColorSpace);
+  bool CreateSwapchain( VkDevice logicalDevice
+                      , VkSurfaceKHR presentationSurface
+                      , uint32_t imageCount
+                      , VkSurfaceFormatKHR surfaceFormat
+                      , VkExtent2D imageSize
+                      , VkImageUsageFlags imageUsage
+                      , VkSurfaceTransformFlagBitsKHR surfaceTransform
+                      , VkPresentModeKHR presentMode
+                      , VkSwapchainKHR & oldSwapchain
+                      , VkSwapchainKHR & swapchain);
+  // RGBA 8-bit channels, Mailbox Present Mode
+  bool CreateStandardSwapchain( VkPhysicalDevice physicalDevice
+                              , VkSurfaceKHR presentationSurface
+                              , VkDevice logicalDevice
+                              , VkImageUsageFlags swapchainImageUsage
+                              , VkExtent2D & imageSize
+                              , VkFormat & imageFormat
+                              , VkSwapchainKHR & oldSwapchain
+                              , VkSwapchainKHR & swapchain
+                              , std::vector<VkImage> & swapchainImages);
+  bool GetHandlesOfSwapchainImages( VkDevice logicalDevice
+                                  , VkSwapchainKHR swapchain
+                                  , std::vector<VkImage> & swapchainImages);
+  bool AcquireSwapchainImage( VkDevice logicalDevice
+                            , VkSwapchainKHR swapchain
+                            , VkSemaphore semaphore
+                            , VkFence fence
+                            , uint32_t & imageIndex);
+  bool PresentImage(VkQueue queue
+                  , std::vector<VkSemaphore> renderingSemaphores
+                  , std::vector<PresentInfo> imagesToPresent);
+
+
+  bool CreateCommandPool( VkDevice logicalDevice
+                        , VkCommandPoolCreateFlags parameters
+                        , uint32_t queueFamily
+                        , VkCommandPool & commandPool);
+  bool AllocateCommandBuffers(VkDevice logicalDevice
+                            , VkCommandPool commandPool
+                            , VkCommandBufferLevel level
+                            , uint32_t count
+                            , std::vector<VkCommandBuffer> & commandBuffers);
+  bool BeginCommandBufferRecordingOp( VkCommandBuffer commandBuffer
+                                    , VkCommandBufferUsageFlags usage
+                                    , VkCommandBufferInheritanceInfo * secondaryCommandBufferInfo);
+  bool EndCommandBufferRecordingOp(VkCommandBuffer commandBuffer);
+  bool ResetCommandBuffer(VkCommandBuffer commandBuffer
+                        , bool releaseResources);
+  bool ResetCommandPool(VkDevice logicalDevice
+                      , VkCommandPool commandPool
+                      , bool releaseResources);
+  bool CreateSemaphore( VkDevice logicalDevice
+                      , VkSemaphore & semaphore);
+  bool CreateFence( VkDevice logicalDevice
+                  , bool signaled
+                  , VkFence & fence);
+  bool WaitForFences( VkDevice logicalDevice
+                    , std::vector<VkFence> const & fences
+                    , VkBool32 waitForAll
+                    , uint64_t timeout);
+  bool ResetFences( VkDevice logicalDevice
+                  , std::vector<VkFence> const & fences);
+  bool SubmitCommandBuffersToQueue( VkQueue queue
+                                  , std::vector<WaitSemaphoreInfo> waitSemaphoreInfos
+                                  , std::vector<VkCommandBuffer> commandBuffers
+                                  , std::vector<VkSemaphore> signalSemaphores
+                                  , VkFence fence);
+  bool SynchroniseTwoCommandBuffers(VkQueue firstQueue
+                                  , std::vector<WaitSemaphoreInfo> firstWaitSemaphoreInfos
+                                  , std::vector<VkCommandBuffer> firstCommandBuffers
+                                  , std::vector<WaitSemaphoreInfo> synchronisingSemaphores
+                                  , VkQueue secondQueue
+                                  , std::vector<VkCommandBuffer> secondCommandBuffers
+                                  , std::vector<VkSemaphore> secondSignalSemaphores
+                                  , VkFence secondFence);
+  bool CheckIfProcesingOfSubmittedCommandBuffersHasFinished(VkDevice logicalDevice
+                                                          , VkQueue queue
+                                                          , std::vector<WaitSemaphoreInfo> waitSemaphoreInfos
+                                                          , std::vector<VkCommandBuffer> commandBuffers
+                                                          , std::vector<VkSemaphore> signalSemaphore
+                                                          , VkFence fence
+                                                          , uint64_t timeout
+                                                          , VkResult & waitStatus);
+  bool WaitUntilAllCommandsSubmittedToQueueAreFinished(VkQueue queue);
+  bool WaitForAllSubmittedCommandsToBeFinished(VkDevice logicalDevice);
+  void FreeCommandBuffers(VkDevice logicalDevice
+                        , VkCommandPool commandPool
+                        , std::vector<VkCommandBuffer> & commandBuffers);
+
 }

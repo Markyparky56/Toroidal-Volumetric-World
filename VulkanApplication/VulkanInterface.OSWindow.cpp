@@ -87,7 +87,7 @@ namespace VulkanInterface
 
   void WindowFramework::Render()
   {
-    if (created && app.initVulkan())
+    if (created && app.Initialise(windowParameters))
     {
       ShowWindow(windowParameters.HWnd, SW_SHOWNORMAL);
       UpdateWindow(windowParameters.HWnd);
@@ -99,16 +99,43 @@ namespace VulkanInterface
       {
         if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
-          switch (msg.message)
+          switch (static_cast<UserMessage>(msg.message))
           {
           case UserMessage::Click:
-            //app
+            app.MouseClick(static_cast<size_t>(msg.wParam), msg.lParam > 0);
+            break;
+          case UserMessage::Move:
+            app.MouseMove(static_cast<int>(msg.wParam), static_cast<int>(msg.lParam));
+            break;
+          case UserMessage::Wheel:
+            app.MouseWheel(static_cast<short>(msg.wParam) * 0.002f);
+            break;
+          case UserMessage::Resize:
+            if (!app.Resize())
+            {
+              running = false;
+            }
+            break;
+          case UserMessage::Quit:
+            running = false;
+            break;
+          }
+          TranslateMessage(&msg);
+          DispatchMessage(&msg);
+        }
+        else
+        {
+          if (app.IsReady())
+          {
+            app.UpdateTime();
+            app.Update();
+            app.MouseReset();
           }
         }
       }
     }
-
-
+   
+    app.Shutdown();
   }
 
   // Add other platform specific window creation here
