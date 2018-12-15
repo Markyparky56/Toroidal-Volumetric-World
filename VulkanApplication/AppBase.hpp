@@ -1,6 +1,9 @@
 #pragma once
 #include "VulkanInterface.hpp"
 
+using VulkanInterface::FrameResources;
+using VulkanInterface::VulkanHandle;
+
 class AppBase
 {
 protected:
@@ -53,8 +56,8 @@ public:
   AppBase();
   ~AppBase();
 
-  virtual bool Initialise(VulkanInterface::WindowParameters window_parameters);
-  virtual bool Update();
+  virtual bool Initialise(VulkanInterface::WindowParameters window_parameters) = 0;
+  virtual bool Update() = 0;
   virtual bool Resize();
   virtual void Shutdown();
   virtual void MouseClick(size_t buttonIndex, bool state);
@@ -66,8 +69,13 @@ public:
 
 protected:
   bool ready;
-  virtual bool initVulkan(VulkanInterface::WindowParameters windowParameters);
-  virtual bool createSwapchain(VkImageUsageFlags swapchainImageUsage, bool useDepth, VkImageUsageFlags depthAttacmentUsage);
+  virtual bool initVulkan(VulkanInterface::WindowParameters windowParameters
+                        , VkImageUsageFlags swapchainImageUsage
+                        , bool useDepth
+                        , VkImageUsageFlags depthAttachmentUsage);
+  virtual bool createSwapchain( VkImageUsageFlags swapchainImageUsage
+                              , bool useDepth
+                              , VkImageUsageFlags depthAttacmentUsage);
   void cleanupVulkan();
   virtual void OnMouseEvent();
 
@@ -93,18 +101,18 @@ protected:
 
   LIBRARY_TYPE vulkanLibrary;
 
-  VkInstance vulkanInstance;
+  VulkanHandle<VkInstance> vulkanInstance;
   VkPhysicalDevice vulkanPhysicalDevice;
-  VkDevice vulkanDevice;
-  VkSurfaceKHR presentationSurface;
+  VulkanHandle<VkDevice> vulkanDevice;
+  VulkanHandle<VkSurfaceKHR> presentationSurface;
   VulkanInterface::QueueParameters graphicsQueue;
   VulkanInterface::QueueParameters computeQueue;
   VulkanInterface::QueueParameters presentQueue;
   VulkanInterface::SwapchainParameters swapchain;
-  VkCommandPool commandPool;
-  std::vector<VkImage> depthImages;
-  std::vector<VkDeviceMemory> vkDeviceMemory;
-  std::vector<VulkanInterface::FrameResources> frameResources;
+  VulkanHandle<VkCommandPool> commandPool;
+  std::vector<VulkanHandle<VkImage>> depthImages;
+  std::vector<VulkanHandle<VkDeviceMemory>> vkDeviceMemory;
+  std::vector<FrameResources> frameResources;
   static uint32_t const numFrames;
   static VkFormat const depthFormat;
 

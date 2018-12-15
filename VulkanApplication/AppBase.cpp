@@ -21,7 +21,7 @@ bool AppBase::Resize()
 
 }
 
-bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
+bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters, VkImageUsageFlags swapchainImageUsage, bool   useDepth, VkImageUsageFlags depthAttachmentUsage)
 {
   // Load Library
   try
@@ -62,7 +62,7 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
   // Create a Vulkan Instance tailored to our needs, with required extensions (and if validation layers if in debug)
   try
   {
-    VulkanInterface::CreateVulkanInstance(desiredExtensions, desiredLayers, "VulkanApplication", vulkanInstance);
+    VulkanInterface::CreateVulkanInstance(desiredExtensions, desiredLayers, "VulkanApplication", *vulkanInstance);
   }
   catch (std::runtime_error const &e)
   {
@@ -75,7 +75,7 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
 #if defined(_DEBUG)
   try
   {
-    VulkanInterface::SetupDebugCallback(vulkanInstance, debugCallback, callback);
+    VulkanInterface::SetupDebugCallback(*vulkanInstance, debugCallback, callback);
   }
   catch (std::runtime_error const &e)
   {
@@ -89,7 +89,7 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
   // Load Instance-level functions
   try
   {
-    VulkanInterface::LoadInstanceLevelVulkanFunctions(vulkanInstance, desiredExtensions);
+    VulkanInterface::LoadInstanceLevelVulkanFunctions(*vulkanInstance, desiredExtensions);
   }
   catch (std::runtime_error const &e)
   {
@@ -101,7 +101,8 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
   // Create presentation surface
   try
   {
-    VulkanInterface::CreatePresentationSurface(vulkanInstance, windowParameters, presentationSurface);
+    presentationSurface = VulkanHandle<VkSurfaceKHR>(*vulkanInstance);
+    VulkanInterface::CreatePresentationSurface(*vulkanInstance, windowParameters, *presentationSurface);
   }
   catch (std::runtime_error const&e)
   {
@@ -114,7 +115,7 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
   std::vector<VkPhysicalDevice> physicalDevices;
   try
   {
-    VulkanInterface::EnumerateAvailablePhysicalDevices(vulkanInstance, physicalDevices);
+    VulkanInterface::EnumerateAvailablePhysicalDevices(*vulkanInstance, physicalDevices);
   }
   catch (std::runtime_error const &e)
   {
@@ -141,7 +142,7 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
       }
 
       // Make sure we have a queue family that supports presenting to our surface
-      if (!VulkanInterface::SelectQueueFamilyThatSupportsPresentationToGivenSurface(physicalDevice, presentationSurface, presentQueue.FamilyIndex))
+      if (!VulkanInterface::SelectQueueFamilyThatSupportsPresentationToGivenSurface(physicalDevice, *presentationSurface, presentQueue.FamilyIndex))
       {
         continue;
       }
@@ -176,7 +177,7 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
 
     try
     {
-      VulkanInterface::CreateLogicalDevice(physicalDevice, requestedQueues, desiredExtensions, desiredLayers, &desiredDeviceFeatures, vulkanDevice);
+      VulkanInterface::CreateLogicalDevice(physicalDevice, requestedQueues, desiredExtensions, desiredLayers, &desiredDeviceFeatures, *vulkanDevice);
     }
     catch (std::runtime_error const &e)
     {
@@ -188,10 +189,10 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
     
     // If we've reached this point we're in the clear
     vulkanPhysicalDevice = physicalDevice;
-    VulkanInterface::LoadDeviceLevelVulkanFunctions(vulkanDevice, desiredExtensions);
-    VulkanInterface::vkGetDeviceQueue(vulkanDevice, graphicsQueue.FamilyIndex, 0, &graphicsQueue.Handle);
-    VulkanInterface::vkGetDeviceQueue(vulkanDevice, computeQueue.FamilyIndex, 0, &computeQueue.Handle);
-    VulkanInterface::vkGetDeviceQueue(vulkanDevice, presentQueue.FamilyIndex, 0, &presentQueue.Handle);
+    VulkanInterface::LoadDeviceLevelVulkanFunctions(*vulkanDevice, desiredExtensions);
+    VulkanInterface::vkGetDeviceQueue(*vulkanDevice, graphicsQueue.FamilyIndex, 0, &graphicsQueue.Handle);
+    VulkanInterface::vkGetDeviceQueue(*vulkanDevice, computeQueue.FamilyIndex, 0, &computeQueue.Handle);
+    VulkanInterface::vkGetDeviceQueue(*vulkanDevice, presentQueue.FamilyIndex, 0, &presentQueue.Handle);
     break;
   }
 
@@ -203,29 +204,83 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters)
   }
 
   // Prepare Frame Resources
+  VulkanInterface::InitVulkanHandle(*vulkanDevice, commandPool);
+  if (!VulkanInterface::CreateCommandPool(*vulkanDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, graphicsQueue.FamilyIndex, *commandPool))
+  {
+    return false;
+  }
 
+  for (uint32_t i = 0; i < numFrames; i++)
+  {
+    std::vector<VkCommandBuffer> commandBuffer;
+    VulkanHandle<VkSemaphore> imageAcquiredSemaphore(vulkanDevice);
+    VulkanHandle<VkSemaphore> readyToPresentSemaphore(vulkanDevice);
+    VulkanHandle<VkFence> drawingFinishedFence(vulkanDevice);
+    VulkanHandle<VkImageView> depthAttachment(vulkanDevice);
+
+    if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice, *commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, commandBuffer))
+    {
+      return false;
+    }
+    if (!VulkanInterface::CreateSemaphore(*vulkanDevice, *imageAcquiredSemaphore))
+    {
+      return false;
+    }
+    if (!VulkanInterface::CreateFence(*vulkanDevice, true, *drawingFinishedFence))
+    {
+      return false;
+    }
+
+    frameResources.push_back(
+      {
+        commandBuffer[0],
+        std::move(imageAcquiredSemaphore),
+        std::move(readyToPresentSemaphore),
+        std::move(drawingFinishedFence),
+        std::move(depthAttachment),
+        {}
+      }
+    );
+  }
+
+  if (!createSwapchain(swapchainImageUsage, useDepth, depthAttachmentUsage))
+  {
+    return false;
+  }
 
   return true;
 }
 
 bool AppBase::createSwapchain(VkImageUsageFlags swapchainImageUsage, bool useDepth, VkImageUsageFlags depthAttacmentUsage)
 {
-  return false;
-}
+  VulkanInterface::WaitForAllSubmittedCommandsToBeFinished(*vulkanDevice);
+  ready = false;
 
-bool AppBase::Initialise(VulkanInterface::WindowParameters window_parameters)
-{
-  if(initVulkan(window_parameters))
+  swapchain.imageViewsRaw.clear();
+  swapchain.imageViews.clear();
+  swapchain.images.clear();
+
+  VulkanHandle<VkSwapchainKHR> oldSwapchain = std::move(swapchain.handle);
+  swapchain.handle = VulkanHandle<VkSwapchainKHR>(*vulkanDevice);
+  if (!VulkanInterface::CreateStandardSwapchain(vulkanPhysicalDevice, *presentationSurface, *vulkanDevice, swapchainImageUsage, swapchain.size, swapchain.format, *oldSwapchain, *swapchain.handle, swapchain.images))
+  {
     return false;
+  }
+  if (!swapchain.handle)
+  {
+    return false;
+  }
 
-  
+  for (size_t i = 0; i < swapchain.images.size(); i++)
+  {
+    swapchain.imageViews.emplace_back(vulkanDevice);
+    if (!VulkanInterface::CreateImageView(*vulkanDevice, swapchain.images[i], VK_IMAGE_VIEW_TYPE_2D, swapchain.format, VK_IMAGE_ASPECT_COLOR_BIT, *swapchain.imageViews.back()))
+    {
+      return false;
+    }
+  }
 
   return true;
-}
-
-bool AppBase::Update()
-{
-
 }
 
 void AppBase::Shutdown()
@@ -236,20 +291,20 @@ void AppBase::Shutdown()
 void AppBase::cleanupVulkan()
 {
   // We need to work backwards, destroying device-level objects before instance-level objects, and so on
-  if (vulkanDevice) VulkanInterface::vkDestroyDevice(vulkanDevice, nullptr);
+  if (vulkanDevice) VulkanInterface::vkDestroyDevice(*vulkanDevice, nullptr);
 
 #if defined(_DEBUG)
-  if (callback) VulkanInterface::vkDestroyDebugUtilsMessengerEXT(vulkanInstance, callback, nullptr);
+  if (callback) VulkanInterface::vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr);
 #endif
 
-  if (presentationSurface) VulkanInterface::vkDestroySurfaceKHR(vulkanInstance, presentationSurface, nullptr);  
-  if (vulkanInstance) VulkanInterface::vkDestroyInstance(vulkanInstance, nullptr);
+  if (presentationSurface) VulkanInterface::vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);  
+  if (vulkanInstance) VulkanInterface::vkDestroyInstance(*vulkanInstance, nullptr);
   if (vulkanLibrary) VulkanInterface::ReleaseVulkanLoaderLibrary(vulkanLibrary);
 }
 
 void AppBase::OnMouseEvent()
 {
-  // Empty
+  // Empty, override on derived classes
 }
 
 void AppBase::MouseClick(size_t buttonIndex, bool state)

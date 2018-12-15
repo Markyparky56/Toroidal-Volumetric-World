@@ -1139,4 +1139,296 @@ return true;
     }
   }
 
+  bool CreateBuffer(VkDevice logicalDevice
+                  , VkDeviceSize size
+                  , VkBufferUsageFlags usage
+                  , VkBuffer & buffer)
+  {
+    VkBufferCreateInfo bufferCreateInfo = {
+      VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+      nullptr,
+      0,
+      size,
+      usage,
+      VK_SHARING_MODE_EXCLUSIVE,
+      0,
+      nullptr
+    };
+
+    VkResult result = vkCreateBuffer(logicalDevice, &bufferCreateInfo, nullptr, &buffer);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create buffer"
+      return false;
+    }
+
+    return true;
+  }
+
+  bool AllocateAndBindMemoryObjectToBuffer( VkPhysicalDevice physicalDevice
+                                          , VkDevice logicalDevice
+                                          , VkBuffer buffer
+                                          , VkMemoryPropertyFlagBits memoryProperties
+                                          , VkDeviceMemory & memoryObject)
+  {
+    VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &physicalDeviceMemoryProperties);
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(logicalDevice, buffer, &memoryRequirements);
+
+    memoryObject = nullptr;
+    for (uint32_t type = 0; type < physicalDeviceMemoryProperties.memoryTypeCount; type++)
+    {
+      if ((memoryRequirements.memoryTypeBits & (1 << type))
+      && ((physicalDeviceMemoryProperties.memoryTypes[type].propertyFlags & memoryProperties) == memoryProperties))
+      {
+        VkMemoryAllocateInfo bufferMemoryAllocateInfo = {
+          VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+          nullptr,
+          memoryRequirements.size,
+          type
+        };
+
+        VkResult result = vkAllocateMemory(logicalDevice, &bufferMemoryAllocateInfo, nullptr, &memoryObject);
+        if (result == VK_SUCCESS)
+        {
+          break;
+        }
+      }
+    }
+
+    if (memoryObject == nullptr)
+    {
+      // TODO: error, "Could not allocate memory for a buffer"
+      return false;
+    }
+
+    VkResult result = vkBindBufferMemory(logicalDevice, buffer, memoryObject, 0);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not bind memory object to a buffer"
+      return false;
+    }
+
+    return true;
+  }
+
+  void SetBufferMemoryBarrier(VkCommandBuffer commandBuffer
+                            , VkPipelineStageFlags generatingStages
+                            , VkPipelineStageFlags consumingStages
+                            , std::vector<BufferTransition> bufferTransitions)
+  {
+    std::vector<VkBufferMemoryBarrier> bufferMemoryBarriers;
+
+    for (auto & bufferTransition : bufferTransitions)
+    {
+      bufferMemoryBarriers.push_back(
+        {
+          VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+          nullptr,
+          bufferTransition.currentAccess,
+          bufferTransition.newAccess,
+          bufferTransition.currentQueueFamily,
+          bufferTransition.newQueueFamily,
+          bufferTransition.buffer,
+          0,
+          VK_WHOLE_SIZE
+        }
+      );
+    }
+
+    if (bufferMemoryBarriers.size() > 0)
+    {
+      vkCmdPipelineBarrier(commandBuffer, generatingStages, consumingStages, 0, 0, nullptr, static_cast<uint32_t>(bufferMemoryBarriers.size()), bufferMemoryBarriers.data(), 0, nullptr);
+    }
+  }
+
+  bool CreateBufferView(VkDevice logicalDevice
+                      , VkBuffer buffer
+                      , VkFormat format
+                      , VkDeviceSize memoryOffset
+                      , VkDeviceSize memoryRange
+                      , VkBufferView & bufferView)
+  {
+    VkBufferViewCreateInfo bufferViewCreateInfo = {
+      VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
+      nullptr,
+      0,
+      buffer,
+      format,
+      memoryOffset,
+      memoryRange
+    };
+
+    VkResult result = vkCreateBufferView(logicalDevice, &bufferViewCreateInfo, nullptr, &bufferView);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create buffer view"
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateImage( VkDevice logicalDevice
+                  , VkImageType type
+                  , VkFormat format
+                  , VkExtent3D size
+                  , uint32_t numMipmaps
+                  , uint32_t numLayers
+                  , VkSampleCountFlagBits samples
+                  , VkImageUsageFlags usageScenarios
+                  , bool cubemap
+                  , VkImage & image)
+  {
+    VkImageCreateInfo imageCreateInfo = {
+      VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      nullptr,
+      cubemap ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0u,
+      type,
+      format,
+      size,
+      numMipmaps,
+      cubemap ? 6 * numLayers : numLayers,
+      samples,
+      VK_IMAGE_TILING_OPTIMAL,
+      usageScenarios,
+      VK_SHARING_MODE_EXCLUSIVE,
+      0,
+      nullptr,
+      VK_IMAGE_LAYOUT_UNDEFINED
+    };
+
+    VkResult result = vkCreateImage(logicalDevice, &imageCreateInfo, nullptr, &image);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create an image"
+      return false;
+    }
+
+    return true;
+  }
+
+  bool AllocateAndBindMemoryObjectToImage(VkPhysicalDevice physicalDevice
+                                        , VkDevice logicalDevice
+                                        , VkImage image
+                                        , VkMemoryPropertyFlagBits memoryProperties
+                                        , VkDeviceMemory & memoryObject)
+  {
+    VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &physicalDeviceMemoryProperties);
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetImageMemoryRequirements(logicalDevice, image, &memoryRequirements);
+
+    memoryObject = nullptr;
+    for (uint32_t type = 0; type < physicalDeviceMemoryProperties.memoryTypeCount; type++)
+    {
+      if ((memoryRequirements.memoryTypeBits & (1 << type))
+      && ((physicalDeviceMemoryProperties.memoryTypes[type].propertyFlags & memoryProperties) == memoryProperties))
+      {
+        VkMemoryAllocateInfo imageMemoryAllocateInfo = {
+          VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+          nullptr,
+          memoryRequirements.size,
+          type
+        };
+
+        VkResult result = vkAllocateMemory(logicalDevice, &imageMemoryAllocateInfo, nullptr, &memoryObject);
+        if (result == VK_SUCCESS)
+        {
+          break;
+        }
+      }
+    }
+
+    if (memoryObject == nullptr)
+    {
+      // TODO: error, "Could not allocate memory for an image"
+      return false;
+    }
+
+    VkResult result = vkBindImageMemory(logicalDevice, image, memoryObject, 0);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not bind memory object to an image"
+      return false;
+    }
+
+    return true;
+  }
+
+  void SetImageMemoryBarrier(VkCommandBuffer commandBuffer, VkPipelineStageFlags generatingStages, VkPipelineStageFlags consumingStages, std::vector<ImageTransition> imageTransitions)
+  {
+    std::vector<VkImageMemoryBarrier> imageMemoryBarriers;
+
+    for (auto & imageTransition : imageTransitions)
+    {
+      imageMemoryBarriers.push_back(
+        {
+          VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+          nullptr,
+          imageTransition.currentAccess,
+          imageTransition.newAccess,
+          imageTransition.currentLayout,
+          imageTransition.newLayout,
+          imageTransition.currentQueueFamily,
+          imageTransition.newQueueFamily,
+          imageTransition.image,
+          {
+            imageTransition.aspect,
+            0,
+            VK_REMAINING_MIP_LEVELS,
+            0,
+            VK_REMAINING_ARRAY_LAYERS
+          }
+        }
+      );
+    }
+
+    if (imageMemoryBarriers.size() > 0)
+    {
+
+    }
+  }
+
+  void CreateImageView(VkDevice logicalDevice, VkImage image, VkImageViewType viewType, VkFormat format, VkImageAspectFlags aspect, VkImageView & imageView)
+  {
+  }
+
+  void Create2DImageAndView(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkFormat format, VkExtent2D size, uint32_t numMipmaps, uint32_t numLayers, VkSampleCountFlags samples, VkImageUsageFlags usage, VkImageAspectFlags aspect, VkImage & image, VkDeviceMemory & memoryObject, VkImageView & imageView)
+  {
+  }
+
+  bool CreateLayered2DImageWithCubemapView(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, uint32_t size, uint32_t numMipmaps, VkImageUsageFlags usage, VkImageAspectFlags aspect, VkImage & image, VkDeviceMemory & memoryObject, VkImageView & imageView)
+  {
+    return false;
+  }
+
+  bool MapUpdateAndUnmapHostVisibleMemory(VkDevice logicalDevice, VkDeviceMemory memoryObject, VkDeviceSize offset, VkDeviceSize dataSize, void * data, bool unmap, void ** pointer)
+  {
+    return false;
+  }
+
+  void CopyDataBetweenBuffers(VkCommandBuffer commandBuffer, VkBuffer sourceBuffer, VkBuffer destinationBuffer, std::vector<VkBufferCopy> regions)
+  {
+  }
+
+  void CopyDataFromBufferToImage(VkCommandBuffer commandBuffer, VkBuffer sourceBuffer, VkImage destinationImage, VkImageLayout imageLayout, std::vector<VkBufferImageCopy> regions)
+  {
+  }
+
+  void CopyDataFromImageToBuffer(VkCommandBuffer commandBuffer, VkImage sourceImage, VkImageLayout imageLayout, VkBuffer destinationBuffer, std::vector<VkBufferImageCopy> regions)
+  {
+  }
+
+  void UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkDeviceSize dataSize, void * data, VkBuffer destinationBuffer, VkDeviceSize destinationOffset, VkAccessFlags destinationBufferCurrentAccess, VkAccessFlags destinationBufferNewAccess, VkPipelineStageFlags destinationBufferGeneratingStages, VkPipelineStageFlags destinationBufferConsumingStages, VkQueue queue, VkCommandBuffer commandBuffer, std::vector<VkSemaphore> signalSemaphores)
+  {
+  }
+
+  void UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkDeviceSize dataSize, void * data, VkImage destinationImage, VkImageSubresourceLayers destinationImageSubresource, VkOffset3D destinationImageOffset, VkExtent3D destinationImageSize, VkImageLayout destinationImageCurrentLayout, VkImageLayout destinationImageNewLayout, VkAccessFlags destinationImageCurrentAccess, VkAccessFlags destinationImageNewAccess, VkImageAspectFlags destinationImageAspect, VkPipelineStageFlags destinationImageGeneratingStages, VkPipelineStageFlags destinationImageConsumingStages, VkQueue queue, VkCommandBuffer commandBuffer, std::vector<VkSemaphore> signalSemaphores)
+  {
+  }
+
 }

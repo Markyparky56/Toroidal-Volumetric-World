@@ -10,6 +10,7 @@
 #include <vulkan/vulkan.h>
 #include "VulkanInterface.Functions.hpp"
 #include "VulkanInterface.OSWindow.hpp"
+#include "VulkanInterface.VulkanHandle.hpp"
 
 #include "UnrecoverableException.hpp"
 
@@ -28,21 +29,21 @@ namespace VulkanInterface
   };
 
   struct SwapchainParameters {
-    VkSwapchainKHR handle;
+    VulkanHandle<VkSwapchainKHR> handle;
     VkFormat format;
     VkExtent2D size;
     std::vector<VkImage> images;
-    std::vector<VkImageView> imageViews;
+    std::vector<VulkanHandle<VkImageView>> imageViews;
     std::vector<VkImageView> imageViewsRaw;
   };
 
   struct FrameResources {
     VkCommandBuffer commandBuffer;
-    VkSemaphore imageAcquiredSemaphore;
-    VkSemaphore readyToPresentSemaphore;
-    VkFence drawingFinishedFence;
-    VkImageView depthAttachment;
-    VkFramebuffer framebuffer;
+    VulkanHandle<VkSemaphore> imageAcquiredSemaphore;
+    VulkanHandle<VkSemaphore> readyToPresentSemaphore;
+    VulkanHandle<VkFence> drawingFinishedFence;
+    VulkanHandle<VkImageView> depthAttachment;
+    VulkanHandle<VkFramebuffer> framebuffer;
   };
 
   struct WaitSemaphoreInfo {
@@ -53,6 +54,25 @@ namespace VulkanInterface
   struct PresentInfo {
     VkSwapchainKHR swapchain;
     uint32_t imageIndex;
+  };
+
+  struct BufferTransition {
+    VkBuffer buffer;
+    VkAccessFlags currentAccess;
+    VkAccessFlags newAccess;
+    uint32_t currentQueueFamily;
+    uint32_t newQueueFamily;
+  };
+
+  struct ImageTransition {
+    VkImage image;
+    VkAccessFlags currentAccess;
+    VkAccessFlags newAccess;
+    VkImageLayout currentLayout;
+    VkImageLayout newLayout;
+    uint32_t currentQueueFamily;
+    uint32_t newQueueFamily;
+    VkImageAspectFlags aspect;
   };
 
   bool SetupDebugCallback(VkInstance instance
@@ -216,5 +236,125 @@ namespace VulkanInterface
   void FreeCommandBuffers(VkDevice logicalDevice
                         , VkCommandPool commandPool
                         , std::vector<VkCommandBuffer> & commandBuffers);
+  
+  bool CreateBuffer(VkDevice logicalDevice
+                  , VkDeviceSize size
+                  , VkBufferUsageFlags usage
+                  , VkBuffer & buffer);
+  bool AllocateAndBindMemoryObjectToBuffer( VkPhysicalDevice physicalDevice
+                                          , VkDevice logicalDevice
+                                          , VkBuffer buffer
+                                          , VkMemoryPropertyFlagBits memoryProperties
+                                          , VkDeviceMemory & memoryObject);
+  void SetBufferMemoryBarrier(VkCommandBuffer commandBuffer
+                            , VkPipelineStageFlags generatingStages
+                            , VkPipelineStageFlags consumingStages
+                            , std::vector<BufferTransition> bufferTransitions);
+  bool CreateBufferView(VkDevice logicalDevice
+                      , VkBuffer buffer
+                      , VkFormat format
+                      , VkDeviceSize memoryOffset
+                      , VkDeviceSize memoryRange
+                      , VkBufferView & bufferView);
+  bool CreateImage( VkDevice logicalDevice
+                  , VkImageType type
+                  , VkFormat format
+                  , VkExtent3D size
+                  , uint32_t numMipmaps
+                  , uint32_t numLayers
+                  , VkSampleCountFlagBits samples
+                  , VkImageUsageFlags usageScenarios
+                  , bool cubemap
+                  , VkImage & image);
+  bool AllocateAndBindMemoryObjectToImage(VkPhysicalDevice physicalDevice
+                                        , VkDevice logicalDevice
+                                        , VkImage image
+                                        , VkMemoryPropertyFlagBits memoryProperties
+                                        , VkDeviceMemory & memoryObject);
+  void SetImageMemoryBarrier( VkCommandBuffer commandBuffer
+                            , VkPipelineStageFlags generatingStages
+                            , VkPipelineStageFlags consumingStages
+                            , std::vector<ImageTransition> imageTransitions);
+  void CreateImageView( VkDevice logicalDevice
+                      , VkImage image
+                      , VkImageViewType viewType
+                      , VkFormat format
+                      , VkImageAspectFlags aspect
+                      , VkImageView & imageView);
+  void Create2DImageAndView(VkPhysicalDevice physicalDevice
+                          , VkDevice logicalDevice
+                          , VkFormat format
+                          , VkExtent2D size
+                          , uint32_t numMipmaps
+                          , uint32_t numLayers
+                          , VkSampleCountFlags samples
+                          , VkImageUsageFlags usage
+                          , VkImageAspectFlags aspect
+                          , VkImage & image
+                          , VkDeviceMemory & memoryObject
+                          , VkImageView & imageView);
+  bool CreateLayered2DImageWithCubemapView( VkPhysicalDevice physicalDevice
+                                          , VkDevice logicalDevice
+                                          , uint32_t size
+                                          , uint32_t numMipmaps
+                                          , VkImageUsageFlags usage
+                                          , VkImageAspectFlags aspect
+                                          , VkImage & image
+                                          , VkDeviceMemory & memoryObject
+                                          , VkImageView & imageView);
+  bool MapUpdateAndUnmapHostVisibleMemory(VkDevice logicalDevice
+                                        , VkDeviceMemory memoryObject
+                                        , VkDeviceSize offset
+                                        , VkDeviceSize dataSize
+                                        , void * data
+                                        , bool unmap
+                                        , void ** pointer);
+  void CopyDataBetweenBuffers(VkCommandBuffer commandBuffer
+                            , VkBuffer sourceBuffer
+                            , VkBuffer destinationBuffer
+                            , std::vector<VkBufferCopy> regions);
+  void CopyDataFromBufferToImage( VkCommandBuffer commandBuffer
+                                , VkBuffer sourceBuffer
+                                , VkImage destinationImage
+                                , VkImageLayout imageLayout
+                                , std::vector<VkBufferImageCopy> regions);
+  void CopyDataFromImageToBuffer( VkCommandBuffer commandBuffer
+                                , VkImage sourceImage
+                                , VkImageLayout imageLayout
+                                , VkBuffer destinationBuffer
+                                , std::vector<VkBufferImageCopy> regions);
+  void UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
+                                  VkPhysicalDevice physicalDevice
+                                , VkDevice logicalDevice
+                                , VkDeviceSize dataSize
+                                , void * data
+                                , VkBuffer destinationBuffer
+                                , VkDeviceSize destinationOffset
+                                , VkAccessFlags destinationBufferCurrentAccess
+                                , VkAccessFlags destinationBufferNewAccess
+                                , VkPipelineStageFlags destinationBufferGeneratingStages
+                                , VkPipelineStageFlags destinationBufferConsumingStages
+                                , VkQueue queue
+                                , VkCommandBuffer commandBuffer
+                                , std::vector<VkSemaphore> signalSemaphores);
+  void UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(
+                                  VkPhysicalDevice physicalDevice
+                                , VkDevice logicalDevice
+                                , VkDeviceSize dataSize
+                                , void * data
+                                , VkImage destinationImage
+                                , VkImageSubresourceLayers destinationImageSubresource
+                                , VkOffset3D destinationImageOffset
+                                , VkExtent3D destinationImageSize
+                                , VkImageLayout destinationImageCurrentLayout
+                                , VkImageLayout destinationImageNewLayout
+                                , VkAccessFlags destinationImageCurrentAccess
+                                , VkAccessFlags destinationImageNewAccess
+                                , VkImageAspectFlags destinationImageAspect
+                                , VkPipelineStageFlags destinationImageGeneratingStages
+                                , VkPipelineStageFlags destinationImageConsumingStages
+                                , VkQueue queue
+                                , VkCommandBuffer commandBuffer
+                                , std::vector<VkSemaphore> signalSemaphores);
 
 }

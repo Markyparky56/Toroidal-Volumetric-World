@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="AppBase.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="VulkanInterface.VulkanHandle.cpp" />
     <ClCompile Include="VulkanInterface.cpp" />
     <ClCompile Include="VulkanInterface.Functions.cpp" />
     <ClCompile Include="VulkanInterface.OSWindow.cpp" />
@@ -30,11 +31,13 @@
     <ClInclude Include="ExceptionMessage.hpp" />
     <ClInclude Include="UniqueHandle.hpp" />
     <ClInclude Include="UnrecoverableException.hpp" />
+    <ClInclude Include="VulkanInterface.VulkanHandle.hpp" />
     <ClInclude Include="VulkanInterface.hpp" />
     <ClInclude Include="VulkanInterface.Functions.hpp" />
     <ClInclude Include="VulkanInterface.OSWindow.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="cpp.hint" />
     <None Include="ListOfVulkanFunctions.inl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
