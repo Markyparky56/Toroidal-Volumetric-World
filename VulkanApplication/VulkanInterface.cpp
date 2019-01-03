@@ -33,7 +33,6 @@ namespace VulkanInterface
   bool LoadVulkanLoaderLibrary(LIBRARY_TYPE & library)
   {
 #if defined(_WIN32)
-#include <Windows.h>
     library = LoadLibrary("vulkan-1.dll");
 #elif defined(__linux)
     library = dlopen("libvulkan.so.1", RTLD_NOW);
@@ -1359,7 +1358,10 @@ return true;
     return true;
   }
 
-  void SetImageMemoryBarrier(VkCommandBuffer commandBuffer, VkPipelineStageFlags generatingStages, VkPipelineStageFlags consumingStages, std::vector<ImageTransition> imageTransitions)
+  void SetImageMemoryBarrier( VkCommandBuffer commandBuffer
+                            , VkPipelineStageFlags generatingStages
+                            , VkPipelineStageFlags consumingStages
+                            , std::vector<ImageTransition> imageTransitions)
   {
     std::vector<VkImageMemoryBarrier> imageMemoryBarriers;
 
@@ -1389,46 +1391,1651 @@ return true;
 
     if (imageMemoryBarriers.size() > 0)
     {
-
+      vkCmdPipelineBarrier(commandBuffer, generatingStages, consumingStages, 0, 0, nullptr, 0, nullptr, static_cast<uint32_t>(imageMemoryBarriers.size()), imageMemoryBarriers.data());
     }
   }
 
-  void CreateImageView(VkDevice logicalDevice, VkImage image, VkImageViewType viewType, VkFormat format, VkImageAspectFlags aspect, VkImageView & imageView)
+  bool CreateImageView( VkDevice logicalDevice
+                      , VkImage image
+                      , VkImageViewType viewType
+                      , VkFormat format
+                      , VkImageAspectFlags aspect
+                      , VkImageView & imageView)
   {
+    VkImageViewCreateInfo imageViewCreateInfo = {
+      VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      nullptr,
+      0,
+      image,
+      viewType,
+      format,
+      {
+        VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY
+      },
+      {
+        aspect,
+        0,
+        VK_REMAINING_MIP_LEVELS,
+        0,
+        VK_REMAINING_ARRAY_LAYERS
+      }
+    };
+
+    VkResult result = vkCreateImageView(logicalDevice, &imageViewCreateInfo, nullptr, &imageView);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create an image view"
+      return false;
+    }
+    return true;
   }
 
-  void Create2DImageAndView(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkFormat format, VkExtent2D size, uint32_t numMipmaps, uint32_t numLayers, VkSampleCountFlags samples, VkImageUsageFlags usage, VkImageAspectFlags aspect, VkImage & image, VkDeviceMemory & memoryObject, VkImageView & imageView)
+  bool Create2DImageAndView(VkPhysicalDevice physicalDevice
+                          , VkDevice logicalDevice
+                          , VkFormat format
+                          , VkExtent2D size
+                          , uint32_t numMipmaps
+                          , uint32_t numLayers
+                          , VkSampleCountFlagBits samples
+                          , VkImageUsageFlags usage
+                          , VkImageAspectFlags aspect
+                          , VkImage & image
+                          , VkDeviceMemory & memoryObject
+                          , VkImageView & imageView)
   {
+    if (!CreateImage(logicalDevice, VK_IMAGE_TYPE_2D, format, { size.width, size.height, 1 }, numMipmaps, numLayers, samples, usage, false, image))
+    {
+      return false;
+    }
+    if (!AllocateAndBindMemoryObjectToImage(physicalDevice, logicalDevice, image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryObject))
+    {
+      return false;
+    }
+    if (!CreateImageView(logicalDevice, image, VK_IMAGE_VIEW_TYPE_2D, format, aspect, imageView))
+    {
+      return false;
+    }
+    return true;
   }
 
-  bool CreateLayered2DImageWithCubemapView(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, uint32_t size, uint32_t numMipmaps, VkImageUsageFlags usage, VkImageAspectFlags aspect, VkImage & image, VkDeviceMemory & memoryObject, VkImageView & imageView)
+  bool CreateLayered2DImageWithCubemapView( VkPhysicalDevice physicalDevice
+                                          , VkDevice logicalDevice
+                                          , uint32_t size
+                                          , uint32_t numMipmaps
+                                          , VkImageUsageFlags usage
+                                          , VkImageAspectFlags aspect
+                                          , VkImage & image
+                                          , VkDeviceMemory & memoryObject
+                                          , VkImageView & imageView)
   {
+    if (!CreateImage(logicalDevice, VK_IMAGE_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM, { size, size, 1 }, numMipmaps, 6, VK_SAMPLE_COUNT_1_BIT, usage, true, image))
+    {
+      return false;
+    }
+    if (!AllocateAndBindMemoryObjectToImage(physicalDevice, logicalDevice, image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryObject))
+    {
+      return false;
+    }
+    if (!CreateImageView(logicalDevice, image, VK_IMAGE_VIEW_TYPE_CUBE, VK_FORMAT_R8G8B8A8_UNORM, aspect, imageView))
+    {
+      return false;
+    }
+    return true;
+  }
+
+  bool MapUpdateAndUnmapHostVisibleMemory(VkDevice logicalDevice
+                                        , VkDeviceMemory memoryObject
+                                        , VkDeviceSize offset
+                                        , VkDeviceSize dataSize
+                                        , void * data
+                                        , bool unmap
+                                        , void ** pointer)
+  {
+    VkResult result;
+    void * localPointer;
+    result = vkMapMemory(logicalDevice, memoryObject, offset, dataSize, 0, &localPointer);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not map memory object"
+      return false;
+    }
+
+    std::memcpy(localPointer, data, dataSize);
+
+    std::vector<VkMappedMemoryRange> memoryRanges = {
+      {
+        VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+        nullptr,
+        memoryObject,
+        offset, 
+        VK_WHOLE_SIZE
+      }
+    };
+
+    vkFlushMappedMemoryRanges(logicalDevice, static_cast<uint32_t>(memoryRanges.size()), memoryRanges.data());
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not flush mapped memory"
+      return false;
+    }
+
+    if (unmap)
+    {
+      vkUnmapMemory(logicalDevice, memoryObject);
+    }
+    else if (pointer != nullptr)
+    {
+      *pointer = localPointer;
+    }
+
+    return true;
+  }
+
+  void CopyDataBetweenBuffers(VkCommandBuffer commandBuffer
+                            , VkBuffer sourceBuffer
+                            , VkBuffer destinationBuffer
+                            , std::vector<VkBufferCopy> regions)
+  {
+    if (regions.size() > 0)
+    {
+      vkCmdCopyBuffer(commandBuffer, sourceBuffer, destinationBuffer, static_cast<uint32_t>(regions.size()), regions.data());
+    }
+  }
+
+  void CopyDataFromBufferToImage( VkCommandBuffer commandBuffer
+                                , VkBuffer sourceBuffer
+                                , VkImage destinationImage
+                                , VkImageLayout imageLayout
+                                , std::vector<VkBufferImageCopy> regions)
+  {
+    if (regions.size() > 0)
+    {
+      vkCmdCopyBufferToImage(commandBuffer, sourceBuffer, destinationImage, imageLayout, static_cast<uint32_t>(regions.size()), regions.data());
+    }
+  }
+
+  void CopyDataFromImageToBuffer( VkCommandBuffer commandBuffer
+                                , VkImage sourceImage
+                                , VkImageLayout imageLayout
+                                , VkBuffer destinationBuffer
+                                , std::vector<VkBufferImageCopy> regions)
+  {
+    if (regions.size() > 0)
+    {
+      vkCmdCopyImageToBuffer(commandBuffer, sourceImage, imageLayout, destinationBuffer, static_cast<uint32_t>(regions.size()), regions.data());
+    }
+  }
+
+  bool UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
+      VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VkDeviceSize dataSize
+    , void * data
+    , VkBuffer destinationBuffer
+    , VkDeviceSize destinationOffset
+    , VkAccessFlags destinationBufferCurrentAccess
+    , VkAccessFlags destinationBufferNewAccess
+    , VkPipelineStageFlags destinationBufferGeneratingStages
+    , VkPipelineStageFlags destinationBufferConsumingStages
+    , VkQueue queue
+    , VkCommandBuffer commandBuffer
+    , std::vector<VkSemaphore> signalSemaphores)
+  {
+    VulkanHandle(VkBuffer) stagingBuffer;
+    InitVulkanHandle(logicalDevice, stagingBuffer);
+    if (!CreateBuffer(logicalDevice, dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, *stagingBuffer))
+    {
+      return false;
+    }
+
+    VulkanHandle(VkDeviceMemory) memoryObject;
+    InitVulkanHandle(logicalDevice, memoryObject);
+    if (!AllocateAndBindMemoryObjectToBuffer(physicalDevice, logicalDevice, *stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, *memoryObject))
+    {
+      return false;
+    }
+
+    if (!MapUpdateAndUnmapHostVisibleMemory(logicalDevice, *memoryObject, 0, dataSize, data, true, nullptr))
+    {
+      return false;
+    }
+
+    if (!BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+    {
+      return false;
+    }
+
+    SetBufferMemoryBarrier(commandBuffer, destinationBufferGeneratingStages, VK_PIPELINE_STAGE_TRANSFER_BIT, { {destinationBuffer, destinationBufferCurrentAccess, VK_ACCESS_TRANSFER_WRITE_BIT, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED} });
+
+    CopyDataBetweenBuffers(commandBuffer, *stagingBuffer, destinationBuffer, { {0, destinationOffset, dataSize} });
+
+    SetBufferMemoryBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, destinationBufferConsumingStages, { {destinationBuffer, VK_ACCESS_TRANSFER_WRITE_BIT, destinationBufferNewAccess, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED} });
+
+    if (!EndCommandBufferRecordingOp(commandBuffer))
+    {
+      return false;
+    }
+
+    VulkanHandle(VkFence) fence;
+    InitVulkanHandle(logicalDevice, fence);
+    if (!CreateFence(logicalDevice, false, *fence))
+    {
+      return false;
+    }
+
+    if (!SubmitCommandBuffersToQueue(queue, {}, { commandBuffer }, signalSemaphores, *fence))
+    {
+      return false;
+    }
+
+    if (!WaitForFences(logicalDevice, { *fence }, VK_FALSE, 500000000))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(
+      VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VkDeviceSize dataSize
+    , void * data
+    , VkImage destinationImage
+    , VkImageSubresourceLayers destinationImageSubresource
+    , VkOffset3D destinationImageOffset
+    , VkExtent3D destinationImageSize
+    , VkImageLayout destinationImageCurrentLayout
+    , VkImageLayout destinationImageNewLayout
+    , VkAccessFlags destinationImageCurrentAccess
+    , VkAccessFlags destinationImageNewAccess
+    , VkImageAspectFlags destinationImageAspect
+    , VkPipelineStageFlags destinationImageGeneratingStages
+    , VkPipelineStageFlags destinationImageConsumingStages
+    , VkQueue queue
+    , VkCommandBuffer commandBuffer
+    , std::vector<VkSemaphore> signalSemaphores)
+  {
+    VulkanHandle(VkBuffer) stagingBuffer;
+    InitVulkanHandle(logicalDevice, stagingBuffer);
+    if (!CreateBuffer(logicalDevice, dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, *stagingBuffer))
+    {
+      return false;
+    }
+
+    VulkanHandle(VkDeviceMemory) memoryObject; 
+    InitVulkanHandle(logicalDevice, memoryObject);
+    if (!AllocateAndBindMemoryObjectToBuffer(physicalDevice, logicalDevice, *stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, *memoryObject))
+    {
+      return false;
+    }
+
+    if (!MapUpdateAndUnmapHostVisibleMemory(logicalDevice, *memoryObject, 0, dataSize, data, true, nullptr))
+    {
+      return false;
+    }
+
+    if (!BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+    {
+      return false;
+    }
+
+    SetImageMemoryBarrier(commandBuffer, destinationImageGeneratingStages, VK_PIPELINE_STAGE_TRANSFER_BIT, 
+      {
+        {
+          destinationImage, 
+          destinationImageCurrentAccess,
+          VK_ACCESS_TRANSFER_WRITE_BIT,
+          destinationImageCurrentLayout,
+          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+          VK_QUEUE_FAMILY_IGNORED,
+          VK_QUEUE_FAMILY_IGNORED,
+          destinationImageAspect
+        }
+      }
+    );
+
+    CopyDataFromBufferToImage(commandBuffer, *stagingBuffer, destinationImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+      {
+        {
+          0,
+          0,
+          0,
+          destinationImageSubresource,
+          destinationImageOffset,
+          destinationImageSize
+        }
+      }
+    );
+
+    SetImageMemoryBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, destinationImageConsumingStages,
+      {
+        {
+          destinationImage,
+          VK_ACCESS_TRANSFER_WRITE_BIT,
+          destinationImageNewAccess,
+          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+          destinationImageNewLayout,
+          VK_QUEUE_FAMILY_IGNORED,
+          VK_QUEUE_FAMILY_IGNORED,
+          destinationImageAspect
+        }
+      }
+    );
+
+    if (!EndCommandBufferRecordingOp(commandBuffer))
+    {
+      return false;
+    }
+
+    VulkanHandle(VkFence) fence;
+    InitVulkanHandle(logicalDevice, fence);
+    if (!CreateFence(logicalDevice, false, *fence))
+    {
+      return false;
+    }
+
+    if (!SubmitCommandBuffersToQueue(queue, {}, { commandBuffer }, signalSemaphores, *fence))
+    {
+      return false;
+    }
+
+    if (!WaitForFences(logicalDevice, { *fence }, VK_FALSE, 500000000))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateSampler(VkDevice logicalDevice
+    , VkFilter magFilter
+    , VkFilter minFilter
+    , VkSamplerMipmapMode mipmapMode
+    , VkSamplerAddressMode uAddressMode
+    , VkSamplerAddressMode vAddressMode
+    , VkSamplerAddressMode wAddressMode
+    , float lodBias
+    , bool anisotropyEnable
+    , float maxAnisotropy
+    , bool compareEnable
+    , VkCompareOp compareOperator
+    , float minLod
+    , float maxLod
+    , VkBorderColor borderColor
+    , bool unnormalisedCoords
+    , VkSampler & sampler)
+  {
+    VkSamplerCreateInfo samplerCreateInfo = {
+      VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+      nullptr,
+      0,
+      magFilter,
+      minFilter,
+      mipmapMode,
+      uAddressMode,
+      vAddressMode,
+      wAddressMode,
+      lodBias,
+      anisotropyEnable,
+      maxAnisotropy,
+      compareEnable,
+      compareOperator,
+      minLod,
+      maxLod,
+      borderColor,
+      unnormalisedCoords
+    };
+
+    VkResult result = vkCreateSampler(logicalDevice, &samplerCreateInfo, nullptr, &sampler);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create sampler"
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateSampledImage(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkImageUsageFlags usage
+    , VkImageViewType viewType
+    , VkImageAspectFlags aspect
+    , bool linearFiltering
+    , VkImage & sampledImage
+    , VkDeviceMemory & memoryObject
+    , VkImageView & sampledImageView)
+  {
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+    if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT))
+    {
+      // TODO: error, "Provided format is not supported for a sampled image"
+      return false;
+    }
+
+    if (linearFiltering && !(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
+    {
+      // TODO: error, "Provided format is not supported for a linear image filtering"
+      return false;
+    }
+
+    if (!CreateImage(logicalDevice, type, format, size, numMipmaps, numLayers, VK_SAMPLE_COUNT_1_BIT, usage | VK_IMAGE_USAGE_SAMPLED_BIT, false, sampledImage))
+    {
+      return false;
+    }
+
+    if (!AllocateAndBindMemoryObjectToImage(physicalDevice, logicalDevice, sampledImage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryObject))
+    {
+      return false;
+    }
+
+    if (!CreateImageView(logicalDevice, sampledImage, viewType, format, aspect, sampledImageView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateCombinedImageSampler(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkImageUsageFlags usage
+    , VkImageViewType viewType
+    , VkImageAspectFlags aspect
+    , VkFilter magFilter
+    , VkFilter minFilter
+    , VkSamplerMipmapMode mipmapMode
+    , VkSamplerAddressMode uAddressMode
+    , VkSamplerAddressMode vAddressMode
+    , VkSamplerAddressMode wAddressMode
+    , float lodBias
+    , bool anistropyEnable
+    , float maxAnisotropy
+    , bool compareEnable
+    , VkCompareOp compareOperator
+    , float minLod
+    , float maxLod
+    , VkBorderColor borderColor
+    , bool unnormalisedCoords
+    , VkSampler & sampler
+    , VkImage & sampledImage
+    , VkDeviceMemory & memoryObject
+    , VkImageView & sampledImageView)
+  {
+    if (!CreateSampler(logicalDevice, magFilter, minFilter, mipmapMode, uAddressMode, vAddressMode, wAddressMode, lodBias, anistropyEnable, maxAnisotropy, compareEnable, compareOperator, minLod, maxLod, borderColor, unnormalisedCoords, sampler))
+    {
+      return false;
+    }
+
+    bool linearFiltering = (magFilter == VK_FILTER_LINEAR) || (minFilter == VK_FILTER_LINEAR) || (mipmapMode == VK_SAMPLER_MIPMAP_MODE_LINEAR);
+
+    if (!CreateSampledImage(physicalDevice, logicalDevice, type, format, size, numMipmaps, numLayers, usage, viewType, aspect, linearFiltering, sampledImage, memoryObject, sampledImageView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateStorageImage(VkPhysicalDevice physicalDevice
+                        , VkDevice logicalDevice
+                        , VkImageType type
+                        , VkFormat format
+                        , VkExtent3D size
+                        , uint32_t numMipmaps
+                        , uint32_t numLayers
+                        , VkImageUsageFlags usage
+                        , VkImageViewType viewType
+                        , VkImageAspectFlags aspect
+                        , bool atomicOperations
+                        , VkImage & storageImage
+                        , VkDeviceMemory & memoryObject
+                        , VkImageView & storageImagesView)
+  {
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+    if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
+    {
+      // TODO: error, "Provided format is not supported for a storage image"
+      return false;
+    }
+    if (atomicOperations && !(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT))
+    {
+      // TODO: error, "Provided format is not supported for atomic operations on storage images"
+      return false;
+    }
+
+    if (!CreateImage(logicalDevice, type, format, size, numMipmaps, numLayers, VK_SAMPLE_COUNT_1_BIT, usage | VK_IMAGE_USAGE_STORAGE_BIT, false, storageImage))
+    {
+      return false;
+    }
+     
+    if (!AllocateAndBindMemoryObjectToImage(physicalDevice, logicalDevice, storageImage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryObject))
+    {
+      return false;
+    }
+
+    if (!CreateImageView(logicalDevice, storageImage, viewType, format, aspect, storageImagesView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateUniformTexelBuffer(VkPhysicalDevice physicalDevice
+                              , VkDevice logicalDevice
+                              , VkFormat format
+                              , VkDeviceSize size
+                              , VkImageUsageFlags usage
+                              , VkBuffer & uniformTexelBuffer
+                              , VkDeviceMemory & memoryObject
+                              , VkBufferView & uniformTexelBufferView)
+  {
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+    if (!(formatProperties.bufferFeatures & VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT))
+    {
+      // TODO: error, "Provided format is not supported for a uniform texel buffer"
+      return false;
+    }
+
+    if (!CreateBuffer(logicalDevice, size, usage | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, uniformTexelBuffer))
+    {
+      return false;
+    }
+
+    if (!AllocateAndBindMemoryObjectToBuffer(physicalDevice, logicalDevice, uniformTexelBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryObject))
+    {
+      return false;
+    }
+
+    if (!CreateBufferView(logicalDevice, uniformTexelBuffer, format, 0, VK_WHOLE_SIZE, uniformTexelBufferView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateStorageTexelBuffer(VkPhysicalDevice physicalDevice
+                              , VkDevice logicalDevice
+                              , VkFormat format
+                              , VkDeviceSize size
+                              , VkBufferUsageFlags usage
+                              , bool atomicOperations
+                              , VkBuffer & storageTexelBuffer
+                              , VkDeviceMemory & memoryObject
+                              , VkBufferView & storageTexelBufferView)
+  {
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+    if (!(formatProperties.bufferFeatures & VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT))
+    {
+      // TODO: error, "Provided format is not supported for a uniform texel buffer"
+      return false;
+    }
+
+    if (atomicOperations && !(formatProperties.bufferFeatures & VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT))
+    {
+      // TODO: error, "provided format is not supported for atomic operations on storage texel buffers"
+      return false;
+    }
+
+    if (!CreateBuffer(logicalDevice, size, usage | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT, storageTexelBuffer))
+    {
+      return false;
+    }
+
+    if (!AllocateAndBindMemoryObjectToBuffer(physicalDevice, logicalDevice, storageTexelBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryObject))
+    {
+      return false;
+    }
+
+    if (!CreateBufferView(logicalDevice, storageTexelBuffer, format, 0, VK_WHOLE_SIZE, storageTexelBufferView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateUniformBuffer( VkPhysicalDevice physicalDevice
+                          , VkDevice logicalDevice
+                          , VkDeviceSize size
+                          , VkBufferUsageFlags usage
+                          , VkBuffer & uniformBuffer
+                          , VkDeviceMemory & memoryObject)
+  {
+    if (!CreateBuffer(logicalDevice, size, usage | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uniformBuffer))
+    {
+      return false;
+    }
+
+    if (!AllocateAndBindMemoryObjectToBuffer(physicalDevice, logicalDevice, uniformBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryObject))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateStorageBuffer( VkPhysicalDevice physicalDevice
+                          , VkDevice logicalDevice
+                          , VkDeviceSize size
+                          , VkBufferUsageFlags usage
+                          , VkBuffer & storageBuffer
+                          , VkDeviceMemory & memoryObject)
+  {
+    if (!CreateBuffer(logicalDevice, size, usage | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, storageBuffer))
+    {
+      return false;
+    }
+
+    if (!AllocateAndBindMemoryObjectToBuffer(physicalDevice, logicalDevice, storageBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryObject))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateInputAttachment( VkPhysicalDevice physicalDevice
+                            , VkDevice logicalDevice
+                            , VkImageType type
+                            , VkFormat format
+                            , VkExtent3D size
+                            , VkImageUsageFlags usage
+                            , VkImageViewType viewType
+                            , VkImageAspectFlags aspect
+                            , VkImage & inputAttachment
+                            , VkDeviceMemory & memoryObject
+                            , VkImageView & inputAttachmentImageView)
+  {
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+    if ((aspect & VK_IMAGE_ASPECT_COLOR_BIT)
+      && !(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT))
+    {
+      // TODO: error, "Provided format is not supported for an input attachment"
+      return false;
+    }
+
+    if ((aspect & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) && !(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT))
+    {
+      // TODO: error, "Provided format is not supported for an input attachment"
+      return false;
+    }
+
+    if (!CreateImage(logicalDevice, type, format, size, 1, 1, VK_SAMPLE_COUNT_1_BIT, usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, false, inputAttachment))
+    {
+      return false;
+    }
+
+    if (!AllocateAndBindMemoryObjectToImage(physicalDevice, logicalDevice, inputAttachment, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryObject))
+    {
+      return false;
+    }
+
+    if (!CreateImageView(logicalDevice, inputAttachment, viewType, format, aspect, inputAttachmentImageView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateDescriptorSetLayout( VkDevice logicalDevice
+                                , std::vector<VkDescriptorSetLayoutBinding> const & bindings
+                                , VkDescriptorSetLayout descriptorSetLayout)
+  {
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo = {
+      VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      nullptr,
+      0,
+      static_cast<uint32_t>(bindings.size()),
+      bindings.data()
+    };
+
+    VkResult result = vkCreateDescriptorSetLayout(logicalDevice, &descriptorSetLayoutCreateInfo, nullptr, &descriptorSetLayout);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create a layout for descriptor sets"
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateDescriptorPool(VkDevice logicalDevice
+                          , bool freeIndividualSets
+                          , uint32_t maxSetsCount
+                          , std::vector<VkDescriptorPoolSize> const & descriptorTypes
+                          , VkDescriptorPool & descriptorPool)
+  {
+    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {
+      VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+      nullptr,
+      freeIndividualSets ? VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT : 0u,
+      maxSetsCount,
+      static_cast<uint32_t>(descriptorTypes.size()),
+      descriptorTypes.data()
+    };
+
+    VkResult result = vkCreateDescriptorPool(logicalDevice, &descriptorPoolCreateInfo, nullptr, &descriptorPool);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create a descriptor pool"
+      return false;
+    }
+
+    return true;
+  }
+
+  bool AllocateDescriptorSets(VkDevice logicalDevice
+                            , VkDescriptorPool descriptorPool
+                            , std::vector<VkDescriptorSetLayout> const & descriptorSetLayouts
+                            , std::vector<VkDescriptorSet>& descriptorSets)
+  {
+    if (descriptorSetLayouts.size() > 0)
+    {
+      VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        nullptr,
+        descriptorPool,
+        static_cast<uint32_t>(descriptorSetLayouts.size()),
+        descriptorSetLayouts.data()
+      };
+
+      descriptorSets.resize(descriptorSetLayouts.size());
+
+      VkResult result = vkAllocateDescriptorSets(logicalDevice, &descriptorSetAllocateInfo, descriptorSets.data());
+      if (result != VK_SUCCESS)
+      {
+        // TODO: error, "Could not allocate descriptor sets"
+        return false;
+      }
+      return true;
+    }
     return false;
   }
 
-  bool MapUpdateAndUnmapHostVisibleMemory(VkDevice logicalDevice, VkDeviceMemory memoryObject, VkDeviceSize offset, VkDeviceSize dataSize, void * data, bool unmap, void ** pointer)
+  void UpdateDescriptorSets(VkDevice logicalDevice
+                          , std::vector<ImageDescriptorInfo> const & imageDescriptorInfos
+                          , std::vector<BufferDescriptorInfo> const & bufferDescriptorInfos
+                          , std::vector<TexelBufferDescriptorInfo> const & texelBufferDescriptorInfos
+                          , std::vector<CopyDescriptorInfo> const & copyDescriptorInfos)
   {
+    std::vector<VkWriteDescriptorSet> writeDescriptors;
+    std::vector<VkCopyDescriptorSet> copyDescriptors;
+
+    // Image Descriptors
+    for (auto & imageDescriptor : imageDescriptorInfos)
+    {
+      writeDescriptors.push_back(
+        {
+          VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          nullptr,
+          imageDescriptor.targetDescriptorSet,
+          imageDescriptor.targetDescriptorBinding,
+          imageDescriptor.targetArrayElement,
+          static_cast<uint32_t>(imageDescriptor.imageInfos.size()),
+          imageDescriptor.targetDescriptorType,
+          imageDescriptor.imageInfos.data(),
+          nullptr,
+          nullptr
+        }
+      );
+    }
+
+    // Buffer Descriptors
+    for (auto & bufferDescriptor : bufferDescriptorInfos)
+    {
+      writeDescriptors.push_back(
+        {
+          VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          nullptr,
+          bufferDescriptor.targetDescriptorSet,
+          bufferDescriptor.targetDescriptorBinding,
+          bufferDescriptor.targetArrayElement,
+          static_cast<uint32_t>(bufferDescriptor.bufferInfos.size()),
+          bufferDescriptor.targetDescriptorType,
+          nullptr,
+          bufferDescriptor.bufferInfos.data(),
+          nullptr
+        }
+      );
+    }
+
+    // Texel buffer descriptors
+    for (auto & texelBufferDescriptor : texelBufferDescriptorInfos)
+    {
+      writeDescriptors.push_back(
+        {
+          VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          nullptr,
+          texelBufferDescriptor.targetDescriptorSet,
+          texelBufferDescriptor.targetDescriptorBinding,
+          texelBufferDescriptor.targetArrayElement,
+          static_cast<uint32_t>(texelBufferDescriptor.texelBufferViews.size()),
+          texelBufferDescriptor.targetDescriptorType,
+          nullptr,
+          nullptr,
+          texelBufferDescriptor.texelBufferViews.data()
+        }
+      );
+    }
+
+    // Copy descriptors
+    for (auto & copyDescriptor : copyDescriptorInfos)
+    {
+      copyDescriptors.push_back(
+        {
+          VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET,
+          nullptr,
+          copyDescriptor.sourceDescriptorSet,
+          copyDescriptor.sourceDescriptorBinding,
+          copyDescriptor.sourceArrayElement,
+          copyDescriptor.targetDescriptorSet,
+          copyDescriptor.targetDescriptorBinding,
+          copyDescriptor.targetArrayElement,
+          copyDescriptor.descriptorCount
+        }
+      );
+    }
+
+    vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(writeDescriptors.size()), writeDescriptors.data(), static_cast<uint32_t>(copyDescriptors.size()), copyDescriptors.data());
+  }
+
+  void BindDescriptorSets(VkCommandBuffer commandBuffer
+                        , VkPipelineBindPoint pipelineType
+                        , VkPipelineLayout pipelineLayout
+                        , uint32_t indexForFirstSet
+                        , std::vector<VkDescriptorSet> const & descriptorSets
+                        , std::vector<uint32_t> const & dynamicOffsets)
+  {
+    vkCmdBindDescriptorSets(commandBuffer, pipelineType, pipelineLayout, indexForFirstSet, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), static_cast<uint32_t>(dynamicOffsets.size()), dynamicOffsets.data());
+  }
+
+  bool CreateDescriptorsWithTextureAndUniformBuffer(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkExtent3D sampledImageSize, uint32_t uniformBufferSize, VkSampler & sampler, VkImage & sampledImage, VkDeviceMemory & sampledImageMemoryObject, VkImageView & sampledImageView, VkBuffer & uniformBuffer, VkDeviceMemory & uniformBufferMemoryObject, VkDescriptorSetLayout & descriptorSetLayout, VkDescriptorPool & descriptorPool, std::vector<VkDescriptorSet>& descriptorSets)
+  {
+    if (!CreateCombinedImageSampler(physicalDevice, logicalDevice, VK_IMAGE_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM, sampledImageSize, 1, 1, VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, 0.f, false, 1.f, false, VK_COMPARE_OP_ALWAYS, 0.f, 0.f, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK, false, sampler, sampledImage, sampledImageMemoryObject, sampledImageView))
+    {
+      return false;
+    }
+
+    if (!CreateUniformBuffer(physicalDevice, logicalDevice, uniformBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, uniformBuffer, uniformBufferMemoryObject))
+    {
+      return false;
+    }
+
+    std::vector<VkDescriptorSetLayoutBinding> bindings = {
+      {
+        0,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        1,
+        VK_SHADER_STAGE_FRAGMENT_BIT,
+        nullptr
+      },
+      {
+        1,
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        1,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        nullptr
+      }
+    };
+
+    if (!CreateDescriptorSetLayout(logicalDevice, bindings, descriptorSetLayout))
+    {
+      return false;
+    }
+
+    std::vector<VkDescriptorPoolSize> descriptorTypes = {
+      {
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        1
+      },
+      {
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        1,
+      }
+    };
+
+    if (!CreateDescriptorPool(logicalDevice, false, 1, descriptorTypes, descriptorPool))
+    {
+      return false;
+    }
+
+    if (!AllocateDescriptorSets(logicalDevice, descriptorPool, { descriptorSetLayout }, descriptorSets))
+    {
+      return false;
+    }
+
+    std::vector<ImageDescriptorInfo> imageDescriptorInfos = {
+      {
+        descriptorSets[0],
+        0,
+        0,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        {
+          {
+            sampler,
+            sampledImageView,
+            VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR
+          }
+        }
+      }
+    };
+
+    std::vector<BufferDescriptorInfo> bufferDescriptorInfos = {
+      {
+        descriptorSets[0],
+        1,
+        0,
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        {
+          {
+            uniformBuffer,
+            0,
+            VK_WHOLE_SIZE
+          }
+        }
+      }
+    };
+
+    UpdateDescriptorSets(logicalDevice, imageDescriptorInfos, bufferDescriptorInfos, {}, {});
+    return true;
+  }
+
+  bool FreeDescriptorSets(VkDevice logicalDevice
+                        , VkDescriptorPool descriptorPool
+                        , std::vector<VkDescriptorSet>& descriptorSets)
+  {
+    if (descriptorSets.size() > 0)
+    {
+      VkResult result = vkFreeDescriptorSets(logicalDevice, descriptorPool, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data());
+      descriptorSets.clear();
+      if (result != VK_SUCCESS)
+      {
+        // TODO: error, "Error occurred during freeing descriptor sets"
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool ResetDescriptorPool(VkDevice logicalDevice, VkDescriptorPool descriptorPool)
+  {
+    VkResult result = vkResetDescriptorPool(logicalDevice, descriptorPool, 0);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Error occurred during descriptor pool reset"
+      return false;
+    }
+    return true;
+  }
+
+  void SpecifySubpassDescriptions(std::vector<SubpassParameters> const & subpassParameters
+                                , std::vector<VkSubpassDescription>& subpassDescriptions)
+  {
+    subpassDescriptions.clear();
+
+    for (auto & subpassDescription : subpassParameters)
+    {
+      subpassDescriptions.push_back(
+        {
+          0,
+          subpassDescription.pipelineType,
+          static_cast<uint32_t>(subpassDescription.inputAttachments.size()),
+          subpassDescription.inputAttachments.data(),
+          static_cast<uint32_t>(subpassDescription.colourAttachments.size()),
+          subpassDescription.colourAttachments.data(),
+          subpassDescription.resolveAttachments.data(),
+          subpassDescription.depthStencilAttachment,
+          static_cast<uint32_t>(subpassDescription.preserveAttachments.size()),
+          subpassDescription.preserveAttachments.data()
+        }
+      );
+    }
+  }
+
+  bool CreateRenderPass(VkDevice logicalDevice
+                      , std::vector<VkAttachmentDescription> const & attachmentDescriptions
+                      , std::vector<SubpassParameters> const & subpassParameters
+                      , std::vector<VkSubpassDependency> const & subpassDependencies
+                      , VkRenderPass & renderPass)
+  {
+    std::vector<VkSubpassDescription> subpassDescriptions;
+    SpecifySubpassDescriptions(subpassParameters, subpassDescriptions);
+
+    VkRenderPassCreateInfo renderPassCreateInfo = {
+      VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+      nullptr,
+      0,
+      static_cast<uint32_t>(attachmentDescriptions.size()),
+      attachmentDescriptions.data(),
+      static_cast<uint32_t>(subpassDescriptions.size()),
+      subpassDescriptions.data(),
+      static_cast<uint32_t>(subpassDependencies.size()),
+      subpassDependencies.data()
+    };
+
+    VkResult result = vkCreateRenderPass(logicalDevice, &renderPassCreateInfo, nullptr, &renderPass);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create a render pass"
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateFramebuffer( VkDevice logicalDevice
+                        , VkRenderPass renderPass
+                        , std::vector<VkImageView> const & attachments
+                        , uint32_t width
+                        , uint32_t height
+                        , uint32_t layers
+                        , VkFramebuffer & framebuffer)
+  {
+    VkFramebufferCreateInfo framebufferCreateInfo = {
+      VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      nullptr,
+      0,
+      renderPass,
+      static_cast<uint32_t>(attachments.size()),
+      attachments.data(),
+      width,
+      height,
+      layers
+    };
+
+    VkResult result = vkCreateFramebuffer(logicalDevice, &framebufferCreateInfo, nullptr, &framebuffer);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create a framebuffer"
+      return false;
+    }
+
+    return true;
+  }
+
+  void BeginRenderPass( VkCommandBuffer commandBuffer
+                      , VkRenderPass renderPass
+                      , VkFramebuffer framebuffer
+                      , VkRect2D renderArea
+                      , std::vector<VkClearValue> const & clearValues
+                      , VkSubpassContents subpassContents)
+  {
+    VkRenderPassBeginInfo renderPassBeginInfo = {
+      VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      nullptr,
+      renderPass,
+      framebuffer,
+      renderArea,
+      static_cast<uint32_t>(clearValues.size()),
+      clearValues.data()
+    };
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, subpassContents);
+  }
+  void ProgressToNextSubpass( VkCommandBuffer commandBuffer
+                            , VkSubpassContents subpassContents)
+  {
+    vkCmdNextSubpass(commandBuffer, subpassContents);
+  }
+
+  void EndRenderPass(VkCommandBuffer commandBuffer)
+  {
+    vkCmdEndRenderPass(commandBuffer);
+  }
+
+  void DestroyFramebuffer(VkDevice logicalDevice
+                        , VkFramebuffer & framebuffer)
+  {
+    if (framebuffer != nullptr)
+    {
+      vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
+      framebuffer = nullptr;
+    }
+  }
+
+  void DestroyRenderPass( VkDevice logicalDevice
+                        , VkRenderPass & renderPass)
+  {
+    if (renderPass != nullptr)
+    {
+      vkDestroyRenderPass(logicalDevice, renderPass, nullptr);
+      renderPass = nullptr;
+    }
+  }
+  bool CreateShaderModule(VkDevice logicalDevice
+                        , std::vector<unsigned char> const & sourceCode
+                        , VkShaderModule & shaderModule)
+  {
+    VkShaderModuleCreateInfo shaderModuleCreateInfo = {
+      VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+      nullptr,
+      0,
+      sourceCode.size(),
+      reinterpret_cast<uint32_t const *>(sourceCode.data())
+    };
+
+    VkResult result = vkCreateShaderModule(logicalDevice, &shaderModuleCreateInfo, nullptr, &shaderModule);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create a shader module"
+      return false;
+    }
+
+    return true;
+  }
+
+  void SpecifyPipelineShaderStages( std::vector<ShaderStageParameters> const & shaderStageParams
+                                  , std::vector<VkPipelineShaderStageCreateInfo>& shaderStageCreateInfos)
+  {
+    shaderStageCreateInfos.clear();
+    for (auto & shaderStage : shaderStageParams)
+    {
+      shaderStageCreateInfos.push_back(
+        {
+          VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+          nullptr,
+          0,
+          shaderStage.shaderStage,
+          shaderStage.shaderModule,
+          shaderStage.entryPointName,
+          shaderStage.specialisationInfo
+        }
+      );
+    }
+  }
+
+  void SpecifyPipelineVertexInputState( std::vector<VkVertexInputBindingDescription> const & bindingDescriptions
+                                      , std::vector<VkVertexInputAttributeDescription> const & attributeDescriptions
+                                      , VkPipelineVertexInputStateCreateInfo & vertexInputStateCreateInfo)
+  {
+    vertexInputStateCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+      nullptr,
+      0,
+      static_cast<uint32_t>(bindingDescriptions.size()),
+      bindingDescriptions.data(),
+      static_cast<uint32_t>(attributeDescriptions.size()),
+      attributeDescriptions.data()
+    };
+  }
+
+  void SpecifyPipelineInputAssemblyState( VkPrimitiveTopology topology
+                                        , bool primitiveRestartEnable
+                                        , VkPipelineInputAssemblyStateCreateInfo & inputAssemblyStateCreateInfo)
+  {
+    inputAssemblyStateCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+      nullptr,
+      0,
+      topology,
+      primitiveRestartEnable
+    };
+  }
+
+  void SpecifyPipelineTessellationState(uint32_t patchControlPointsCount
+                                      , VkPipelineTessellationStateCreateInfo & tesselationStateCreateInfo)
+  {
+    tesselationStateCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO,
+      nullptr,
+      0,
+      patchControlPointsCount
+    };
+  }
+
+  void SpecifyPipelineViewportAndScissorTestState(ViewportInfo const & viewportInfos
+                                                , VkPipelineViewportStateCreateInfo & viewportStateCreateInfo)
+  {
+    uint32_t viewportCount = static_cast<uint32_t>(viewportInfos.viewports.size());
+    uint32_t scissorCount = static_cast<uint32_t>(viewportInfos.scisscors.size());
+    viewportStateCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+      nullptr,
+      0,
+      viewportCount,
+      viewportInfos.viewports.data(),
+      scissorCount,
+      viewportInfos.scisscors.data()
+    };
+  }
+
+  void SpecifyPipelineRasterisationState( bool depthClampEnable
+                                        , bool rasteriserDiscardEnable
+                                        , VkPolygonMode polygonMode
+                                        , VkCullModeFlags cullingMode
+                                        , VkFrontFace frontFace
+                                        , bool depthBiasEnable
+                                        , float depthBiasConstantFactor
+                                        , float depthBiasClamp
+                                        , float depthBiasSlopeFactor
+                                        , float lineWidth
+                                        , VkPipelineRasterizationStateCreateInfo & rasterisationStateCreateInfo)
+  {
+    rasterisationStateCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+      nullptr,
+      0,
+      depthClampEnable,
+      rasteriserDiscardEnable,
+      polygonMode,
+      cullingMode,
+      frontFace,
+      depthBiasEnable,
+      depthBiasConstantFactor,
+      depthBiasClamp,
+      depthBiasSlopeFactor,
+      lineWidth
+    };
+  }
+
+  void SpecifyPipelineMultisampleState( VkSampleCountFlagBits sampleCount
+                                      , bool perSampleShadingEnable
+                                      , float minSampleShading
+                                      , VkSampleMask const * sampleMask
+                                      , bool alphaToCoverageEnable
+                                      , bool alphaToOneEnable
+                                      , VkPipelineMultisampleStateCreateInfo & multisampleStateCreateInfo)
+  {
+    multisampleStateCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+      nullptr,
+      0,
+      sampleCount,
+      perSampleShadingEnable,
+      minSampleShading,
+      sampleMask,
+      alphaToCoverageEnable,
+      alphaToOneEnable
+    };
+  }
+
+  void SpecifyPipelineDepthAndStencilState( bool depthTestEnable
+                                          , bool depthWriteEnable
+                                          , VkCompareOp depthCompareOp
+                                          , bool depthBoundsTestEnable
+                                          , float minDepthBounds
+                                          , float maxDepthBounds
+                                          , bool stencilTestEnable
+                                          , VkStencilOpState frontStencilTestParameters
+                                          , VkStencilOpState backStencilTestParameters
+                                          , VkPipelineDepthStencilStateCreateInfo & depthAndStencilStateCreateInfo)
+  {
+    depthAndStencilStateCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+      nullptr,
+      0,
+      depthTestEnable,
+      depthWriteEnable,
+      depthCompareOp,
+      depthBoundsTestEnable,
+      stencilTestEnable,
+      frontStencilTestParameters,
+      backStencilTestParameters,
+      minDepthBounds,
+      maxDepthBounds
+    };
+  }
+
+  void SpecifyPipelineBlendState( bool logicOpEnable
+                                , VkLogicOp logicOp
+                                , std::vector<VkPipelineColorBlendAttachmentState> const & attachmentBlendStates
+                                , std::array<float, 4> const & blendConstants
+                                , VkPipelineColorBlendStateCreateInfo & blendStateCreateInfo)
+  {
+    blendStateCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+      nullptr,
+      0,
+      logicOpEnable,
+      logicOp,
+      static_cast<uint32_t>(attachmentBlendStates.size()),
+      attachmentBlendStates.data(),
+      {
+        blendConstants[0],
+        blendConstants[1],
+        blendConstants[2],
+        blendConstants[3]
+      }
+    };
+  }
+
+  void SpecifyPipelineDynamicStates(std::vector<VkDynamicState> const & dynamicStates
+                                  , VkPipelineDynamicStateCreateInfo & dynamicStateCreateInfo)
+  {
+    dynamicStateCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+      nullptr,
+      0,
+      static_cast<uint32_t>(dynamicStates.size()),
+      dynamicStates.data()
+    };
+  }
+
+  bool CreatePipelineLayout(VkDevice logicalDevice
+                          , std::vector<VkDescriptorSetLayout> const & descriptorSetLayouts
+                          , std::vector<VkPushConstantRange> const & pushConstantRanges
+                          , VkPipelineLayout & pipelineLayout)
+  {
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+      nullptr,
+      0,
+      static_cast<uint32_t>(descriptorSetLayouts.size()),
+      descriptorSetLayouts.data(),
+      static_cast<uint32_t>(pushConstantRanges.size()),
+      pushConstantRanges.data()
+    };
+
+    VkResult result = vkCreatePipelineLayout(logicalDevice, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
+
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create pipeline layout"
+      return false;
+    }
+
+    return true;
+  }
+  void SpecifyGraphicsPipelineCreationParameters( VkPipelineCreateFlags additionalOptions
+                                                , std::vector<VkPipelineShaderStageCreateInfo> const & shaderStageCreateInfos
+                                                , VkPipelineVertexInputStateCreateInfo const & vertexInputStateCreateInfo
+                                                , VkPipelineInputAssemblyStateCreateInfo const & inputAssemblyStateCreateInfo
+                                                , VkPipelineTessellationStateCreateInfo const * tessellationStateCreateInfo
+                                                , VkPipelineViewportStateCreateInfo const * viewportStateCreateInfo
+                                                , VkPipelineRasterizationStateCreateInfo const & rasterisationStateCreateInfo
+                                                , VkPipelineMultisampleStateCreateInfo const * multisampleStateCreateInfo
+                                                , VkPipelineDepthStencilStateCreateInfo const * depthAndStencilStateCreateInfo
+                                                , VkPipelineColorBlendStateCreateInfo const * blendStateCreateInfo
+                                                , VkPipelineDynamicStateCreateInfo const * dynamicStateCreateInfo
+                                                , VkPipelineLayout pipelineLayout
+                                                , VkRenderPass renderPass
+                                                , uint32_t subpass
+                                                , VkPipeline basePipelineHandle
+                                                , int32_t basePipelineIndex
+                                                , VkGraphicsPipelineCreateInfo & graphicsPipelineCreateInfo)
+  {
+    graphicsPipelineCreateInfo = {
+      VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+      nullptr,
+      additionalOptions,
+      static_cast<uint32_t>(shaderStageCreateInfos.size()),
+      shaderStageCreateInfos.data(),
+      &vertexInputStateCreateInfo,
+      &inputAssemblyStateCreateInfo,
+      tessellationStateCreateInfo,
+      viewportStateCreateInfo,
+      &rasterisationStateCreateInfo,
+      multisampleStateCreateInfo,
+      depthAndStencilStateCreateInfo,
+      blendStateCreateInfo,
+      dynamicStateCreateInfo,
+      pipelineLayout,
+      renderPass,
+      subpass,
+      basePipelineHandle,
+      basePipelineIndex
+    };
+  }
+
+  bool CreatePipelineCacheObject( VkDevice logicalDevice
+                                , std::vector<unsigned char> const & cacheData
+                                , VkPipelineCache & pipelineCache)
+  {
+    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+      nullptr,
+      0,
+      static_cast<uint32_t>(cacheData.size()),
+      cacheData.data()
+    };
+
+    VkResult result = vkCreatePipelineCache(logicalDevice, &pipelineCacheCreateInfo, nullptr, &pipelineCache);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create pipeline cache"
+      return false;
+    }
+
+    return true;
+  }
+
+  bool RetrieveDataFromPipelineCache( VkDevice logicalDevice
+                                    , VkPipelineCache pipelineCache
+                                    , std::vector<unsigned char>& pipelineCacheData)
+  {
+    size_t dataSize = 0;
+    VkResult result = VK_SUCCESS;
+
+    result = vkGetPipelineCacheData(logicalDevice, pipelineCache, &dataSize, nullptr);
+    if ((result != VK_SUCCESS) || (dataSize == 0))
+    {
+      // TODO: error, "Could not get the size of the pipeline cache"
+      return false;
+    }
+    pipelineCacheData.resize(dataSize);
+
+    result = vkGetPipelineCacheData(logicalDevice, pipelineCache, &dataSize, pipelineCacheData.data());
+    if ((result != VK_SUCCESS) || (dataSize == 0))
+    {
+      // TODO: error, "Could not acquire pipeline cache data"
+      return false;
+    }
+
+    return true;
+  }
+
+  bool MergeMultiplePipelineCacheObjects( VkDevice logicalDevice
+                                        , VkPipelineCache targetPipelineCache
+                                        , std::vector<VkPipelineCache> const & sourcePipelineCaches)
+  {
+    if (sourcePipelineCaches.size() > 0)
+    {
+      VkResult result = vkMergePipelineCaches(logicalDevice, targetPipelineCache, static_cast<uint32_t>(sourcePipelineCaches.size()), sourcePipelineCaches.data());
+      if (result != VK_SUCCESS)
+      {
+        // TODO: error, "Could not merge pipeline cache objects"
+        return false;
+      }
+      return true;
+    }
     return false;
   }
 
-  void CopyDataBetweenBuffers(VkCommandBuffer commandBuffer, VkBuffer sourceBuffer, VkBuffer destinationBuffer, std::vector<VkBufferCopy> regions)
+  bool CreateGraphicsPipelines( VkDevice logicalDevice
+                              , std::vector<VkGraphicsPipelineCreateInfo> const & graphicsPipelineCreateInfos
+                              , VkPipelineCache pipelineCache
+                              , std::vector<VkPipeline>& graphicsPipelines)
   {
+    if (graphicsPipelineCreateInfos.size() > 0)
+    {
+      graphicsPipelines.resize(graphicsPipelineCreateInfos.size());
+      VkResult result = vkCreateGraphicsPipelines(logicalDevice, pipelineCache, static_cast<uint32_t>(graphicsPipelineCreateInfos.size()), graphicsPipelineCreateInfos.data(), nullptr, graphicsPipelines.data());
+      if (result != VK_SUCCESS)
+      {
+        // TODO: error, "Could not create a graphics pipeline"
+        return false;
+      }
+      return true;
+    }
+    return false;
   }
 
-  void CopyDataFromBufferToImage(VkCommandBuffer commandBuffer, VkBuffer sourceBuffer, VkImage destinationImage, VkImageLayout imageLayout, std::vector<VkBufferImageCopy> regions)
+  bool CreateComputePipeline( VkDevice logicalDevice
+                            , VkPipelineCreateFlags additionalOptions
+                            , VkPipelineShaderStageCreateInfo const & computeShaderStage
+                            , VkPipelineLayout pipelineLayout
+                            , VkPipeline basePipelineHandle
+                            , VkPipelineCache pipelineCache
+                            , VkPipeline & computePipeline)
   {
+    VkComputePipelineCreateInfo computePipelineCreateInfo = {
+      VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+      nullptr,
+      additionalOptions,
+      computeShaderStage,
+      pipelineLayout,
+      basePipelineHandle,
+      -1
+    };
+
+    VkResult result = vkCreateComputePipelines(logicalDevice, pipelineCache, 1, &computePipelineCreateInfo, nullptr, &computePipeline);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create compute pipeline"
+      return false;
+    }
+
+    return true;
   }
 
-  void CopyDataFromImageToBuffer(VkCommandBuffer commandBuffer, VkImage sourceImage, VkImageLayout imageLayout, VkBuffer destinationBuffer, std::vector<VkBufferImageCopy> regions)
+  void BindPipelineObject(VkCommandBuffer commandBuffer
+                        , VkPipelineBindPoint pipelineType
+                        , VkPipeline pipeline)
   {
+    vkCmdBindPipeline(commandBuffer, pipelineType, pipeline);
   }
 
-  void UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkDeviceSize dataSize, void * data, VkBuffer destinationBuffer, VkDeviceSize destinationOffset, VkAccessFlags destinationBufferCurrentAccess, VkAccessFlags destinationBufferNewAccess, VkPipelineStageFlags destinationBufferGeneratingStages, VkPipelineStageFlags destinationBufferConsumingStages, VkQueue queue, VkCommandBuffer commandBuffer, std::vector<VkSemaphore> signalSemaphores)
+  void ClearColorImage( VkCommandBuffer commandBuffer
+                      , VkImage image
+                      , VkImageLayout imageLayout
+                      , std::vector<VkImageSubresourceRange> const & imageSubresourceRanges
+                      , VkClearColorValue & clearColor)
   {
+    vkCmdClearColorImage(commandBuffer, image, imageLayout, &clearColor, static_cast<uint32_t>(imageSubresourceRanges.size()), imageSubresourceRanges.data());
   }
 
-  void UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkDeviceSize dataSize, void * data, VkImage destinationImage, VkImageSubresourceLayers destinationImageSubresource, VkOffset3D destinationImageOffset, VkExtent3D destinationImageSize, VkImageLayout destinationImageCurrentLayout, VkImageLayout destinationImageNewLayout, VkAccessFlags destinationImageCurrentAccess, VkAccessFlags destinationImageNewAccess, VkImageAspectFlags destinationImageAspect, VkPipelineStageFlags destinationImageGeneratingStages, VkPipelineStageFlags destinationImageConsumingStages, VkQueue queue, VkCommandBuffer commandBuffer, std::vector<VkSemaphore> signalSemaphores)
+  void ClearDepthStencilImage(VkCommandBuffer commandBuffer
+                            , VkImage image
+                            , VkImageLayout imageLayout
+                            , std::vector<VkImageSubresourceRange> const & imageSubresourceRanges
+                            , VkClearDepthStencilValue & clearValue)
   {
+    vkCmdClearDepthStencilImage(commandBuffer, image, imageLayout, &clearValue, static_cast<uint32_t>(imageSubresourceRanges.size()), imageSubresourceRanges.data());
   }
 
+  void ClearRenderPassAttachments(VkCommandBuffer commandBuffer
+                                , std::vector<VkClearAttachment> const & attachments
+                                , std::vector<VkClearRect> const & rects)
+  {
+    vkCmdClearAttachments(commandBuffer, static_cast<uint32_t>(attachments.size()), attachments.data(), static_cast<uint32_t>(rects.size()), rects.data());
+  }
+
+  void BindVertexBuffers( VkCommandBuffer commandBuffer
+                        , uint32_t firstBinding
+                        , std::vector<VertexBufferParameters> const & bufferParameters)
+  {
+    if (bufferParameters.size() > 0)
+    {
+      std::vector<VkBuffer> buffers;
+      std::vector<VkDeviceSize> offsets;
+      for (auto & bufferParameters : bufferParameters)
+      {
+        buffers.push_back(bufferParameters.buffer);
+        offsets.push_back(bufferParameters.memoryOffset);
+      }
+      vkCmdBindVertexBuffers(commandBuffer, firstBinding, static_cast<uint32_t>(bufferParameters.size()), buffers.data(), offsets.data());
+    }
+  }
+
+  void BindIndexBuffer( VkCommandBuffer commandBuffer
+                      , VkBuffer buffer
+                      , VkDeviceSize memoryOffset
+                      , VkIndexType indexType)
+  {
+    vkCmdBindIndexBuffer(commandBuffer, buffer, memoryOffset, indexType);
+  }
+
+  void ProvideDataToShadersThroughPushConstants(VkCommandBuffer commandBuffer
+                                              , VkPipelineLayout pipelineLayout
+                                              , VkShaderStageFlags pipelineStages
+                                              , uint32_t offset
+                                              , uint32_t size
+                                              , void * data)
+  {
+    vkCmdPushConstants(commandBuffer, pipelineLayout, pipelineStages, offset, size, data);
+  }
+
+  void SetViewportStateDynamically( VkCommandBuffer commandBuffer
+                                  , uint32_t firstViewport
+                                  , std::vector<VkViewport> const & viewports)
+  {
+    vkCmdSetViewport(commandBuffer, firstViewport, static_cast<uint32_t>(viewports.size()), viewports.data());
+  }
+
+  void SetScissorStateDynamically(VkCommandBuffer commandBuffer
+                                , uint32_t firstScissor
+                                , std::vector<VkRect2D> const & scissors)
+  {
+    vkCmdSetScissor(commandBuffer, firstScissor, static_cast<uint32_t>(scissors.size()), scissors.data());
+  }
+
+  void SetLineWidthStateDynamically(VkCommandBuffer commandBuffer
+                                  , float lineWidth)
+  {
+    vkCmdSetLineWidth(commandBuffer, lineWidth);
+  }
+
+  void SetDepthBiasStateDynamically(VkCommandBuffer commandBuffer
+                                  , float constantFactor
+                                  , float clampValue
+                                  , float slopeFactor)
+  {
+    vkCmdSetDepthBias(commandBuffer, constantFactor, clampValue, slopeFactor);
+  }
+
+  void SetBlendConstantsStateDynamically( VkCommandBuffer commandBuffer
+                                        , std::array<float, 4> const & blendConstants)
+  {
+    vkCmdSetBlendConstants(commandBuffer, blendConstants.data());
+  }
+
+  void DrawGeometry(VkCommandBuffer commandBuffer
+                  , uint32_t vertexCount
+                  , uint32_t instanceCount
+                  , uint32_t firstVertex
+                  , uint32_t firstInstance)
+  {
+    vkCmdDraw(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+  }
+
+  void DrawIndexedGeometry( VkCommandBuffer commandBuffer
+                          , uint32_t indexCount
+                          , uint32_t instanceCount
+                          , uint32_t firstIndex
+                          , uint32_t vertexOffset
+                          , uint32_t firstInstance)
+  {
+    vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+  }
+
+  void DispatchComputeWork( VkCommandBuffer commandBuffer
+                          , uint32_t xSize
+                          , uint32_t ySize
+                          , uint32_t zSize)
+  {
+    vkCmdDispatch(commandBuffer, xSize, ySize, zSize);
+  }
 }

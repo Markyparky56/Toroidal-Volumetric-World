@@ -101,17 +101,17 @@ protected:
 
   LIBRARY_TYPE vulkanLibrary;
 
-  VulkanHandle<VkInstance> vulkanInstance;
+  VulkanHandle(VkInstance) vulkanInstance;
   VkPhysicalDevice vulkanPhysicalDevice;
-  VulkanHandle<VkDevice> vulkanDevice;
-  VulkanHandle<VkSurfaceKHR> presentationSurface;
+  VulkanHandle(VkDevice) vulkanDevice;
+  VulkanHandle(VkSurfaceKHR) presentationSurface;
   VulkanInterface::QueueParameters graphicsQueue;
   VulkanInterface::QueueParameters computeQueue;
   VulkanInterface::QueueParameters presentQueue;
   VulkanInterface::SwapchainParameters swapchain;
-  VulkanHandle<VkCommandPool> commandPool;
-  std::vector<VulkanHandle<VkImage>> depthImages;
-  std::vector<VulkanHandle<VkDeviceMemory>> vkDeviceMemory;
+  VulkanHandle(VkCommandPool) commandPool;
+  std::vector<VulkanHandle(VkImage)> depthImages;
+  std::vector<VulkanHandle(VkDeviceMemory)> vkDeviceMemory;
   std::vector<FrameResources> frameResources;
   static uint32_t const numFrames;
   static VkFormat const depthFormat;

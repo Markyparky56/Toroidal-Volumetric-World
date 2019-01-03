@@ -101,7 +101,7 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters, VkI
   // Create presentation surface
   try
   {
-    presentationSurface = VulkanHandle<VkSurfaceKHR>(*vulkanInstance);
+    VulkanInterface::InitVulkanHandle(*vulkanInstance, presentationSurface);
     VulkanInterface::CreatePresentationSurface(*vulkanInstance, windowParameters, *presentationSurface);
   }
   catch (std::runtime_error const&e)
@@ -196,7 +196,7 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters, VkI
     break;
   }
 
-  if (vulkanDevice == nullptr)
+  if (vulkanDevice)
   {
     cleanupVulkan();
     throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Failed to create logical device!"), "vulkanDevice == nullptr"));
@@ -213,10 +213,12 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters, VkI
   for (uint32_t i = 0; i < numFrames; i++)
   {
     std::vector<VkCommandBuffer> commandBuffer;
-    VulkanHandle<VkSemaphore> imageAcquiredSemaphore(vulkanDevice);
-    VulkanHandle<VkSemaphore> readyToPresentSemaphore(vulkanDevice);
-    VulkanHandle<VkFence> drawingFinishedFence(vulkanDevice);
-    VulkanHandle<VkImageView> depthAttachment(vulkanDevice);
+    VulkanHandle(VkSemaphore) imageAcquiredSemaphore;
+    VulkanHandle(VkSemaphore) readyToPresentSemaphore;
+    VulkanHandle(VkFence) drawingFinishedFence;
+    VulkanHandle(VkImageView) depthAttachment;
+
+
 
     if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice, *commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, commandBuffer))
     {
@@ -260,8 +262,8 @@ bool AppBase::createSwapchain(VkImageUsageFlags swapchainImageUsage, bool useDep
   swapchain.imageViews.clear();
   swapchain.images.clear();
 
-  VulkanHandle<VkSwapchainKHR> oldSwapchain = std::move(swapchain.handle);
-  swapchain.handle = VulkanHandle<VkSwapchainKHR>(*vulkanDevice);
+  VulkanHandle(VkSwapchainKHR) oldSwapchain = std::move(swapchain.handle);
+  VulkanInterface::InitVulkanHandle(*vulkanDevice, swapchain.handle);
   if (!VulkanInterface::CreateStandardSwapchain(vulkanPhysicalDevice, *presentationSurface, *vulkanDevice, swapchainImageUsage, swapchain.size, swapchain.format, *oldSwapchain, *swapchain.handle, swapchain.images))
   {
     return false;

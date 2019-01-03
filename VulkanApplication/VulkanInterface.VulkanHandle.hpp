@@ -1,382 +1,186 @@
 #pragma once
-// Based on Vulkan Cookbook's VulkanDestroyer Class
+// Based on Vulkan Cookbook's VkDestroyer Class
 #include <utility>
+#include <functional>
 #include "VulkanInterface.Functions.hpp"
 
 namespace VulkanInterface
 {
-  template<class Obj>
+  struct VkInstanceWrapper
+  {
+    VkInstance handle;
+  };
+
+  struct VkDeviceWrapper
+  {
+    VkDevice handle;
+  };
+
+  struct VkSurfaceKHRWrapper
+  {
+    VkSurfaceKHR handle;
+  };
+
+  template<class VkType>
+  void DestroyVulkanObject(VkType object);
+
+  template<>
+  inline void DestroyVulkanObject<VkInstanceWrapper>(VkInstanceWrapper object)
+  {
+    vkDestroyInstance(object.handle, nullptr);
+  }
+
+  template<>
+  inline void DestroyVulkanObject<VkDeviceWrapper>(VkDeviceWrapper object)
+  {
+    vkDestroyDevice(object.handle, nullptr);
+  }
+
+  template<class VkParent, class VkChild>
+  void DestroyVulkanObject(VkParent parent, VkChild object);
+
+  template<>
+  inline void DestroyVulkanObject<VkInstance, VkSurfaceKHRWrapper>(VkInstance instance, VkSurfaceKHRWrapper surface)
+  {
+    vkDestroySurfaceKHR(instance, surface.handle, nullptr);
+  }
+
+#define VulkanHandleSpecialisation(VkChild, VkDeleter) \
+  struct VkChild##Wrapper{ \
+    VkChild handle; \
+  }; \
+      \
+  template<> \
+  inline void DestroyVulkanObject<VkDevice, VkChild##Wrapper>(VkDevice device, VkChild##Wrapper object) { \
+    VkDeleter(device, object.handle, nullptr); \
+  } \
+
+  VulkanHandleSpecialisation(VkSemaphore, vkDestroySemaphore)
+  VulkanHandleSpecialisation(VkFence, vkDestroyFence)
+  VulkanHandleSpecialisation(VkDeviceMemory, vkFreeMemory)
+  VulkanHandleSpecialisation(VkBuffer, vkDestroyBuffer)
+  VulkanHandleSpecialisation(VkImage, vkDestroyImage)
+  VulkanHandleSpecialisation(VkEvent, vkDestroyEvent)
+  VulkanHandleSpecialisation(VkQueryPool, vkDestroyQueryPool)
+  VulkanHandleSpecialisation(VkBufferView, vkDestroyBufferView)
+  VulkanHandleSpecialisation(VkImageView, vkDestroyImageView)
+  VulkanHandleSpecialisation(VkShaderModule, vkDestroyShaderModule)
+  VulkanHandleSpecialisation(VkPipelineCache, vkDestroyPipelineCache)
+  VulkanHandleSpecialisation(VkPipelineLayout, vkDestroyPipelineLayout)
+  VulkanHandleSpecialisation(VkRenderPass, vkDestroyRenderPass)
+  VulkanHandleSpecialisation(VkPipeline, vkDestroyPipeline)
+  VulkanHandleSpecialisation(VkDescriptorSetLayout, vkDestroyDescriptorSetLayout)
+  VulkanHandleSpecialisation(VkSampler, vkDestroySampler)
+  VulkanHandleSpecialisation(VkDescriptorPool, vkDestroyDescriptorPool)
+  VulkanHandleSpecialisation(VkFramebuffer, vkDestroyFramebuffer)
+  VulkanHandleSpecialisation(VkCommandPool, vkDestroyCommandPool)
+  VulkanHandleSpecialisation(VkSwapchainKHR, vkDestroySwapchainKHR)
+  
+
+  template<class VkTypeWrapper>
   class VulkanHandle 
   {
   public:
-    VulkanHandle() 
-      : Device(nullptr)
-      , Object(nullptr)
-    {}
+    VulkanHandle()
+      : DestroyerFunction(nullptr)
+    {
+      obj.handle = nullptr;
+    }
 
-    VulkanHandle(VkDevice device)
-      : Device(device)
-      , Object(nullptr)
-    {}
+    VulkanHandle(std::function<void(VkTypeWrapper)> destroyerFunction)
+      : DestroyerFunction(destroyerFunction)
+    {
+      obj.handle = nullptr;
+    }
 
-    VulkanHandle(VulkanHandle<VkDevice> const & device)
-      : Device(*device)
-      , Object(nullptr)
-    {}
-
-    VulkanHandle(VkDevice device, Obj object)
-      : Device(device)
-      , Object(object)
-    {}
-
-    VulkanHandle(VulkanHandle<VkDevice> const & device, Obj object)
-      : Device(*device)
-      , Object(object)
-    {}
+    VulkanHandle(VkTypeWrapper object, std::function<void(VkTypeWrapper)> destroyerFunction)
+      : DestroyerFunction(destroyerFunction)
+    {
+      obj.handle = object.handle;
+    }
 
     ~VulkanHandle()
     {
-      if ((Device != nullptr) && (Object != nullptr))
+      if (DestroyerFunction && obj.handle)
       {
-        Destroy();
+        DestroyerFunction(obj);
       }
     }
 
-    VulkanHandle(VulkanHandle<Obj> && other)
-      : VulkanHandle()
+    VulkanHandle(VulkanHandle<VkTypeWrapper> && other)
+      : DestroyerFunction(other.DestroyerFunction)
     {
-      *this = std::move(other);
+      obj.handle = other.obj.handle;
+      other.obj.handle = nullptr;
+      other.DestroyerFunction = nullptr;
     }
 
-    VulkanHandle & operator=(VulkanHandle<Obj> && other)
+    VulkanHandle & operator=(VulkanHandle<VkTypeWrapper> && other)
     {
       if (&other != this)
       {
-        VkDevice device = Device;
-        Obj object = Object;
-        Device = other.Device;
-        Object = other.Object;
-        other.Device = device;
-        other.Object = object;
-      }
+        VkTypeWrapper object = obj;
+        std::function<void(VkTypeWrapper)> destroyerFunction = DestroyerFunction;
+
+        obj.handle = other.obj.handle;
+        DestroyerFunction = other.DestroyerFunction;
+
+        other.obj.handle = obj.handle;
+        other.DestroyerFunction = destroyerFunction;
+      }     
+
       return *this;
     }
 
-    Obj & Get()
+    decltype(VkTypeWrapper::handle) & operator*()
     {
-      return Object;
+      return obj.handle;
     }
 
-    Obj * GetPtr()
+    decltype(VkTypeWrapper::handle) const & operator*() const
     {
-      return &Object;
+      return obj.handle;
     }
 
-    Obj & operator*()
+    bool operator!() const
     {
-      return Object;
+      return obj.hande == nullptr;
     }
 
-    Obj const & operator*() const 
+    operator bool() const
     {
-      return Object;
+      return obj.handle != nullptr;
     }
 
-    bool operator !() const 
-    {
-      return Object == nullptr;
-    }
-
-    explicit operator bool() const
-    {
-      return Object != nullptr;
-    }
+    VulkanHandle(VulkanHandle<VkTypeWrapper> const &) = delete;
+    VulkanHandle operator=(VulkanHandle<VkTypeWrapper> const &) = delete;
 
   private:
-    VulkanHandle(VulkanHandle<Obj> const &);
-    VulkanHandle& operator=(VulkanHandle<Obj> const &);
-    void Destroy();
-
-    VkDevice Device;
-    Obj Object;
+    VkTypeWrapper obj;
+    std::function<void(VkTypeWrapper)> DestroyerFunction;
   };
 
-  // VkInstance specialisation
-  template<>
-  class VulkanHandle<VkInstance>
+#define VulkanHandle(VkType) VulkanHandle<VulkanInterface::VkType##Wrapper>
+
+  inline void InitVulkanHandle(VulkanHandle<VkInstanceWrapper> & handle)
   {
-  public:
-    VulkanHandle()
-      : Instance(nullptr)
-    {}
-
-    VulkanHandle(VkInstance object)
-      : Instance(object)
-    {}
-
-    VulkanHandle()
-    {
-      if (Instance != nullptr)
-      {
-        Destroy();
-      }
-    }
-
-    VulkanHandle(VulkanHandle<VkInstance> && other)
-    {
-      *this = std::move(other);
-    }
-
-    VulkanHandle & operator=(VulkanHandle<VkInstance> && other)
-    {
-      if (&other != this)
-      {
-        Instance = other.Instance;
-        other.Instance = nullptr;
-      }
-      return *this;
-    }
-
-    VkInstance & Get()
-    {
-      return Instance;
-    }
-
-    VkInstance * GetPtr()
-    {
-      return &Instance;
-    }
-
-    VkInstance & operator*()
-    {
-      return Instance;
-    }
-
-    VkInstance const & operator*() const 
-    {
-      return Instance;
-    }
-
-    bool operator !() const 
-    {
-      return Instance == nullptr;
-    }
-
-    explicit operator bool() const
-    {
-      return Instance != nullptr;
-    }
-
-  private:
-    VulkanHandle(VulkanHandle<VkInstance> const &);
-    VulkanHandle & operator=(VulkanHandle<VkInstance> const &);
-    void Destroy();
-
-    VkInstance Instance;
-  };
-
-  // VkDevice specialisation
-  template<>
-  class VulkanHandle<VkDevice>
-  {
-  public:
-    VulkanHandle()
-      : LogicalDevice(nullptr)
-    {}
-
-    VulkanHandle(VkDevice object)
-      : LogicalDevice(object)
-    {}
-
-    ~VulkanHandle()
-    {
-      if (LogicalDevice != nullptr)
-      {
-        Destroy();
-      }
-    }
-
-    VulkanHandle(VulkanHandle<VkDevice> && other)
-    {
-      *this = std::move(other);
-    }
-
-    VulkanHandle & operator=(VulkanHandle<VkDevice> && other)
-    {
-      if (&other != this)
-      {
-        LogicalDevice = other.LogicalDevice;
-        other.LogicalDevice = nullptr;
-      }
-      return *this;
-    }
-
-    VkDevice & Get()
-    {
-      return LogicalDevice;
-    }
-
-    VkDevice * GetPtr()
-    {
-      return &LogicalDevice;
-    }
-
-    VkDevice & operator*()
-    {
-      return LogicalDevice;
-    }
-
-    VkDevice const & operator*() const
-    {
-      return LogicalDevice;
-    }
-
-    bool operator !() const
-    {
-      return LogicalDevice == nullptr;
-    }
-
-    explicit operator bool() const
-    {
-      return LogicalDevice != nullptr;
-    }
-
-
-  private:
-    VulkanHandle(VulkanHandle<VkDevice> const &);
-    VulkanHandle & operator=(VulkanHandle<VkDevice> const &);
-    void Destroy();
-
-    VkDevice LogicalDevice;
-  };
-
-  // VkSurfaceKHR specialisation
-  template<>
-  class VulkanHandle<VkSurfaceKHR>
-  {
-  public:
-    VulkanHandle()
-      : Instance(nullptr)
-      , Object(nullptr)
-    {}
-
-    VulkanHandle(VkInstance instance)
-      : Instance(instance)
-      , Object(nullptr)
-    {}
-
-    VulkanHandle(VulkanHandle<VkInstance> const & instance)
-      : Instance(*instance)
-      , Object(nullptr)
-    {}
-
-    VulkanHandle(VkInstance instance, VkSurfaceKHR object)
-      : Instance(instance)
-      , Object(object)
-    {}
-
-    VulkanHandle(VulkanHandle<VkInstance> const & instance, VkSurfaceKHR object)
-      : Instance(*instance)
-      , Object(object)
-    {}
-
-    ~VulkanHandle()
-    {
-      if ((Instance != nullptr) && (Object != nullptr))
-      {
-        Destroy();
-      }
-    }
-
-    VulkanHandle(VulkanHandle<VkSurfaceKHR> && other)
-    {
-      *this = std::move(other);
-    }
-
-    VulkanHandle & operator=(VulkanHandle<VkSurfaceKHR> && other)
-    {
-      if (&other != this)
-      {
-        Instance = other.Instance;
-        Object = other.Object;
-        other.Instance = nullptr;
-        other.Object = nullptr;
-      }
-      return *this;
-    }
-
-    VkSurfaceKHR & Get()
-    {
-      return Object;
-    }
-
-    VkSurfaceKHR * GetPtr()
-    {
-      return &Object;
-    }
-
-    VkSurfaceKHR & operator*()
-    {
-      return Object;
-    }
-
-    VkSurfaceKHR const & operator*() const 
-    {
-      return Object;
-    }
-
-    bool operator !() const
-    {
-      return Object == nullptr;
-    }
-
-    explicit operator bool() const
-    {
-      return Object != nullptr;
-    }
-
-  private:
-    VulkanHandle(VulkanHandle<VkSurfaceKHR> const &);
-    VulkanHandle & operator=(VulkanHandle<VkSurfaceKHR> const &);
-    void Destroy();
-
-    VkInstance Instance;
-    VkSurfaceKHR Object;
-  };
-
-  template<class Obj>
-  inline bool operator==(VulkanHandle<Obj> const & lhs, nullptr_t null)
-  {
-    return !lhs;
+    handle = VulkanHandle<VkInstanceWrapper>(std::bind(DestroyVulkanObject<VkInstanceWrapper>, std::placeholders::_1));
   }
 
-  template<class Obj>
-  inline bool operator==(nullptr_t null, VulkanHandle<Obj> const & rhs)
+  inline void InitVulkanHandle(VulkanHandle<VkDeviceWrapper> & handle)
   {
-    return !rhs;
+    handle = VulkanHandle<VkDeviceWrapper>(std::bind(DestroyVulkanObject<VkDeviceWrapper>, std::placeholders::_1));
   }
 
-  template<class Obj>
-  inline bool operator!=(VulkanHandle<Obj> const & lhs, nullptr_t null)
+  template<class VkParent, class VkType>
+  inline void InitVulkanHandle(VkParent const & parent, VulkanHandle<VkType> & handle)
   {
-    return !!lhs;
+    handle = VulkanHandle<VkType>(std::bind(VulkanHandleHelper::DestroyVulkanObject<VkParent, VkType>, parent, std::placeholders::_1));
   }
 
-  template<class Obj>
-  inline bool operator!=(nullptr_t null, VulkanHandle<Obj> const & rhs)
+  template<class VkParent, class VkType>
+  inline void InitVulkanHandle(VulkanHandle<VkParent> const & parent, VulkanHandle<VkType> & handle)
   {
-    return !!rhs;
-  }
-
-  template<class Parent, class Obj>
-  void InitVulkanHandle(Parent const & parent, Obj obj, VulkanHandle<Obj> & wrapper)
-  {
-    wrapper = VulkanHandle<Obj>(parent, obj);
-  }
-
-  template<class Parent, class Obj>
-  void InitVulkanHandle(Parent const & parent, VulkanHandle<Obj> & wrapper)
-  {
-    wrapper = VulkanHandle<Obj>(parent);
+    handle = VulkanHandle<VkType>(std::bind(VulkanHandleHelper::DestroyVulkanObject<decltype(VkParent::handle), VkType), *parent, std::placeholders::_1));
   }
 }

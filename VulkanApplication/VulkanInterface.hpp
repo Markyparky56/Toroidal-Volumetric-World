@@ -29,21 +29,21 @@ namespace VulkanInterface
   };
 
   struct SwapchainParameters {
-    VulkanHandle<VkSwapchainKHR> handle;
+    VulkanHandle(VkSwapchainKHR) handle;
     VkFormat format;
     VkExtent2D size;
     std::vector<VkImage> images;
-    std::vector<VulkanHandle<VkImageView>> imageViews;
+    std::vector<VulkanHandle(VkImageView)> imageViews;
     std::vector<VkImageView> imageViewsRaw;
   };
 
   struct FrameResources {
     VkCommandBuffer commandBuffer;
-    VulkanHandle<VkSemaphore> imageAcquiredSemaphore;
-    VulkanHandle<VkSemaphore> readyToPresentSemaphore;
-    VulkanHandle<VkFence> drawingFinishedFence;
-    VulkanHandle<VkImageView> depthAttachment;
-    VulkanHandle<VkFramebuffer> framebuffer;
+    VulkanHandle(VkSemaphore) imageAcquiredSemaphore;
+    VulkanHandle(VkSemaphore) readyToPresentSemaphore;
+    VulkanHandle(VkFence) drawingFinishedFence;
+    VulkanHandle(VkImageView) depthAttachment;
+    VulkanHandle(VkFramebuffer) framebuffer;
   };
 
   struct WaitSemaphoreInfo {
@@ -73,6 +73,66 @@ namespace VulkanInterface
     uint32_t currentQueueFamily;
     uint32_t newQueueFamily;
     VkImageAspectFlags aspect;
+  };
+
+  struct ImageDescriptorInfo {
+    VkDescriptorSet targetDescriptorSet;
+    uint32_t targetDescriptorBinding;
+    uint32_t targetArrayElement;
+    VkDescriptorType targetDescriptorType;
+    std::vector<VkDescriptorImageInfo> imageInfos;
+  };
+
+  struct BufferDescriptorInfo {
+    VkDescriptorSet targetDescriptorSet;
+    uint32_t targetDescriptorBinding;
+    uint32_t targetArrayElement;
+    VkDescriptorType targetDescriptorType;
+    std::vector<VkDescriptorBufferInfo> bufferInfos;
+  };
+
+  struct TexelBufferDescriptorInfo {
+    VkDescriptorSet targetDescriptorSet;
+    uint32_t targetDescriptorBinding;
+    uint32_t targetArrayElement;
+    VkDescriptorType targetDescriptorType;
+    std::vector<VkBufferView> texelBufferViews;
+  };
+
+  struct CopyDescriptorInfo {
+    VkDescriptorSet targetDescriptorSet;
+    uint32_t targetDescriptorBinding;
+    uint32_t targetArrayElement;
+    VkDescriptorSet sourceDescriptorSet;
+    uint32_t sourceDescriptorBinding;
+    uint32_t sourceArrayElement;
+    uint32_t descriptorCount;
+  };
+
+  struct SubpassParameters {
+    VkPipelineBindPoint pipelineType;
+    std::vector<VkAttachmentReference> inputAttachments;
+    std::vector<VkAttachmentReference> colourAttachments;
+    std::vector<VkAttachmentReference> resolveAttachments;
+    VkAttachmentReference const * depthStencilAttachment;
+    std::vector<uint32_t> preserveAttachments;
+  };
+
+  struct ShaderStageParameters {
+    VkShaderStageFlagBits shaderStage;
+    VkShaderModule shaderModule;
+    char const * entryPointName;
+    VkSpecializationInfo const * specialisationInfo;
+  };
+
+  struct ViewportInfo {
+    std::vector<VkViewport> viewports;
+    std::vector<VkRect2D> scisscors;
+  };
+
+  struct VertexBufferParameters {
+    VkBuffer buffer;
+    VkDeviceSize memoryOffset;
   };
 
   bool SetupDebugCallback(VkInstance instance
@@ -275,19 +335,19 @@ namespace VulkanInterface
                             , VkPipelineStageFlags generatingStages
                             , VkPipelineStageFlags consumingStages
                             , std::vector<ImageTransition> imageTransitions);
-  void CreateImageView( VkDevice logicalDevice
+  bool CreateImageView( VkDevice logicalDevice
                       , VkImage image
                       , VkImageViewType viewType
                       , VkFormat format
                       , VkImageAspectFlags aspect
                       , VkImageView & imageView);
-  void Create2DImageAndView(VkPhysicalDevice physicalDevice
+  bool Create2DImageAndView(VkPhysicalDevice physicalDevice
                           , VkDevice logicalDevice
                           , VkFormat format
                           , VkExtent2D size
                           , uint32_t numMipmaps
                           , uint32_t numLayers
-                          , VkSampleCountFlags samples
+                          , VkSampleCountFlagBits samples
                           , VkImageUsageFlags usage
                           , VkImageAspectFlags aspect
                           , VkImage & image
@@ -323,7 +383,7 @@ namespace VulkanInterface
                                 , VkImageLayout imageLayout
                                 , VkBuffer destinationBuffer
                                 , std::vector<VkBufferImageCopy> regions);
-  void UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
+  bool UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
                                   VkPhysicalDevice physicalDevice
                                 , VkDevice logicalDevice
                                 , VkDeviceSize dataSize
@@ -337,7 +397,7 @@ namespace VulkanInterface
                                 , VkQueue queue
                                 , VkCommandBuffer commandBuffer
                                 , std::vector<VkSemaphore> signalSemaphores);
-  void UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(
+  bool UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(
                                   VkPhysicalDevice physicalDevice
                                 , VkDevice logicalDevice
                                 , VkDeviceSize dataSize
@@ -357,4 +417,392 @@ namespace VulkanInterface
                                 , VkCommandBuffer commandBuffer
                                 , std::vector<VkSemaphore> signalSemaphores);
 
+  bool CreateSampler( VkDevice logicalDevice
+                    , VkFilter magFilter
+                    , VkFilter minFilter
+                    , VkSamplerMipmapMode mipmapMode
+                    , VkSamplerAddressMode uAddressMode
+                    , VkSamplerAddressMode vAddressMode
+                    , VkSamplerAddressMode wAddressMode
+                    , float lodBias
+                    , bool anisotropyEnable
+                    , float maxAnisotropy
+                    , bool compareEnable
+                    , VkCompareOp compareOperator
+                    , float minLod
+                    , float maxLod
+                    , VkBorderColor borderColor
+                    , bool unnormalisedCoords
+                    , VkSampler & sampler);
+
+  bool CreateSampledImage(VkPhysicalDevice physicalDevice
+                        , VkDevice logicalDevice
+                        , VkImageType type
+                        , VkFormat format
+                        , VkExtent3D size
+                        , uint32_t numMipmaps
+                        , uint32_t numLayers
+                        , VkImageUsageFlags usage
+                        , VkImageViewType viewType
+                        , VkImageAspectFlags aspect
+                        , bool linearFiltering
+                        , VkImage & sampledImage
+                        , VkDeviceMemory & memoryObject
+                        , VkImageView & sampledImageView);
+
+  bool CreateCombinedImageSampler(VkPhysicalDevice physicalDevice
+                                , VkDevice logicalDevice
+                                , VkImageType type
+                                , VkFormat format
+                                , VkExtent3D size
+                                , uint32_t numMipmaps
+                                , uint32_t numLayers
+                                , VkImageUsageFlags usage
+                                , VkImageViewType viewType
+                                , VkImageAspectFlags aspect
+                                , VkFilter magFilter
+                                , VkFilter minFilter
+                                , VkSamplerMipmapMode mipmapMode
+                                , VkSamplerAddressMode uAddressMode
+                                , VkSamplerAddressMode vAddressMode
+                                , VkSamplerAddressMode wAddressMode
+                                , float lodBias
+                                , bool anistropyEnable
+                                , float maxAnisotropy
+                                , bool compareEnable
+                                , VkCompareOp compareOperator
+                                , float minLod
+                                , float maxLod
+                                , VkBorderColor borderColor
+                                , bool unnormalisedCoords
+                                , VkSampler & sampler
+                                , VkImage & sampledImage
+                                , VkDeviceMemory & memoryObject
+                                , VkImageView & sampledImageView);
+
+  bool CreateStorageImage(VkPhysicalDevice physicalDevice
+                        , VkDevice logicalDevice
+                        , VkImageType type
+                        , VkFormat format
+                        , VkExtent3D size
+                        , uint32_t numMipmaps
+                        , uint32_t numLayers
+                        , VkImageUsageFlags usage
+                        , VkImageViewType viewType
+                        , VkImageAspectFlags aspect
+                        , bool atomicOperations
+                        , VkImage & storageImage
+                        , VkDeviceMemory & memoryObject
+                        , VkImageView & storageImagesView);
+
+  bool CreateUniformTexelBuffer(VkPhysicalDevice physicalDevice
+                              , VkDevice logicalDevice
+                              , VkFormat format
+                              , VkDeviceSize size
+                              , VkImageUsageFlags usage
+                              , VkBuffer & uniformTexelBuffer
+                              , VkDeviceMemory & memoryObject
+                              , VkBufferView & uniformTexelBufferView);
+
+  bool CreateStorageTexelBuffer(VkPhysicalDevice physicalDevice
+                              , VkDevice logicalDevice
+                              , VkFormat format
+                              , VkDeviceSize size
+                              , VkBufferUsageFlags usage
+                              , bool atomicOperations
+                              , VkBuffer & storageTexelBuffer
+                              , VkDeviceMemory & memoryObject
+                              , VkBufferView & storageTexelBufferView);
+
+  bool CreateUniformBuffer( VkPhysicalDevice physicalDevice
+                          , VkDevice logicalDevice
+                          , VkDeviceSize size
+                          , VkBufferUsageFlags usage
+                          , VkBuffer & uniformBuffer
+                          , VkDeviceMemory & memoryObject);
+
+  bool CreateStorageBuffer( VkPhysicalDevice physicalDevice
+                          , VkDevice logicalDevice
+                          , VkDeviceSize size
+                          , VkBufferUsageFlags usage
+                          , VkBuffer & storageBuffer
+                          , VkDeviceMemory & memoryObject);
+
+  bool CreateInputAttachment( VkPhysicalDevice physicalDevice
+                            , VkDevice logicalDevice
+                            , VkImageType type
+                            , VkFormat format
+                            , VkExtent3D size
+                            , VkImageUsageFlags usage
+                            , VkImageViewType viewType
+                            , VkImageAspectFlags aspect
+                            , VkImage & inputAttachment
+                            , VkDeviceMemory & memoryObject
+                            , VkImageView & inputAttachmentImageView);
+
+  bool CreateDescriptorSetLayout( VkDevice logicalDevice
+                                , std::vector<VkDescriptorSetLayoutBinding> const & bindings
+                                , VkDescriptorSetLayout descriptorSetLayout);
+
+  bool CreateDescriptorPool(VkDevice logicalDevice
+                          , bool freeIndividualSets
+                          , uint32_t maxSetsCount
+                          , std::vector<VkDescriptorPoolSize> const & descriptorTypes
+                          , VkDescriptorPool & descriptorPool);
+
+  bool AllocateDescriptorSets(VkDevice logicalDevice
+                            , VkDescriptorPool descriptorPool
+                            , std::vector<VkDescriptorSetLayout> const & descriptorSetLayouts
+                            , std::vector<VkDescriptorSet> & descriptorSets);
+
+  void UpdateDescriptorSets(VkDevice logicalDevice
+                          , std::vector<ImageDescriptorInfo> const & imageDescriptorInfos
+                          , std::vector<BufferDescriptorInfo> const & bufferDescriptorInfos
+                          , std::vector<TexelBufferDescriptorInfo> const & texelBufferDescriptorInfos
+                          , std::vector<CopyDescriptorInfo> const & copyDescriptorInfos);
+
+  void BindDescriptorSets(VkCommandBuffer commandBuffer
+                        , VkPipelineBindPoint pipelineType
+                        , VkPipelineLayout pipelineLayout
+                        , uint32_t indexForFirstSet
+                        , std::vector<VkDescriptorSet> const & descriptorSets
+                        , std::vector<uint32_t> const & dynamicOffsets);
+
+  bool CreateDescriptorsWithTextureAndUniformBuffer(VkPhysicalDevice physicalDevice
+                                                  , VkDevice logicalDevice
+                                                  , VkExtent3D sampledImageSize
+                                                  , uint32_t uniformBufferSize
+                                                  , VkSampler & sampler
+                                                  , VkImage & sampledImage
+                                                  , VkDeviceMemory & sampledImageMemoryObject
+                                                  , VkImageView & sampledImageView
+                                                  , VkBuffer & uniformBuffer
+                                                  , VkDeviceMemory & uniformBufferMemoryObject
+                                                  , VkDescriptorSetLayout & descriptorSetLayout
+                                                  , VkDescriptorPool & descriptorPool
+                                                  , std::vector<VkDescriptorSet> & descriptorSets);
+
+  bool FreeDescriptorSets(VkDevice logicalDevice
+                        , VkDescriptorPool descriptorPool
+                        , std::vector<VkDescriptorSet> & descriptorSets);
+
+  bool ResetDescriptorPool( VkDevice logicalDevice
+                          , VkDescriptorPool descriptorPool);
+
+  void SpecifySubpassDescriptions(std::vector<SubpassParameters> const & subpassParameters
+                                , std::vector<VkSubpassDescription> & subpassDescriptions);
+
+  bool CreateRenderPass(VkDevice logicalDevice
+                      , std::vector<VkAttachmentDescription> const & attachmentDescriptions
+                      , std::vector<SubpassParameters> const & subpassParameters
+                      , std::vector<VkSubpassDependency> const & subpassDependencies
+                      , VkRenderPass & renderPass);
+
+  bool CreateFramebuffer( VkDevice logicalDevice
+                        , VkRenderPass renderPass
+                        , std::vector<VkImageView> const & attachments
+                        , uint32_t width
+                        , uint32_t height
+                        , uint32_t layers
+                        , VkFramebuffer & framebuffer);
+
+  void BeginRenderPass( VkCommandBuffer commandBuffer
+                      , VkRenderPass renderPass
+                      , VkFramebuffer framebuffer
+                      , VkRect2D renderArea
+                      , std::vector<VkClearValue> const & clearValues
+                      , VkSubpassContents subpassContents);
+
+  void ProgressToNextSubpass( VkCommandBuffer commandBuffer
+                            , VkSubpassContents subpassContents);
+
+  void EndRenderPass(VkCommandBuffer commandBuffer);
+
+  void DestroyFramebuffer(VkDevice logicalDevice
+                        , VkFramebuffer & framebuffer);
+
+  void DestroyRenderPass( VkDevice logicalDevice
+                        , VkRenderPass & renderPass);
+
+  bool CreateShaderModule(VkDevice logicalDevice
+                        , std::vector<unsigned char> const & sourceCode
+                        , VkShaderModule & shaderModule);
+
+  void SpecifyPipelineShaderStages( std::vector<ShaderStageParameters> const & shaderStageParams
+                                  , std::vector<VkPipelineShaderStageCreateInfo> & shaderStageCreateInfos);
+
+  void SpecifyPipelineVertexInputState( std::vector<VkVertexInputBindingDescription> const & bindingDescriptions
+                                      , std::vector<VkVertexInputAttributeDescription> const & attributeDescriptions
+                                      , VkPipelineVertexInputStateCreateInfo & vertexInputStateCreateInfo);
+
+  void SpecifyPipelineInputAssemblyState( VkPrimitiveTopology topology
+                                        , bool primitiveRestartEnable
+                                        , VkPipelineInputAssemblyStateCreateInfo & inputAssemblyStateCreateInfo);
+
+  void SpecifyPipelineTessellationState(uint32_t patchControlPointsCount
+                                      , VkPipelineTessellationStateCreateInfo & tesselationStateCreateInfo);
+
+  void SpecifyPipelineViewportAndScissorTestState(ViewportInfo const & viewportInfos
+                                                , VkPipelineViewportStateCreateInfo & viewportStateCreateInfo);
+
+  void SpecifyPipelineRasterisationState( bool depthClampEnable
+                                        , bool rasteriserDiscardEnable
+                                        , VkPolygonMode polygonMode
+                                        , VkCullModeFlags cullingMode
+                                        , VkFrontFace frontFace
+                                        , bool depthBiasEnable
+                                        , float depthBiasConstantFactor
+                                        , float depthBiasClamp
+                                        , float depthBiasSlopeFactor
+                                        , float lineWidth
+                                        , VkPipelineRasterizationStateCreateInfo & rasterisationStateCreateInfo);
+
+  void SpecifyPipelineMultisampleState( VkSampleCountFlagBits sampleCount
+                                      , bool perSampleShadingEnable
+                                      , float minSampleShading
+                                      , VkSampleMask const * sampleMask
+                                      , bool alphaToCoverageEnable
+                                      , bool alphaToOneEnable
+                                      , VkPipelineMultisampleStateCreateInfo & multisampleStateCreateInfo);
+
+  void SpecifyPipelineDepthAndStencilState( bool depthTestEnable
+                                          , bool depthWriteEnable
+                                          , VkCompareOp depthCompareOp
+                                          , bool depthBoundsTestEnable
+                                          , float minDepthBounds
+                                          , float maxDepthBounds
+                                          , bool stencilTestEnable
+                                          , VkStencilOpState frontStencilTestParameters
+                                          , VkStencilOpState backStencilTestParameters
+                                          , VkPipelineDepthStencilStateCreateInfo & depthAndStencilStateCreateInfo);
+
+  void SpecifyPipelineBlendState( bool logicOpEnable
+                                , VkLogicOp logicOp
+                                , std::vector<VkPipelineColorBlendAttachmentState> const & attachmentBlendStates
+                                , std::array<float, 4> const & blendConstants
+                                , VkPipelineColorBlendStateCreateInfo & blendStateCreateInfo);
+
+  void SpecifyPipelineDynamicStates(std::vector<VkDynamicState> const & dynamicStates
+                                  , VkPipelineDynamicStateCreateInfo & dynamicStateCreateInfo);
+
+  bool CreatePipelineLayout(VkDevice logicalDevice
+                          , std::vector<VkDescriptorSetLayout> const & descriptorSetLayouts
+                          , std::vector<VkPushConstantRange> const & pushConstantRanges
+                          , VkPipelineLayout & pipelineLayout);
+
+  void SpecifyGraphicsPipelineCreationParameters( VkPipelineCreateFlags additionalOptions
+                                                , std::vector<VkPipelineShaderStageCreateInfo> const & shaderStageCreateInfos
+                                                , VkPipelineVertexInputStateCreateInfo const & vertexInputStateCreateInfo
+                                                , VkPipelineInputAssemblyStateCreateInfo const & inputAssemblyStateCreateInfo
+                                                , VkPipelineTessellationStateCreateInfo const * tessellationStateCreateInfo
+                                                , VkPipelineViewportStateCreateInfo const * viewportStateCreateInfo
+                                                , VkPipelineRasterizationStateCreateInfo const & rasterisationStateCreateInfo
+                                                , VkPipelineMultisampleStateCreateInfo const * multisampleStateCreateInfo
+                                                , VkPipelineDepthStencilStateCreateInfo const * depthAndStencilStateCreateInfo
+                                                , VkPipelineColorBlendStateCreateInfo const * blendStateCreateInfo
+                                                , VkPipelineDynamicStateCreateInfo const * dynamicStateCreateInfo
+                                                , VkPipelineLayout pipelineLayout
+                                                , VkRenderPass renderPass
+                                                , uint32_t subpass
+                                                , VkPipeline basePipelineHandle
+                                                , int32_t basePipelineIndex
+                                                , VkGraphicsPipelineCreateInfo & graphicsPipelineCreateInfo);
+
+  bool CreatePipelineCacheObject( VkDevice logicalDevice
+                                , std::vector<unsigned char> const & cacheData
+                                , VkPipelineCache & pipelineCache);
+
+  bool RetrieveDataFromPipelineCache( VkDevice logicalDevice
+                                    , VkPipelineCache pipelineCache
+                                    , std::vector<unsigned char> & pipelineCacheData);
+
+  bool MergeMultiplePipelineCacheObjects( VkDevice logicalDevice
+                                        , VkPipelineCache targetPipelineCache
+                                        , std::vector<VkPipelineCache> const & sourcePipelineCaches);
+
+  bool CreateGraphicsPipelines( VkDevice logicalDevice
+                              , std::vector<VkGraphicsPipelineCreateInfo> const & graphicsPipelineCreateInfos
+                              , VkPipelineCache pipelineCache
+                              , std::vector<VkPipeline> & graphicsPipelines);
+
+  bool CreateComputePipeline( VkDevice logicalDevice
+                            , VkPipelineCreateFlags additionalOptions
+                            , VkPipelineShaderStageCreateInfo const & computeShaderStage
+                            , VkPipelineLayout pipelineLayout
+                            , VkPipeline basePipelineHandle
+                            , VkPipelineCache pipelineCache
+                            , VkPipeline & computePipeline);
+
+  void BindPipelineObject(VkCommandBuffer commandBuffer
+                        , VkPipelineBindPoint pipelineType
+                        , VkPipeline pipeline);
+
+  void ClearColorImage( VkCommandBuffer commandBuffer
+                      , VkImage image
+                      , VkImageLayout imageLayout
+                      , std::vector<VkImageSubresourceRange> const & imageSubresourceRanges
+                      , VkClearColorValue & clearColor);
+
+  void ClearDepthStencilImage(VkCommandBuffer commandBuffer
+                            , VkImage image
+                            , VkImageLayout imageLayout
+                            , std::vector<VkImageSubresourceRange> const & imageSubresourceRanges
+                            , VkClearDepthStencilValue & clearValue);
+
+  void ClearRenderPassAttachments(VkCommandBuffer commandBuffer
+                                , std::vector<VkClearAttachment> const & attachments
+                                , std::vector<VkClearRect> const & rects);
+
+  void BindVertexBuffers( VkCommandBuffer commandBuffer
+                        , uint32_t firstBinding
+                        , std::vector<VertexBufferParameters> const & buffersParameters);
+
+  void BindIndexBuffer( VkCommandBuffer commandBuffer
+                      , VkBuffer buffer
+                      , VkDeviceSize memoryOffset
+                      , VkIndexType indexType);
+
+  void ProvideDataToShadersThroughPushConstants(VkCommandBuffer commandBuffer
+                                              , VkPipelineLayout pipelineLayout
+                                              , VkShaderStageFlags pipelineStages
+                                              , uint32_t offset
+                                              , uint32_t size
+                                              , void * data);
+
+  void SetViewportStateDynamically( VkCommandBuffer commandBuffer
+                                  , uint32_t firstViewport
+                                  , std::vector<VkViewport> const & viewports);
+
+  void SetScissorStateDynamically(VkCommandBuffer commandBuffer
+                                , uint32_t firstScissor
+                                , std::vector<VkRect2D> const & scissors);
+
+  void SetLineWidthStateDynamically(VkCommandBuffer commandBuffer
+                                  , float lineWidth);
+
+  void SetDepthBiasStateDynamically(VkCommandBuffer commandBuffer
+                                  , float constantFactor
+                                  , float clampValue
+                                  , float slopeFactor);
+
+  void SetBlendConstantsStateDynamically( VkCommandBuffer commandBuffer
+                                        , std::array<float, 4> const & blendConstants);
+
+  void DrawGeometry(VkCommandBuffer commandBuffer
+                  , uint32_t vertexCount
+                  , uint32_t instanceCount
+                  , uint32_t firstVertex
+                  , uint32_t firstInstance);
+
+  void DrawIndexedGeometry( VkCommandBuffer commandBuffer
+                          , uint32_t indexCount
+                          , uint32_t instanceCount
+                          , uint32_t firstIndex
+                          , uint32_t vertexOffset
+                          , uint32_t firstInstance);
+
+  void DispatchComputeWork( VkCommandBuffer commandBuffer
+                          , uint32_t xSize
+                          , uint32_t ySize
+                          , uint32_t zSize);
 }

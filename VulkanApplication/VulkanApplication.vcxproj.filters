@@ -30,11 +30,15 @@
     <ClCompile Include="VulkanInterface.OSWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="VulkanInterface.VulkanHandle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ListOfVulkanFunctions.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="cpp.hint" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ExceptionMessage.hpp">
@@ -53,6 +57,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AppBase.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UniqueHandle.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VulkanInterface.VulkanHandle.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
