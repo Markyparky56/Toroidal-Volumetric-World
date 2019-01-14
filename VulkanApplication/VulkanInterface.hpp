@@ -1,5 +1,7 @@
 #pragma once
 #include <iostream>
+#include <fstream>
+#include <cmath>
 #include <vector>
 #include <array>
 #include <string>
@@ -7,7 +9,6 @@
 #include <functional>
 #include <stdexcept>
 
-#include <vulkan/vulkan.h>
 #include "VulkanInterface.Functions.hpp"
 #include "VulkanInterface.OSWindow.hpp"
 #include "VulkanInterface.VulkanHandle.hpp"
@@ -19,13 +20,13 @@
 namespace VulkanInterface
 {
   struct QueueInfo {
-    uint32_t FamilyIndex;
-    std::vector<float> Priorities;
+    uint32_t familyIndex;
+    std::vector<float> priorities;
   };
 
   struct QueueParameters {
-    VkQueue Handle;
-    uint32_t FamilyIndex;
+    VkQueue handle;
+    uint32_t familyIndex;
   };
 
   struct SwapchainParameters {
@@ -805,4 +806,40 @@ namespace VulkanInterface
                           , uint32_t xSize
                           , uint32_t ySize
                           , uint32_t zSize);
+
+  bool GetBinaryFileContents( std::string const & filename
+                            , std::vector<unsigned char> & contents);
+
+  bool CreateFramebuffersForFrameResources( VkDevice logicalDevice
+                                          , VkRenderPass renderPass
+                                          , SwapchainParameters & swapchain
+                                          , std::vector<FrameResources> & frameResources);
+
+  bool PrepareSingleFrameOfAnimation( VkDevice logicalDevice
+                                    , VkQueue graphicsQueue
+                                    , VkQueue presentQueue
+                                    , VkSwapchainKHR swapchain
+                                    , VkExtent2D swapchainSize
+                                    , std::vector<VkImageView> const & swapchainImageViews
+                                    , VkImageView depthAttachment
+                                    , std::vector<WaitSemaphoreInfo> const & waitInfos
+                                    , VkSemaphore imageAcquiredSemaphore
+                                    , VkSemaphore readyToPresentSemaphore
+                                    , VkFence finishedDrawingFence
+                                    , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
+                                    , VkCommandBuffer commandBuffer
+                                    , VkRenderPass renderPass
+                                    , VulkanHandle(VkFramebuffer) & framebuffer);
+
+  bool RenderWithFrameResources( VkDevice logicalDevice
+                               , VkQueue graphicsQueue
+                               , VkQueue presentQueue
+                               , VkSwapchainKHR swapchain
+                               , VkExtent2D swapchainSize
+                               , std::vector<VkImageView> const & swapchainImageViews
+                               , VkRenderPass renderPass
+                               , std::vector<WaitSemaphoreInfo> const & waitInfos
+                               , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
+                               , std::vector<FrameResources> & frameResources);
+
 }

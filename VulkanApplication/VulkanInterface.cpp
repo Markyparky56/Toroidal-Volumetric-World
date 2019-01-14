@@ -13,17 +13,17 @@ namespace VulkanInterface
       0,
       VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-      VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+      VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT, // messageSeverity
       VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-      VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+      VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT, // messageType
       debugCallbackFunc,
       nullptr
     };
 
     if (vkCreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &callback) != VK_SUCCESS)
     {
-      throw std::runtime_error("Failed to set up debug callback!");
+      throw(std::runtime_error("Failed to set up debug callback!"));
       return false;
     }
     return true;
@@ -39,7 +39,7 @@ namespace VulkanInterface
 #endif
     if (library == nullptr)
     {
-      throw std::runtime_error("Unable to load vulkan library, ptr returned is nullptr");
+      throw(std::runtime_error("Unable to load vulkan library, ptr returned is nullptr"));
     }
     return (library != nullptr);
   }
@@ -68,7 +68,7 @@ namespace VulkanInterface
 #define EXPORTED_VULKAN_FUNCTION( name ) \
     name = (PFN_##name)LoadFunction( library, #name ); \
     if(name == nullptr) { \
-      throw std::runtime_error("Failed to load function " #name); \
+      throw(std::runtime_error("Failed to load function " #name)); \
       return false; \
     } 
      
@@ -82,7 +82,7 @@ namespace VulkanInterface
 #define GLOBAL_LEVEL_VULKAN_FUNCTION( name ) \
     name = (PFN_##name)vkGetInstanceProcAddr( nullptr, #name ); \
     if(name == nullptr) { \
-      throw std::runtime_error("Failed to load global-level function " #name); \
+      throw(std::runtime_error("Failed to load global-level function " #name)); \
       return false; \
     }
 
@@ -98,7 +98,7 @@ namespace VulkanInterface
 #define INSTANCE_LEVEL_VULKAN_FUNCTION( name ) \
     name = (PFN_##name)vkGetInstanceProcAddr( instance, #name ); \
     if (name == nullptr) { \
-      throw std::runtime_error("Failed to load instance-level function " #name); \
+      throw(std::runtime_error("Failed to load instance-level function " #name)); \
       return false; \
     }
 
@@ -107,8 +107,9 @@ namespace VulkanInterface
     for(auto & enabledExtension : enabledExtensions) { \
       if(std::string(enabledExtension) == std::string(extension)) { \
         name = (PFN_##name)vkGetInstanceProcAddr( instance, #name ); \
+        std::cout << name << std::endl; \
         if (name == nullptr) { \
-          throw std::runtime_error("Failed to load extension instance-level function " #name); \
+          std::cout << "Failed to load extension instance-level function " <<  #name << std::endl; \
           return false; \
         } \
       } \
@@ -124,17 +125,17 @@ namespace VulkanInterface
 #define DEVICE_LEVEL_VULKAN_FUNCTION( name ) \
     name = (PFN_##name)vkGetDeviceProcAddr( device, #name ); \
     if(name == nullptr) { \
-      throw std::runtime_error("Failed to load device-level function " #name); \
+      throw(std::runtime_error("Failed to load device-level function " #name)); \
       return false; \
     }
 
     // Load extension Vulkan device-level functions
 #define DEVICE_LEVEL_VULKAN_FUNCTION_FROM_EXTENSION( name, extension ) \
     for( auto & enabledExtension : enabledExtensions) { \
-      if(std::string(enabledExtensions) == std::string(extension)) { \
+      if(std::string(enabledExtension) == std::string(extension)) { \
         name = (PFN_##name)vkGetDeviceProcAddr(device, #name); \
         if(name == nullptr) { \
-          throw std::runtime_error("Failed to load extension device-level function " #name); \
+          throw(std::runtime_error("Failed to load extension device-level function " #name)); \
           return false; \
         } \
       } \
@@ -153,7 +154,7 @@ namespace VulkanInterface
     result = vkEnumerateInstanceLayerProperties(&availableLayersCount, nullptr);
     if ((result != VK_SUCCESS) || (availableLayersCount < static_cast<uint32_t>(availableLayers.size())))
     {
-      throw std::runtime_error("Could not get the number of available instance layers");
+      throw(std::runtime_error("Could not get the number of available instance layers"));
       return false;
     }
 
@@ -161,7 +162,7 @@ namespace VulkanInterface
     result = vkEnumerateInstanceLayerProperties(&availableLayersCount, availableLayers.data());
     if ((result != VK_SUCCESS) || (availableLayersCount < static_cast<uint32_t>(availableLayers.size())))
     {
-      throw std::runtime_error("Could not enumerate available instance layers");
+      throw(std::runtime_error("Could not enumerate available instance layers"));
       return false;
     }
 
@@ -182,7 +183,7 @@ namespace VulkanInterface
     }
     if (!found)
     {
-      throw std::runtime_error("Desired instance layer not found in available layers list");
+      throw(std::runtime_error("Desired instance layer not found in available layers list"));
     }
     return found;
   }  
@@ -196,7 +197,7 @@ namespace VulkanInterface
     result = vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, nullptr);
     if ((result != VK_SUCCESS) || (extensionsCount == 0))
     {
-      throw std::runtime_error("Could not get the number of instance extensions");
+      throw(std::runtime_error("Could not get the number of instance extensions"));
       return false;
     }
 
@@ -204,7 +205,7 @@ namespace VulkanInterface
     result = vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, availableExtensions.data());
     if ((result != VK_SUCCESS) || (extensionsCount == 0))
     {
-      throw std::runtime_error("Could not enumerate instance extensions");
+      throw(std::runtime_error("Could not enumerate instance extensions"));
       return false;
     }
 
@@ -214,20 +215,14 @@ namespace VulkanInterface
   bool IsExtensionSupported(std::vector<VkExtensionProperties> const & availableExtensions
                           , char const * const extension)
   {
-    bool found = false;
     for (auto & availableExtension : availableExtensions)
     {
       if (strstr(availableExtension.extensionName, extension))
       {
-        found = true;
-        break;
+        return true;
       }
     }
-    if (!found)
-    {
-      throw std::runtime_error("Desired Extension not found in Available Extensions list");
-    }
-    return found;
+    return false;
   }
 
   // Function to create an instance
@@ -243,7 +238,7 @@ namespace VulkanInterface
     }
     catch (std::runtime_error const &e)
     {
-      throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to get available extensions"), e);
+      throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to get available extensions"), e));
     }
 
     // Search through availableExtensions for extensions in desiredExtensions
@@ -255,7 +250,7 @@ namespace VulkanInterface
       }
       catch (std::runtime_error const &e)
       {
-        throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Desired extension is not supported by instance"), e);
+        throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Desired extension is not supported by instance"), e));
       }
     }
 
@@ -266,7 +261,7 @@ namespace VulkanInterface
     }
     catch (std::runtime_error const &e)
     {
-      throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Instance does not support desired validation layers"), e);
+      throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Instance does not support desired validation layers"), e));
     }
 
     // Search through availableLayers for layers in desiredLayers
@@ -278,7 +273,7 @@ namespace VulkanInterface
       }
       catch (std::runtime_error const &e)
       {
-        throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Desired layer is not supported by instance"), e);
+        throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Desired layer is not supported by instance"), e));
       }
     }
 
@@ -306,7 +301,7 @@ namespace VulkanInterface
     VkResult result = vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
     if ((result != VK_SUCCESS) || (instance == VK_NULL_HANDLE))
     {
-      throw std::runtime_error("Could not create Vulkan Instance");
+      throw(std::runtime_error("Could not create Vulkan Instance"));
       return false;
     }
 
@@ -323,7 +318,7 @@ namespace VulkanInterface
     result = vkEnumeratePhysicalDevices(instance, &devicesCount, nullptr);
     if ((result != VK_SUCCESS) || (devicesCount == 0))
     {
-      throw std::runtime_error("Could not get the number of available physical devices");
+      throw(std::runtime_error("Could not get the number of available physical devices"));
       return false;
     }
 
@@ -331,7 +326,7 @@ namespace VulkanInterface
     result = vkEnumeratePhysicalDevices(instance, &devicesCount, availableDevices.data());
     if ((result != VK_SUCCESS) || (devicesCount == 0))
     {
-      throw std::runtime_error("Could not enumerate physical devices");
+      throw(std::runtime_error("Could not enumerate physical devices"));
       return false;
     }
 
@@ -405,7 +400,8 @@ namespace VulkanInterface
 
     for (uint32_t index = 0; index < static_cast<uint32_t>(queueFamilies.size()); ++index)
     {
-      if ((queueFamilies[index].queueCount > 0) && (queueFamilies[index].queueFlags & desiredCapabilities))
+      if ((queueFamilies[index].queueCount > 0) 
+      && ((queueFamilies[index].queueFlags & desiredCapabilities) == desiredCapabilities))
       {
         queueFamilyIndex = index;
         return true;
@@ -461,7 +457,6 @@ namespace VulkanInterface
       {
         std::stringstream ss;
         ss << "Extension named " << extension << " is not supported by a physical device";
-        throw std::runtime_error(ss.str());
         return false;
       }
     }
@@ -471,12 +466,12 @@ namespace VulkanInterface
     for (auto & info : queueInfos)
     {
       queueCreateInfos.push_back({
-        VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         nullptr,
         0,
-        info.FamilyIndex,
-        static_cast<uint32_t>(info.Priorities.size()),
-        info.Priorities.data()
+        info.familyIndex,
+        static_cast<uint32_t>(info.priorities.size()),
+        info.priorities.data()
         }
       );
 
@@ -761,7 +756,7 @@ return true;
       oldSwapchain = nullptr;
     }
 
-    return false;
+    return true;
   }
 
   bool CreateStandardSwapchain(VkPhysicalDevice physicalDevice, VkSurfaceKHR presentationSurface, VkDevice logicalDevice, VkImageUsageFlags swapchainImageUsage, VkExtent2D & imageSize, VkFormat & imageFormat, VkSwapchainKHR & oldSwapchain, VkSwapchainKHR & swapchain, std::vector<VkImage>& swapchainImages)
@@ -1055,7 +1050,7 @@ return true;
     for (auto & waitSemaphoreInfo : waitSemaphoreInfos)
     {
       waitSemaphoreHandles.emplace_back(waitSemaphoreInfo.Semaphore);
-      waitSemaphoreHandles.emplace_back(waitSemaphoreInfo.WaitingStage);
+      waitSemaphoreStages.emplace_back(waitSemaphoreInfo.WaitingStage);
     }
 
     VkSubmitInfo submitInfo = {
@@ -3037,5 +3032,172 @@ return true;
                           , uint32_t zSize)
   {
     vkCmdDispatch(commandBuffer, xSize, ySize, zSize);
+  }
+  bool GetBinaryFileContents( std::string const & filename
+                            , std::vector<unsigned char>& contents)
+  {
+    contents.clear();
+
+    std::ifstream file(filename, std::ios::binary);
+    if (file.fail())
+    {
+      std::cout << "Could not open '" << filename << "' file." << std::endl;
+      return false;
+    }
+
+    std::streampos begin;
+    std::streampos end;
+    begin = file.tellg();
+    file.seekg(0, std::ios::end);
+    end = file.tellg();
+
+    if ((end - begin) == 0)
+    {
+      std::cout << "The '" << filename << "' file is empty." << std::endl;
+      return false;
+    }
+
+    contents.resize(static_cast<size_t>(end - begin));
+    file.seekg(0, std::ios::beg);
+    file.read(reinterpret_cast<char*>(contents.data()), end - begin);
+    file.close();
+
+    return true;
+  }
+
+  bool CreateFramebuffersForFrameResources(VkDevice logicalDevice
+    , VkRenderPass renderPass
+    , SwapchainParameters & swapchain
+    , std::vector<FrameResources> & frameResources)
+  {
+    uint32_t imgIndex = 0;
+    for (auto & frameResource : frameResources)
+    {
+      // Destroy any pre-existing framebuffer
+      if (frameResource.framebuffer) vkDestroyFramebuffer(logicalDevice, *frameResource.framebuffer, nullptr);
+
+      std::vector<VkImageView> attachments = { swapchain.imageViewsRaw[imgIndex] };
+      if (frameResource.depthAttachment) attachments.push_back(*frameResource.depthAttachment);
+
+      InitVulkanHandle(logicalDevice, frameResource.framebuffer);
+      if (!CreateFramebuffer( logicalDevice
+                            , renderPass
+                            , attachments
+                            , swapchain.size.width
+                            , swapchain.size.height
+                            , 1
+                            , *frameResource.framebuffer)
+          )
+      {
+        return false; // You done broke it
+      }
+      imgIndex++;
+    }
+    return false;
+  }
+
+  bool PrepareSingleFrameOfAnimation(VkDevice logicalDevice
+    , VkQueue graphicsQueue
+    , VkQueue presentQueue
+    , VkSwapchainKHR swapchain
+    , VkExtent2D swapchainSize
+    , std::vector<VkImageView> const & swapchainImageViews
+    , VkImageView depthAttachment
+    , std::vector<WaitSemaphoreInfo> const & waitInfos
+    , VkSemaphore imageAcquiredSemaphore
+    , VkSemaphore readyToPresentSemaphore
+    , VkFence finishedDrawingFence
+    , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
+    , VkCommandBuffer commandBuffer
+    , VkRenderPass renderPass
+    , VulkanHandle(VkFramebuffer) & framebuffer)
+  {
+    uint32_t imageIndex;
+    if (!AcquireSwapchainImage(logicalDevice, swapchain, imageAcquiredSemaphore, VK_NULL_HANDLE, imageIndex))
+    {
+      return false;
+    }
+
+    std::vector<VkImageView> attachments = { swapchainImageViews[imageIndex] };
+    if (depthAttachment != VK_NULL_HANDLE)
+    {
+      attachments.push_back(depthAttachment);
+    }
+
+    if (!framebuffer) return false; // Yo, create your framebuffers first, we ain't doing that per-frame leak stuff anymore
+
+    if (!recordCommandBuffer(commandBuffer, imageIndex, *framebuffer))
+    {
+      return false;
+    }
+
+    std::vector<WaitSemaphoreInfo> waitSemaphoreInfos = waitInfos;
+    waitSemaphoreInfos.push_back(
+      {
+        imageAcquiredSemaphore,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+      }
+    );
+    if (!SubmitCommandBuffersToQueue( graphicsQueue
+                                    , waitSemaphoreInfos
+                                    , { commandBuffer }
+                                    , { readyToPresentSemaphore }
+                                    , finishedDrawingFence)
+      )
+    {
+      return false;
+    }
+
+    PresentInfo presentInfo = {
+      swapchain,
+      imageIndex
+    };
+
+    if (!PresentImage(presentQueue, { readyToPresentSemaphore }, { presentInfo }))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool RenderWithFrameResources(VkDevice logicalDevice, VkQueue graphicsQueue, VkQueue presentQueue, VkSwapchainKHR swapchain, VkExtent2D swapchainSize, std::vector<VkImageView> const & swapchainImageViews, VkRenderPass renderPass, std::vector<WaitSemaphoreInfo> const & waitInfos, std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer, std::vector<FrameResources>& frameResources)
+  {
+    static uint32_t frameIndex = 0;
+    FrameResources & currentFrame = frameResources[frameIndex];
+
+    if (!WaitForFences(logicalDevice, { *currentFrame.drawingFinishedFence }, false, std::numeric_limits<uint64_t>::max()))
+    {
+      return false;
+    }
+
+    if (!ResetFences(logicalDevice, { *currentFrame.drawingFinishedFence }))
+    {
+      return false;
+    }
+
+    if (!PrepareSingleFrameOfAnimation( logicalDevice
+                                      , graphicsQueue
+                                      , presentQueue
+                                      , swapchain
+                                      , swapchainSize
+                                      , swapchainImageViews
+                                      , *currentFrame.depthAttachment
+                                      , waitInfos
+                                      , *currentFrame.imageAcquiredSemaphore
+                                      , *currentFrame.readyToPresentSemaphore
+                                      , *currentFrame.drawingFinishedFence
+                                      , recordCommandBuffer
+                                      , currentFrame.commandBuffer
+                                      , renderPass
+                                      , currentFrame.framebuffer)
+      )
+    {
+      return false;
+    }
+
+    frameIndex = (frameIndex + 1) % frameResources.size();
+
+    return true;
   }
 }

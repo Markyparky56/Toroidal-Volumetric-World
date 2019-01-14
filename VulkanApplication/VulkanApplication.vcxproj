@@ -21,7 +21,7 @@
   <ItemGroup>
     <ClCompile Include="AppBase.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="VulkanInterface.VulkanHandle.cpp" />
+    <ClCompile Include="TestApp.cpp" />
     <ClCompile Include="VulkanInterface.cpp" />
     <ClCompile Include="VulkanInterface.Functions.cpp" />
     <ClCompile Include="VulkanInterface.OSWindow.cpp" />
@@ -29,6 +29,7 @@
   <ItemGroup>
     <ClInclude Include="AppBase.hpp" />
     <ClInclude Include="ExceptionMessage.hpp" />
+    <ClInclude Include="TestApp.hpp" />
     <ClInclude Include="UniqueHandle.hpp" />
     <ClInclude Include="UnrecoverableException.hpp" />
     <ClInclude Include="VulkanInterface.VulkanHandle.hpp" />
@@ -38,7 +39,15 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <None Include="frag.glsl">
+      <SubType>
+      </SubType>
+    </None>
     <None Include="ListOfVulkanFunctions.inl" />
+    <None Include="vert.glsl">
+      <SubType>
+      </SubType>
+    </None>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -107,8 +116,14 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.92.1\Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <CustomBuildStep>
+      <Command>$(ProjectDir)\compileshaders_debug.bat;</Command>
+    </CustomBuildStep>
+    <PreBuildEvent>
+      <Command>compileshaders_debug.bat;</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -133,12 +148,19 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.92.1\Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <PreBuildEvent>
+      <Command>$(ProjectDir)\compileshaders_release.bat;</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

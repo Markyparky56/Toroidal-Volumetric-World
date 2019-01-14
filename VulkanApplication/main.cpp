@@ -1,4 +1,4 @@
-#include "AppBase.hpp"
+#include "TestApp.hpp"
 
 int main()
 {
@@ -9,7 +9,7 @@ int main()
   try
   {
 #endif
-    AppBase app;
+    TestApp app;
     VulkanInterface::WindowFramework window("VulkanInterface App", 50, 25, 1280, 800, app);
     window.Render();
 #if defined(_DEBUG)

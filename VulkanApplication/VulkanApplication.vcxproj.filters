@@ -30,7 +30,7 @@
     <ClCompile Include="VulkanInterface.OSWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="VulkanInterface.VulkanHandle.cpp">
+    <ClCompile Include="TestApp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -39,6 +39,12 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="cpp.hint" />
+    <None Include="vert.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="frag.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ExceptionMessage.hpp">
@@ -64,6 +70,9 @@
     </ClInclude>
     <ClInclude Include="VulkanInterface.VulkanHandle.hpp">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TestApp.hpp">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

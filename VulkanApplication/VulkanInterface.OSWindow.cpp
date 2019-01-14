@@ -63,7 +63,7 @@ namespace VulkanInterface
       return;
     }
 
-    windowParameters.HWnd = CreateWindow("VulkanInterface", title, WS_OVERLAPPEDWINDOW, x, y, width, height, nullptr, nullptr, windowParameters.HInstance, nullptr);
+    windowParameters.HWnd = CreateWindow("VulkanInterface", title, (WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU), x, y, width, height, nullptr, nullptr, windowParameters.HInstance, nullptr);
     if (!windowParameters.HWnd)
     {
       return;

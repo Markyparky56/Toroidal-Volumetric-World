@@ -56,9 +56,9 @@ public:
   AppBase();
   ~AppBase();
 
-  virtual bool Initialise(VulkanInterface::WindowParameters window_parameters) = 0;
+  virtual bool Initialise(VulkanInterface::WindowParameters windowParameters) = 0;
   virtual bool Update() = 0;
-  virtual bool Resize();
+  virtual bool Resize() = 0;
   virtual void Shutdown();
   virtual void MouseClick(size_t buttonIndex, bool state);
   virtual void MouseMove(int x, int y);
@@ -76,8 +76,9 @@ protected:
   virtual bool createSwapchain( VkImageUsageFlags swapchainImageUsage
                               , bool useDepth
                               , VkImageUsageFlags depthAttacmentUsage);
-  void cleanupVulkan();
+  virtual void cleanupVulkan();
   virtual void OnMouseEvent();
+
 
   std::vector<char const *> desiredLayers = {
 #ifdef _DEBUG
@@ -85,7 +86,7 @@ protected:
 #endif
   };
 
-  std::vector<char const *> desiredExtensions = {
+  std::vector<char const *> desiredInstanceExtensions = {
     VK_KHR_SURFACE_EXTENSION_NAME,
     VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
 #ifdef VK_USE_PLATFORM_WIN32_KHR
@@ -97,6 +98,10 @@ protected:
 #endif
   };
 
+  std::vector<char const*> desiredDeviceExtensions = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+  };
+
   VkPhysicalDeviceFeatures desiredDeviceFeatures;
 
   LIBRARY_TYPE vulkanLibrary;
@@ -104,15 +109,22 @@ protected:
   VulkanHandle(VkInstance) vulkanInstance;
   VkPhysicalDevice vulkanPhysicalDevice;
   VulkanHandle(VkDevice) vulkanDevice;
+
   VulkanHandle(VkSurfaceKHR) presentationSurface;
+
   VulkanInterface::QueueParameters graphicsQueue;
   VulkanInterface::QueueParameters computeQueue;
   VulkanInterface::QueueParameters presentQueue;
+
   VulkanInterface::SwapchainParameters swapchain;
+
   VulkanHandle(VkCommandPool) commandPool;
+
   std::vector<VulkanHandle(VkImage)> depthImages;
-  std::vector<VulkanHandle(VkDeviceMemory)> vkDeviceMemory;
+  std::vector<VulkanHandle(VkDeviceMemory)> depthImagesMemory;
+
   std::vector<FrameResources> frameResources;
+
   static uint32_t const numFrames;
   static VkFormat const depthFormat;
 

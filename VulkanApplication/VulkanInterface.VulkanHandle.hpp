@@ -20,7 +20,7 @@ namespace VulkanInterface
   {
     VkSurfaceKHR handle;
   };
-
+  
   template<class VkType>
   void DestroyVulkanObject(VkType object);
 
@@ -84,13 +84,13 @@ namespace VulkanInterface
     VulkanHandle()
       : DestroyerFunction(nullptr)
     {
-      obj.handle = nullptr;
+      obj.handle = VK_NULL_HANDLE;
     }
 
     VulkanHandle(std::function<void(VkTypeWrapper)> destroyerFunction)
       : DestroyerFunction(destroyerFunction)
     {
-      obj.handle = nullptr;
+      obj.handle = VK_NULL_HANDLE;
     }
 
     VulkanHandle(VkTypeWrapper object, std::function<void(VkTypeWrapper)> destroyerFunction)
@@ -144,12 +144,12 @@ namespace VulkanInterface
 
     bool operator!() const
     {
-      return obj.hande == nullptr;
+      return obj.handle == VK_NULL_HANDLE;
     }
 
     operator bool() const
     {
-      return obj.handle != nullptr;
+      return obj.handle != VK_NULL_HANDLE;
     }
 
     VulkanHandle(VulkanHandle<VkTypeWrapper> const &) = delete;
@@ -175,12 +175,12 @@ namespace VulkanInterface
   template<class VkParent, class VkType>
   inline void InitVulkanHandle(VkParent const & parent, VulkanHandle<VkType> & handle)
   {
-    handle = VulkanHandle<VkType>(std::bind(VulkanHandleHelper::DestroyVulkanObject<VkParent, VkType>, parent, std::placeholders::_1));
+    handle = VulkanHandle<VkType>(std::bind(DestroyVulkanObject<VkParent, VkType>, parent, std::placeholders::_1));
   }
 
   template<class VkParent, class VkType>
   inline void InitVulkanHandle(VulkanHandle<VkParent> const & parent, VulkanHandle<VkType> & handle)
   {
-    handle = VulkanHandle<VkType>(std::bind(VulkanHandleHelper::DestroyVulkanObject<decltype(VkParent::handle), VkType), *parent, std::placeholders::_1));
+    handle = VulkanHandle<VkType>(std::bind(DestroyVulkanObject<decltype(VkParent::handle), VkType>, *parent, std::placeholders::_1));
   }
 }
