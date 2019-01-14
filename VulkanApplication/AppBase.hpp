@@ -118,12 +118,9 @@ protected:
 
   VulkanInterface::SwapchainParameters swapchain;
 
-  VulkanHandle(VkCommandPool) commandPool;
+  //VulkanHandle(VkCommandPool) commandPool;
 
-  std::vector<VulkanHandle(VkImage)> depthImages;
-  std::vector<VulkanHandle(VkDeviceMemory)> depthImagesMemory;
 
-  std::vector<FrameResources> frameResources;
 
   static uint32_t const numFrames;
   static VkFormat const depthFormat;

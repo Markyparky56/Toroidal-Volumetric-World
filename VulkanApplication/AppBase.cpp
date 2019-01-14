@@ -140,53 +140,12 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters, VkI
     return false;
   }
 
-  // Prepare Frame Resources
-  VulkanInterface::InitVulkanHandle(*vulkanDevice, commandPool);
-  if (!VulkanInterface::CreateCommandPool(*vulkanDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, graphicsQueue.familyIndex, *commandPool))
-  {
-    return false;
-  }
-
-  for (uint32_t i = 0; i < numFrames; i++)
-  {
-    std::vector<VkCommandBuffer> commandBuffer;
-    VulkanHandle(VkSemaphore) imageAcquiredSemaphore;
-    VulkanInterface::InitVulkanHandle(vulkanDevice, imageAcquiredSemaphore);
-    VulkanHandle(VkSemaphore) readyToPresentSemaphore;
-    VulkanInterface::InitVulkanHandle(vulkanDevice, readyToPresentSemaphore);
-    VulkanHandle(VkFence) drawingFinishedFence;
-    VulkanInterface::InitVulkanHandle(vulkanDevice, drawingFinishedFence);
-    VulkanHandle(VkImageView) depthAttachment;
-    VulkanInterface::InitVulkanHandle(vulkanDevice, depthAttachment);
-
-    if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice, *commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, commandBuffer))
-    {
-      return false;
-    }
-    if (!VulkanInterface::CreateSemaphore(*vulkanDevice, *imageAcquiredSemaphore))
-    {
-      return false;
-    }
-    if (!VulkanInterface::CreateSemaphore(*vulkanDevice, *readyToPresentSemaphore))
-    {
-      return false;
-    }
-    if (!VulkanInterface::CreateFence(*vulkanDevice, true, *drawingFinishedFence))
-    {
-      return false;
-    }
-
-    frameResources.push_back(
-      {
-        commandBuffer[0], // We only allocate 1 buffer above
-        std::move(imageAcquiredSemaphore),
-        std::move(readyToPresentSemaphore),
-        std::move(drawingFinishedFence),
-        std::move(depthAttachment),
-        VulkanHandle(VkFramebuffer)()
-      }
-    );
-  }
+  //// Prepare Frame Resources
+  //VulkanInterface::InitVulkanHandle(*vulkanDevice, commandPool);
+  //if (!VulkanInterface::CreateCommandPool(*vulkanDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, graphicsQueue.familyIndex, *commandPool))
+  //{
+  //  return false;
+  //}
 
   if (!createSwapchain(swapchainImageUsage, useDepth, depthAttachmentUsage))
   {
@@ -225,26 +184,6 @@ bool AppBase::createSwapchain(VkImageUsageFlags swapchainImageUsage, bool useDep
       return false;
     }
     swapchain.imageViewsRaw.push_back(*swapchain.imageViews.back());
-  }
-
-  depthImages.clear();
-  depthImagesMemory.clear();
-
-  if (useDepth)
-  {
-    for(uint32_t i = 0; i < numFrames; i++)
-    {
-      depthImages.emplace_back(VulkanHandle(VkImage)());
-      VulkanInterface::InitVulkanHandle(vulkanDevice, depthImages.back());
-      depthImagesMemory.emplace_back(VulkanHandle(VkDeviceMemory)());
-      VulkanInterface::InitVulkanHandle(vulkanDevice, depthImagesMemory.back());
-      VulkanInterface::InitVulkanHandle(vulkanDevice, frameResources[i].depthAttachment);
-
-      if (!VulkanInterface::Create2DImageAndView(vulkanPhysicalDevice, *vulkanDevice, depthFormat, swapchain.size, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, *depthImages.back(), *depthImagesMemory.back(), *frameResources[i].depthAttachment))
-      {
-        return false;
-      }
-    }
   }
 
   ready = true;

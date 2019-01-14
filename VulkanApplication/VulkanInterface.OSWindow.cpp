@@ -128,7 +128,12 @@ namespace VulkanInterface
           if (app.IsReady())
           {
             app.UpdateTime();
-            app.Update();
+            if (!app.Update())
+            {
+#if defined(_DEBUG)
+              abort();
+#endif
+            }
             app.MouseReset();
           }
         }

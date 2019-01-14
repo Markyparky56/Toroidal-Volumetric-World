@@ -619,12 +619,6 @@ namespace VulkanInterface
 
   void EndRenderPass(VkCommandBuffer commandBuffer);
 
-  void DestroyFramebuffer(VkDevice logicalDevice
-                        , VkFramebuffer & framebuffer);
-
-  void DestroyRenderPass( VkDevice logicalDevice
-                        , VkRenderPass & renderPass);
-
   bool CreateShaderModule(VkDevice logicalDevice
                         , std::vector<unsigned char> const & sourceCode
                         , VkShaderModule & shaderModule);
@@ -841,5 +835,68 @@ namespace VulkanInterface
                                , std::vector<WaitSemaphoreInfo> const & waitInfos
                                , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
                                , std::vector<FrameResources> & frameResources);
+
+  // Destroy Handlers, set objects to VK_NULL_HANDLE after destruction
+
+  void DestroyLogicalDevice(VkDevice & logicalDevice);
+
+  void DestroyVulkanInstance(VkInstance & instance);
+
+  void DestroySwapchain(VkDevice logicalDevice
+    , VkSwapchainKHR & swapchain);
+
+  void DestroyPresentationSurface(VkInstance instance
+    , VkSurfaceKHR & presentationSurface);
+
+  void DestroyCommandPool(VkDevice logicalDevice
+    , VkCommandPool & commandPool);
+
+  void DestroySemaphore(VkDevice logicalDevice
+    , VkSemaphore & semaphore);
+
+  void DestroyFence(VkDevice logicalDevice
+    , VkFence & fence);
+
+  void DestroyBuffer(VkDevice logicalDevice
+    , VkBuffer & buffer);
+
+  void FreeMemoryObject(VkDevice logicalDevice
+    , VkDeviceMemory & memoryObject);
+
+  void DestroyBufferView(VkDevice logicalDevice
+    , VkBufferView & bufferView);
+
+  void DestroyImage(VkDevice logicalDevice
+    , VkImage & image);
+
+  void DestroyImageView(VkDevice logicalDevice
+    , VkImageView & imageView);
+
+  void DestroySampler(VkDevice logicalDevice
+    , VkSampler & sampler);
+
+  void DestroyDescriptorSetLayout(VkDevice logicalDevice
+    , VkDescriptorSetLayout & descriptorSetLayout);
+
+  void DestroyDescriptorPool(VkDevice logicalDevice
+    , VkDescriptorPool & descriptorPool);
+
+  void DestroyFramebuffer(VkDevice logicalDevice
+    , VkFramebuffer & framebuffer);
+
+  void DestroyRenderPass(VkDevice logicalDevice
+    , VkRenderPass & renderPass);
+
+  void DestroyPipeline(VkDevice logicalDevice
+    , VkPipeline & pipeline);
+
+  void DestroyPipelineCache(VkDevice logicalDevice
+    , VkPipelineCache & pipelineCache);
+
+  void DestroyPipelineLayout(VkDevice logicalDevice
+    , VkPipelineLayout & pipelineLayout);
+
+  void DestroyShaderModule(VkDevice logicalDevice
+    , VkShaderModule & shaderModule);
 
 }

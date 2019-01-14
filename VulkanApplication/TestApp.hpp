@@ -12,15 +12,21 @@ private:
   bool SetupComputePipeline();
 
   bool SetupGraphicsBuffers();
+  bool SetupFrameResources();
 
   void cleanupVulkan() override;
 
   VulkanHandle(VkCommandPool) graphicsCommandPool; // *
   VulkanHandle(VkCommandPool) computeCommandPool; // 
-  VkCommandBuffer graphicsCommandBuffer; // *
+  std::vector<VkCommandBuffer>  graphicsCommandBuffers; // *
   //VkCommandBuffer computeCommandBuffer;
   VulkanHandle(VkRenderPass) renderPass; // *
   //VulkanHandle(VkFramebuffer) framebuffer;
+
+  std::vector<VulkanHandle(VkImage)> depthImages;
+  std::vector<VulkanHandle(VkDeviceMemory)> depthImagesMemory;
+
+  std::vector<FrameResources> frameResources;
 
   //VulkanHandle(VkImage) image;
   //VulkanHandle(VkDeviceMemory) imageMemory;
@@ -38,7 +44,7 @@ private:
 
   VulkanHandle(VkBuffer) vertexBuffer; // *
   VulkanHandle(VkDeviceMemory) bufferMemory; // *
-  VulkanHandle(VkFence) drawingFence; // *
-  VulkanHandle(VkSemaphore) imageAcquiredSemaphore; // *
-  VulkanHandle(VkSemaphore) readyToPresentSemaphore; // *
+  //VulkanHandle(VkFence) drawingFence; // *
+  //VulkanHandle(VkSemaphore) imageAcquiredSemaphore; // *
+  //VulkanHandle(VkSemaphore) readyToPresentSemaphore; // *
 };

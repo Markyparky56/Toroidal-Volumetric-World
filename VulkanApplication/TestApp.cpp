@@ -8,31 +8,7 @@ bool TestApp::Initialise(VulkanInterface::WindowParameters windowParameters)
     , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))
   {
     return false;
-  }
-
-  if (!VulkanInterface::CreateFramebuffersForFrameResources(*vulkanDevice, *renderPass, swapchain, frameResources))
-  {
-    return false;
-  }
-
-  // Drawing Synchronisation
-  VulkanInterface::InitVulkanHandle(vulkanDevice, drawingFence);
-  if (!VulkanInterface::CreateFence(*vulkanDevice, true, *drawingFence))
-  {
-    return false;
-  }
-
-  VulkanInterface::InitVulkanHandle(vulkanDevice, imageAcquiredSemaphore);
-  if (!VulkanInterface::CreateSemaphore(*vulkanDevice, *imageAcquiredSemaphore))
-  {
-    return false;
-  }
-
-  VulkanInterface::InitVulkanHandle(vulkanDevice, readyToPresentSemaphore);
-  if (!VulkanInterface::CreateSemaphore(*vulkanDevice, *readyToPresentSemaphore))
-  {
-    return false;
-  }
+  }  
 
   if (!SetupGraphicsPipeline())
   {
@@ -42,6 +18,10 @@ bool TestApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   {
     return false;
   }
+  if (!SetupFrameResources())
+  {
+    return false;
+  }   
 
   //SetupComputePipeline();
 
@@ -50,25 +30,11 @@ bool TestApp::Initialise(VulkanInterface::WindowParameters windowParameters)
 
 bool TestApp::Update()
 {
-  //if (!VulkanInterface::WaitForFences(*vulkanDevice, { *drawingFence }, false, 5000000000))
-  //{
-  //  return false;
-  //}
-
-  //if (!VulkanInterface::ResetFences(*vulkanDevice, { *drawingFence }))
-  //{
-  //  return false;
-  //}
-
-  //uint32_t imageIndex;
-  //if (!VulkanInterface::AcquireSwapchainImage(*vulkanDevice, *swapchain.handle, *imageAcquiredSemaphore, VK_NULL_HANDLE, imageIndex))
-  //{
-  //  return false;
-  //}
-
   auto framePrep = [&](VkCommandBuffer, uint32_t imageIndex, VkFramebuffer framebuffer)
   {
-    if (!VulkanInterface::BeginCommandBufferRecordingOp(graphicsCommandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+    auto commandBuffer = graphicsCommandBuffers[imageIndex];
+
+    if (!VulkanInterface::BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
     {
       return false;
     }
@@ -86,7 +52,7 @@ bool TestApp::Update()
         VK_IMAGE_ASPECT_COLOR_BIT
       };
 
-      VulkanInterface::SetImageMemoryBarrier(graphicsCommandBuffer
+      VulkanInterface::SetImageMemoryBarrier(commandBuffer
         , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
         , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
         , { imageTransitionBeforeDrawing }
@@ -94,13 +60,13 @@ bool TestApp::Update()
     }
 
     // Draw
-    VulkanInterface::BeginRenderPass(graphicsCommandBuffer, *renderPass, framebuffer
+    VulkanInterface::BeginRenderPass(commandBuffer, *renderPass, framebuffer
       , { {0,0}, swapchain.size } // Render Area (full frame size)
-      , { {0.1f, 0.2f, 0.3f, 1.f} } // Clear Color
+      , { {0.1f, 0.2f, 0.3f, 1.f}, {1.f, 0.f } } // Clear Color, one for our draw area, one for our depth stencil
       , VK_SUBPASS_CONTENTS_INLINE
     );
 
-    VulkanInterface::BindPipelineObject(graphicsCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *graphicsPipeline);
+    VulkanInterface::BindPipelineObject(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *graphicsPipeline);
 
     VkViewport viewport = {
       0.f,
@@ -110,7 +76,7 @@ bool TestApp::Update()
       0.f,
       1.f
     };
-    VulkanInterface::SetViewportStateDynamically(graphicsCommandBuffer, 0, { viewport });
+    VulkanInterface::SetViewportStateDynamically(commandBuffer, 0, { viewport });
 
     VkRect2D scissor = {
       {
@@ -121,13 +87,13 @@ bool TestApp::Update()
         swapchain.size.height
       }
     };
-    VulkanInterface::SetScissorStateDynamically(graphicsCommandBuffer, 0, { scissor });
+    VulkanInterface::SetScissorStateDynamically(commandBuffer, 0, { scissor });
 
-    VulkanInterface::BindVertexBuffers(graphicsCommandBuffer, 0, { {*vertexBuffer, 0} });
+    VulkanInterface::BindVertexBuffers(commandBuffer, 0, { {*vertexBuffer, 0} });
 
-    VulkanInterface::DrawGeometry(graphicsCommandBuffer, 3, 1, 0, 0);
+    VulkanInterface::DrawGeometry(commandBuffer, 3, 1, 0, 0);
 
-    VulkanInterface::EndRenderPass(graphicsCommandBuffer);
+    VulkanInterface::EndRenderPass(commandBuffer);
 
     if (presentQueue.familyIndex != graphicsQueue.familyIndex)
     {
@@ -142,13 +108,13 @@ bool TestApp::Update()
         VK_IMAGE_ASPECT_COLOR_BIT
       };
 
-      VulkanInterface::SetImageMemoryBarrier(graphicsCommandBuffer
+      VulkanInterface::SetImageMemoryBarrier(commandBuffer
         , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
         , VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
         , { imageTransitionBeforePresent });
     }
 
-    if (!VulkanInterface::EndCommandBufferRecordingOp(graphicsCommandBuffer))
+    if (!VulkanInterface::EndCommandBufferRecordingOp(commandBuffer))
     {
       return false;
     }
@@ -165,32 +131,6 @@ bool TestApp::Update()
                                                   , {}
                                                   , framePrep
                                                   , frameResources);
-
-  //VulkanInterface::WaitSemaphoreInfo waitSemaphoreInfo = {
-  //    *imageAcquiredSemaphore
-  //  , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-  //};
-
-  //if (!VulkanInterface::SubmitCommandBuffersToQueue(graphicsQueue.handle
-  //  , { waitSemaphoreInfo }
-  //  , { graphicsCommandBuffer }
-  //  , { *readyToPresentSemaphore }
-  //  , *drawingFence))
-  //{
-  //  return false;
-  //}
-
-  //VulkanInterface::PresentInfo presentInfo = {
-  //   *swapchain.handle
-  //  , imageIndex
-  //};
-
-  //if (!VulkanInterface::PresentImage(presentQueue.handle, { *readyToPresentSemaphore }, { presentInfo }))
-  //{
-  //  return false;
-  //}
-
-  //return true;
 }
 
 bool TestApp::Resize()
@@ -219,56 +159,52 @@ bool TestApp::Resize()
 
 void TestApp::cleanupVulkan()
 {
+  VulkanInterface::WaitForAllSubmittedCommandsToBeFinished(*vulkanDevice);
   // Although we have VulkanHandle which will call destroying functions which is useful for objects with 
   // short lifetimes, i.e. buffers and the like which get created at the device level then fall out of 
   // scope. However for cleaning up the whole application we need to to make sure they get destroyed 
   // in the right order.
 
   // We need to work backwards, destroying device-level objects before instance-level objects
-  if (bufferMemory) VulkanInterface::vkFreeMemory(*vulkanDevice, *bufferMemory, nullptr);
-  if (vertexBuffer) VulkanInterface::vkDestroyBuffer(*vulkanDevice, *vertexBuffer, nullptr);
-  if (graphicsPipeline) VulkanInterface::vkDestroyPipeline(*vulkanDevice, *graphicsPipeline, nullptr);
-  if (graphicsPipelineLayout) VulkanInterface::vkDestroyPipelineLayout(*vulkanDevice, *graphicsPipelineLayout, nullptr);
-  if (renderPass) VulkanInterface::vkDestroyRenderPass(*vulkanDevice, *renderPass, nullptr);
-  if (graphicsCommandPool) VulkanInterface::vkDestroyCommandPool(*vulkanDevice, *graphicsCommandPool, nullptr);
+  VulkanInterface::FreeMemoryObject(*vulkanDevice, *bufferMemory);
+  VulkanInterface::DestroyBuffer(*vulkanDevice, *vertexBuffer);
+  VulkanInterface::DestroyPipeline(*vulkanDevice, *graphicsPipeline);
+  VulkanInterface::DestroyPipelineLayout(*vulkanDevice, *graphicsPipelineLayout);
+  VulkanInterface::DestroyRenderPass(*vulkanDevice, *renderPass);
+  VulkanInterface::DestroyCommandPool(*vulkanDevice, *graphicsCommandPool);
 
-  if (drawingFence) VulkanInterface::vkDestroyFence(*vulkanDevice, *drawingFence, nullptr);
-  if (imageAcquiredSemaphore) VulkanInterface::vkDestroySemaphore(*vulkanDevice, *imageAcquiredSemaphore, nullptr);
-  if (readyToPresentSemaphore) VulkanInterface::vkDestroySemaphore(*vulkanDevice, *readyToPresentSemaphore, nullptr);
-  
   for (auto & frameRes : frameResources)
   {
-    VulkanInterface::vkDestroySemaphore(*vulkanDevice, *frameRes.imageAcquiredSemaphore, nullptr);
-    VulkanInterface::vkDestroySemaphore(*vulkanDevice, *frameRes.readyToPresentSemaphore, nullptr);
-    VulkanInterface::vkDestroyFence(*vulkanDevice, *frameRes.drawingFinishedFence, nullptr);
-    VulkanInterface::vkDestroyImageView(*vulkanDevice, *frameRes.depthAttachment, nullptr);
-    VulkanInterface::vkDestroyFramebuffer(*vulkanDevice, *frameRes.framebuffer, nullptr);
+    VulkanInterface::DestroySemaphore(*vulkanDevice, *frameRes.imageAcquiredSemaphore);
+    VulkanInterface::DestroySemaphore(*vulkanDevice, *frameRes.readyToPresentSemaphore);
+    VulkanInterface::DestroyFence(*vulkanDevice, *frameRes.drawingFinishedFence);
+    VulkanInterface::DestroyImageView(*vulkanDevice, *frameRes.depthAttachment);
+    VulkanInterface::DestroyFramebuffer(*vulkanDevice, *frameRes.framebuffer);
   }
-  if (swapchain.handle) VulkanInterface::vkDestroySwapchainKHR(*vulkanDevice, *swapchain.handle, nullptr);
+  VulkanInterface::DestroySwapchain(*vulkanDevice, *swapchain.handle);
   for (auto & imageView : swapchain.imageViews)
   {
-    VulkanInterface::vkDestroyImageView(*vulkanDevice, *imageView, nullptr);
-  }
-
+    VulkanInterface::DestroyImageView(*vulkanDevice, *imageView);
+  } 
   for (auto & image : depthImages)
   {
-    VulkanInterface::vkDestroyImage(*vulkanDevice, *image, nullptr);
+    VulkanInterface::DestroyImage(*vulkanDevice, *image);
   }
   for (auto & imgMem : depthImagesMemory)
   {
-    VulkanInterface::vkFreeMemory(*vulkanDevice, *imgMem, nullptr);
+    VulkanInterface::FreeMemoryObject(*vulkanDevice, *imgMem);
   }
 
   // Cleanup device
-  if (vulkanDevice) VulkanInterface::vkDestroyDevice(*vulkanDevice, nullptr);
+  if (vulkanDevice) VulkanInterface::DestroyLogicalDevice(*vulkanDevice);
 
   // Cleanup Debug Messenger if in debug
 #if defined(_DEBUG)
   if (callback) VulkanInterface::vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr);
 #endif
 
-  if (presentationSurface) VulkanInterface::vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);
-  if (vulkanInstance) VulkanInterface::vkDestroyInstance(*vulkanInstance, nullptr);
+  if (presentationSurface) VulkanInterface::DestroyPresentationSurface(*vulkanInstance, *presentationSurface);
+  if (vulkanInstance) VulkanInterface::DestroyVulkanInstance(*vulkanInstance);
   if (vulkanLibrary) VulkanInterface::ReleaseVulkanLoaderLibrary(vulkanLibrary);
 }
 
@@ -284,17 +220,14 @@ bool TestApp::SetupGraphicsPipeline()
     return false;
   }
 
-  std::vector<VkCommandBuffer> graphicsCommandBuffers;
   if (!VulkanInterface::AllocateCommandBuffers( *vulkanDevice
                                               , *graphicsCommandPool
                                               , VK_COMMAND_BUFFER_LEVEL_PRIMARY
-                                              , 1
+                                              , numFrames+1 // +1 for memory ops
                                               , graphicsCommandBuffers))
   {
     return false;
   }
-
-  graphicsCommandBuffer = graphicsCommandBuffers[0];
 
   // Render Pass
   std::vector<VkAttachmentDescription> attachmentDescriptions = {
@@ -308,7 +241,23 @@ bool TestApp::SetupGraphicsPipeline()
       VK_ATTACHMENT_STORE_OP_DONT_CARE,
       VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    },
+    {
+      0,
+      VK_FORMAT_D16_UNORM,
+      VK_SAMPLE_COUNT_1_BIT,
+      VK_ATTACHMENT_LOAD_OP_CLEAR,
+      VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+      VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_IMAGE_LAYOUT_UNDEFINED,
+      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
     }
+  };
+
+  VkAttachmentReference depthAttachment = {
+    1,
+    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
   };
 
   std::vector<VulkanInterface::SubpassParameters> subpassParameters = {
@@ -322,7 +271,7 @@ bool TestApp::SetupGraphicsPipeline()
         }
       }, // ColorAttachments
       {}, // ResolveAttachments
-      nullptr,
+      &depthAttachment,
       {}
     }
   };
@@ -457,6 +406,9 @@ bool TestApp::SetupGraphicsPipeline()
   VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo;
   VulkanInterface::SpecifyPipelineMultisampleState(VK_SAMPLE_COUNT_1_BIT, false, 0.f, nullptr, false, false, multisampleStateCreateInfo);
 
+  VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo;
+  VulkanInterface::SpecifyPipelineDepthAndStencilState(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, false, 0.f, 1.f, false, {}, {}, depthStencilStateCreateInfo);
+
   std::vector<VkPipelineColorBlendAttachmentState> attachmentBlendStates = {
     {
       false,
@@ -497,7 +449,7 @@ bool TestApp::SetupGraphicsPipeline()
     , &viewportStateCreateInfo
     , rasterisationStateCreateInfo
     , &multisampleStateCreateInfo
-    , nullptr
+    , &depthStencilStateCreateInfo
     , &blendStateCreateInfo
     , &dynamicStateCreateInfo
     , *graphicsPipelineLayout
@@ -584,15 +536,82 @@ bool TestApp::SetupGraphicsBuffers()
     , sizeof(vertices[0]) * vertices.size()
     , &vertices[0]
     , *vertexBuffer
-    , 0, 0,
-    VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
+    , 0, 0
+    , VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
     , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
     , VK_PIPELINE_STAGE_VERTEX_INPUT_BIT
     , graphicsQueue.handle
-    , graphicsCommandBuffer
+    , graphicsCommandBuffers[numFrames]
     , {}
     )
   )
+  {
+    return false;
+  }
+
+  return true;
+}
+
+bool TestApp::SetupFrameResources()
+{
+  for (uint32_t i = 0; i < numFrames; i++)
+  {
+    VulkanHandle(VkSemaphore) imageAcquiredSemaphore;
+    VulkanInterface::InitVulkanHandle(vulkanDevice, imageAcquiredSemaphore);
+    VulkanHandle(VkSemaphore) readyToPresentSemaphore;
+    VulkanInterface::InitVulkanHandle(vulkanDevice, readyToPresentSemaphore);
+    VulkanHandle(VkFence) drawingFinishedFence;
+    VulkanInterface::InitVulkanHandle(vulkanDevice, drawingFinishedFence);
+    VulkanHandle(VkImageView) depthAttachment;
+    VulkanInterface::InitVulkanHandle(vulkanDevice, depthAttachment);
+
+    depthImages.emplace_back(VulkanHandle(VkImage)());
+    VulkanInterface::InitVulkanHandle(vulkanDevice, depthImages.back());
+    depthImagesMemory.emplace_back(VulkanHandle(VkDeviceMemory)());
+    VulkanInterface::InitVulkanHandle(vulkanDevice, depthImagesMemory.back());
+
+    if (!VulkanInterface::CreateSemaphore(*vulkanDevice, *imageAcquiredSemaphore))
+    {
+      return false;
+    }
+    if (!VulkanInterface::CreateSemaphore(*vulkanDevice, *readyToPresentSemaphore))
+    {
+      return false;
+    }
+    if (!VulkanInterface::CreateFence(*vulkanDevice, true, *drawingFinishedFence))
+    {
+      return false;
+    }
+
+    frameResources.push_back(
+      {
+        graphicsCommandBuffers[i],
+        std::move(imageAcquiredSemaphore),
+        std::move(readyToPresentSemaphore),
+        std::move(drawingFinishedFence),
+        std::move(depthAttachment),
+        VulkanHandle(VkFramebuffer)()
+      }
+    );    
+
+    if (!VulkanInterface::Create2DImageAndView(vulkanPhysicalDevice
+      , *vulkanDevice
+      , VK_FORMAT_D16_UNORM
+      , swapchain.size
+      , 1, 1
+      , VK_SAMPLE_COUNT_1_BIT
+      , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+      , VK_IMAGE_ASPECT_DEPTH_BIT
+      , *depthImages.back()
+      , *depthImagesMemory.back()
+      , *frameResources[i].depthAttachment))
+    {
+      return false;
+    }
+
+  }
+
+  if (!VulkanInterface::CreateFramebuffersForFrameResources(*vulkanDevice, *renderPass, swapchain, frameResources))
   {
     return false;
   }

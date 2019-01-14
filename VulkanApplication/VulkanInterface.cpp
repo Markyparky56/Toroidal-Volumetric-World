@@ -1027,7 +1027,8 @@ return true;
     return false;
   }
 
-  bool ResetFences(VkDevice logicalDevice, std::vector<VkFence> const & fences)
+  bool ResetFences(VkDevice logicalDevice
+    , std::vector<VkFence> const & fences)
   {
     if (fences.size() > 0)
     {
@@ -1042,7 +1043,11 @@ return true;
     return false;
   }
 
-  bool SubmitCommandBuffersToQueue(VkQueue queue, std::vector<WaitSemaphoreInfo> waitSemaphoreInfos, std::vector<VkCommandBuffer> commandBuffers, std::vector<VkSemaphore> signalSemaphores, VkFence fence)
+  bool SubmitCommandBuffersToQueue(VkQueue queue
+    , std::vector<WaitSemaphoreInfo> waitSemaphoreInfos
+    , std::vector<VkCommandBuffer> commandBuffers
+    , std::vector<VkSemaphore> signalSemaphores
+    , VkFence fence)
   {
     std::vector<VkSemaphore> waitSemaphoreHandles;
     std::vector<VkPipelineStageFlags> waitSemaphoreStages;
@@ -1074,7 +1079,14 @@ return true;
     return true;
   }
 
-  bool SynchroniseTwoCommandBuffers(VkQueue firstQueue, std::vector<WaitSemaphoreInfo> firstWaitSemaphoreInfos, std::vector<VkCommandBuffer> firstCommandBuffers, std::vector<WaitSemaphoreInfo> synchronisingSemaphores, VkQueue secondQueue, std::vector<VkCommandBuffer> secondCommandBuffers, std::vector<VkSemaphore> secondSignalSemaphores, VkFence secondFence)
+  bool SynchroniseTwoCommandBuffers(VkQueue firstQueue
+    , std::vector<WaitSemaphoreInfo> firstWaitSemaphoreInfos
+    , std::vector<VkCommandBuffer> firstCommandBuffers
+    , std::vector<WaitSemaphoreInfo> synchronisingSemaphores
+    , VkQueue secondQueue
+    , std::vector<VkCommandBuffer> secondCommandBuffers
+    , std::vector<VkSemaphore> secondSignalSemaphores
+    , VkFence secondFence)
   {
     std::vector<VkSemaphore> firstSignalSemaphores;
     for (auto & semaphoreInfo : synchronisingSemaphores)
@@ -2500,26 +2512,7 @@ return true;
   {
     vkCmdEndRenderPass(commandBuffer);
   }
-
-  void DestroyFramebuffer(VkDevice logicalDevice
-                        , VkFramebuffer & framebuffer)
-  {
-    if (framebuffer != nullptr)
-    {
-      vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
-      framebuffer = nullptr;
-    }
-  }
-
-  void DestroyRenderPass( VkDevice logicalDevice
-                        , VkRenderPass & renderPass)
-  {
-    if (renderPass != nullptr)
-    {
-      vkDestroyRenderPass(logicalDevice, renderPass, nullptr);
-      renderPass = nullptr;
-    }
-  }
+  
   bool CreateShaderModule(VkDevice logicalDevice
                         , std::vector<unsigned char> const & sourceCode
                         , VkShaderModule & shaderModule)
@@ -3074,7 +3067,7 @@ return true;
     for (auto & frameResource : frameResources)
     {
       // Destroy any pre-existing framebuffer
-      if (frameResource.framebuffer) vkDestroyFramebuffer(logicalDevice, *frameResource.framebuffer, nullptr);
+      if (frameResource.framebuffer) DestroyFramebuffer(logicalDevice, *frameResource.framebuffer);
 
       std::vector<VkImageView> attachments = { swapchain.imageViewsRaw[imgIndex] };
       if (frameResource.depthAttachment) attachments.push_back(*frameResource.depthAttachment);
@@ -3093,7 +3086,7 @@ return true;
       }
       imgIndex++;
     }
-    return false;
+    return true;
   }
 
   bool PrepareSingleFrameOfAnimation(VkDevice logicalDevice
@@ -3199,5 +3192,194 @@ return true;
     frameIndex = (frameIndex + 1) % frameResources.size();
 
     return true;
+  }
+
+  void DestroyLogicalDevice(VkDevice & logicalDevice)
+  {
+    if (logicalDevice != VK_NULL_HANDLE)
+    {
+      vkDestroyDevice(logicalDevice, nullptr);
+      logicalDevice = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyVulkanInstance(VkInstance & instance)
+  {
+    if (instance != VK_NULL_HANDLE)
+    {
+      vkDestroyInstance(instance, nullptr);
+      instance = VK_NULL_HANDLE;
+    }
+  }
+  void DestroySwapchain(VkDevice logicalDevice, VkSwapchainKHR & swapchain)
+  {
+    if (swapchain != VK_NULL_HANDLE)
+    {
+      vkDestroySwapchainKHR(logicalDevice, swapchain, nullptr);
+      swapchain = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyPresentationSurface(VkInstance instance, VkSurfaceKHR & presentationSurface)
+  {
+    if (presentationSurface != VK_NULL_HANDLE)
+    {
+      vkDestroySurfaceKHR(instance, presentationSurface, nullptr);
+      presentationSurface = VK_NULL_HANDLE;
+    }
+  }
+  void DestroyCommandPool(VkDevice logicalDevice, VkCommandPool & commandPool)
+  {
+    if (commandPool != VK_NULL_HANDLE)
+    {
+      vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
+      commandPool = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroySemaphore(VkDevice logicalDevice, VkSemaphore & semaphore)
+  {
+    if (semaphore != VK_NULL_HANDLE)
+    {
+      vkDestroySemaphore(logicalDevice, semaphore, nullptr);
+      semaphore = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyFence(VkDevice logicalDevice, VkFence & fence)
+  {
+    if (fence != VK_NULL_HANDLE)
+    {
+      vkDestroyFence(logicalDevice, fence, nullptr);
+      fence = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyBuffer(VkDevice logicalDevice, VkBuffer & buffer)
+  {
+    if (buffer != VK_NULL_HANDLE)
+    {
+      vkDestroyBuffer(logicalDevice, buffer, nullptr);
+      buffer = VK_NULL_HANDLE;
+    }
+  }
+
+  void FreeMemoryObject(VkDevice logicalDevice, VkDeviceMemory & memoryObject)
+  {
+    if (memoryObject != VK_NULL_HANDLE)
+    {
+      vkFreeMemory(logicalDevice, memoryObject, nullptr);
+      memoryObject = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyBufferView(VkDevice logicalDevice, VkBufferView & bufferView)
+  {
+    if (bufferView != VK_NULL_HANDLE)
+    {
+      vkDestroyBufferView(logicalDevice, bufferView, nullptr);
+      bufferView = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyImage(VkDevice logicalDevice, VkImage & image)
+  {
+    if (image != VK_NULL_HANDLE)
+    {
+      vkDestroyImage(logicalDevice, image, nullptr);
+      image = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyImageView(VkDevice logicalDevice, VkImageView & imageView)
+  {
+    if (imageView != VK_NULL_HANDLE)
+    {
+      vkDestroyImageView(logicalDevice, imageView, nullptr);
+      imageView = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroySampler(VkDevice logicalDevice, VkSampler & sampler)
+  {
+    if (sampler != VK_NULL_HANDLE)
+    {
+      vkDestroySampler(logicalDevice, sampler, nullptr);
+      sampler = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyDescriptorSetLayout(VkDevice logicalDevice, VkDescriptorSetLayout & descriptorSetLayout)
+  {
+    if (descriptorSetLayout != VK_NULL_HANDLE)
+    {
+      vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
+      descriptorSetLayout = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyDescriptorPool(VkDevice logicalDevice, VkDescriptorPool & descriptorPool)
+  {
+    if (descriptorPool != VK_NULL_HANDLE)
+    {
+      vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
+      descriptorPool = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyFramebuffer(VkDevice logicalDevice
+    , VkFramebuffer & framebuffer)
+  {
+    if (framebuffer != nullptr)
+    {
+      vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
+      framebuffer = nullptr;
+    }
+  }
+
+  void DestroyRenderPass(VkDevice logicalDevice
+    , VkRenderPass & renderPass)
+  {
+    if (renderPass != nullptr)
+    {
+      vkDestroyRenderPass(logicalDevice, renderPass, nullptr);
+      renderPass = nullptr;
+    }
+  }
+
+  void DestroyPipeline(VkDevice logicalDevice, VkPipeline & pipeline)
+  {
+    if (pipeline != VK_NULL_HANDLE)
+    {
+      vkDestroyPipeline(logicalDevice, pipeline, nullptr);
+      pipeline = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyPipelineCache(VkDevice logicalDevice, VkPipelineCache & pipelineCache)
+  {
+    if (pipelineCache != VK_NULL_HANDLE)
+    {
+      vkDestroyPipelineCache(logicalDevice, pipelineCache, nullptr);
+      pipelineCache = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyPipelineLayout(VkDevice logicalDevice, VkPipelineLayout & pipelineLayout)
+  {
+    if (pipelineLayout != VK_NULL_HANDLE)
+    {
+      vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
+      pipelineLayout = VK_NULL_HANDLE;
+    }
+  }
+
+  void DestroyShaderModule(VkDevice logicalDevice, VkShaderModule & shaderModule)
+  {
+    if (shaderModule != VK_NULL_HANDLE)
+    {
+      vkDestroyShaderModule(logicalDevice, shaderModule, nullptr);
+      shaderModule = VK_NULL_HANDLE;
+    }
   }
 }
