@@ -543,7 +543,7 @@ namespace VulkanInterface
 
   bool CreateDescriptorSetLayout( VkDevice logicalDevice
                                 , std::vector<VkDescriptorSetLayoutBinding> const & bindings
-                                , VkDescriptorSetLayout descriptorSetLayout);
+                                , VkDescriptorSetLayout & descriptorSetLayout);
 
   bool CreateDescriptorPool(VkDevice logicalDevice
                           , bool freeIndividualSets

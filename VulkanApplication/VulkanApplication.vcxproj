@@ -38,6 +38,12 @@
     <ClInclude Include="VulkanInterface.OSWindow.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="compileshaders_debug.bat" />
+    <None Include="compileshaders_release.bat" />
+    <None Include="compute.glsl">
+      <SubType>
+      </SubType>
+    </None>
     <None Include="cpp.hint" />
     <None Include="frag.glsl">
       <SubType>
@@ -122,8 +128,12 @@
       <Command>$(ProjectDir)\compileshaders_debug.bat;</Command>
     </CustomBuildStep>
     <PreBuildEvent>
-      <Command>compileshaders_debug.bat;</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>compileshaders_debug.bat;</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -159,8 +169,12 @@
       </Command>
     </CustomBuildStep>
     <PreBuildEvent>
-      <Command>$(ProjectDir)\compileshaders_release.bat;</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>$(ProjectDir)\compileshaders_release.bat;</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

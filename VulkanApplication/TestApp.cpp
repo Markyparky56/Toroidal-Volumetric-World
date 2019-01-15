@@ -23,7 +23,10 @@ bool TestApp::Initialise(VulkanInterface::WindowParameters windowParameters)
     return false;
   }   
 
-  //SetupComputePipeline();
+  if (!SetupComputePipeline())
+  {
+    return false;
+  }
 
   return true;
 }
@@ -195,6 +198,16 @@ void TestApp::cleanupVulkan()
     VulkanInterface::FreeMemoryObject(*vulkanDevice, *imgMem);
   }
 
+  VulkanInterface::DestroyImageView(*vulkanDevice, *imageView);
+  VulkanInterface::FreeMemoryObject(*vulkanDevice, *imageMemory);
+  VulkanInterface::DestroyImage(*vulkanDevice, *image);
+
+  VulkanInterface::DestroyCommandPool(*vulkanDevice, *computeCommandPool);
+  VulkanInterface::DestroyDescriptorPool(*vulkanDevice, *descriptorPool);
+  VulkanInterface::DestroyDescriptorSetLayout(*vulkanDevice, *descriptorSetLayout);
+  VulkanInterface::DestroyPipeline(*vulkanDevice, *computePipeline);
+  VulkanInterface::DestroyPipelineLayout(*vulkanDevice, *computePipelineLayout);
+
   // Cleanup device
   if (vulkanDevice) VulkanInterface::DestroyLogicalDevice(*vulkanDevice);
 
@@ -213,18 +226,18 @@ bool TestApp::SetupGraphicsPipeline()
   // Command Buffer Creation, Graphics
   VulkanInterface::InitVulkanHandle(vulkanDevice, graphicsCommandPool);
   if (!VulkanInterface::CreateCommandPool( *vulkanDevice
-                                          , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-                                          , graphicsQueue.familyIndex
-                                          , *graphicsCommandPool))
+    , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+    , graphicsQueue.familyIndex
+    , *graphicsCommandPool))
   {
     return false;
   }
 
-  if (!VulkanInterface::AllocateCommandBuffers( *vulkanDevice
-                                              , *graphicsCommandPool
-                                              , VK_COMMAND_BUFFER_LEVEL_PRIMARY
-                                              , numFrames+1 // +1 for memory ops
-                                              , graphicsCommandBuffers))
+  if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
+    , *graphicsCommandPool
+    , VK_COMMAND_BUFFER_LEVEL_PRIMARY
+    , numFrames+1 // +1 for memory ops
+    , graphicsCommandBuffers))
   {
     return false;
   }
@@ -481,26 +494,122 @@ bool TestApp::SetupGraphicsPipeline()
 bool TestApp::SetupComputePipeline()
 {
   // Command Buffer Creation, Compute
-  //VulkanInterface::InitVulkanHandle(vulkanDevice, computeCommandPool);
-  //if (!VulkanInterface::CreateCommandPool(*vulkanDevice
-  //  , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-  //  , graphicsQueue.familyIndex
-  //  , *computeCommandPool))
-  //{
-  //  return false;
-  //}
+  VulkanInterface::InitVulkanHandle(vulkanDevice, computeCommandPool);
+  if (!VulkanInterface::CreateCommandPool(*vulkanDevice
+    , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+    , computeQueue.familyIndex
+    , *computeCommandPool))
+  {
+    return false;
+  }
 
-  //std::vector<VkCommandBuffer> computeCommandBuffers;
-  //if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
-  //  , *computeCommandPool
-  //  , VK_COMMAND_BUFFER_LEVEL_PRIMARY
-  //  , 1
-  //  , computeCommandBuffers))
-  //{
-  //  return false;
-  //}
+  if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
+    , *computeCommandPool
+    , VK_COMMAND_BUFFER_LEVEL_PRIMARY
+    , 1
+    , computeCommandBuffers))
+  {
+    return false;
+  }
 
-  //computeCommandBuffer = computeCommandBuffers[0];
+  // Storeage Image
+  VulkanInterface::InitVulkanHandle(vulkanDevice, image);
+  VulkanInterface::InitVulkanHandle(vulkanDevice, imageMemory);
+  VulkanInterface::InitVulkanHandle(vulkanDevice, imageView);
+  if (!VulkanInterface::Create2DImageAndView(vulkanPhysicalDevice
+    , *vulkanDevice
+    , swapchain.format
+    , swapchain.size
+    , 1, 1, VK_SAMPLE_COUNT_1_BIT
+    , VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+    , VK_IMAGE_ASPECT_COLOR_BIT
+    , *image, *imageMemory, *imageView)
+    )
+  {
+    return false;
+  }
+
+  VkDescriptorSetLayoutBinding descriptorSetLayoutBinding = {
+    0,
+    VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+    1,
+    VK_SHADER_STAGE_COMPUTE_BIT,
+    nullptr
+  };
+  VulkanInterface::InitVulkanHandle(vulkanDevice, descriptorSetLayout);
+  if (!VulkanInterface::CreateDescriptorSetLayout(*vulkanDevice, { descriptorSetLayoutBinding }, *descriptorSetLayout))
+  {
+    return false;
+  }
+
+  VkDescriptorPoolSize descriptorPoolSize = {
+    VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+    1
+  };
+
+  VulkanInterface::InitVulkanHandle(vulkanDevice, descriptorPool);
+  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, false, 1, { descriptorPoolSize }, *descriptorPool))
+  {
+    return false;
+  }
+
+  if (!VulkanInterface::AllocateDescriptorSets(*vulkanDevice, *descriptorPool, { *descriptorSetLayout }, descriptorSets))
+  {
+    return false;
+  }
+
+  VulkanInterface::ImageDescriptorInfo imageDescriptorUpdate = {
+    descriptorSets[0],
+    0,
+    0,
+    VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+    {
+      {
+        VK_NULL_HANDLE,
+        *imageView,
+        VK_IMAGE_LAYOUT_GENERAL
+      }
+    }
+  };
+
+  VulkanInterface::UpdateDescriptorSets(*vulkanDevice, { imageDescriptorUpdate }, {}, {}, {});
+
+  std::vector<unsigned char> computeShaderSpirv;
+  if (!VulkanInterface::GetBinaryFileContents("Data/compute.spv", computeShaderSpirv))
+  {
+    return false;
+  }
+
+  VulkanHandle(VkShaderModule) computeShaderModule;
+  VulkanInterface::InitVulkanHandle(vulkanDevice, computeShaderModule);
+  if (!VulkanInterface::CreateShaderModule(*vulkanDevice, computeShaderSpirv, *computeShaderModule))
+  {
+    return false;
+  }
+
+  std::vector<VulkanInterface::ShaderStageParameters> shaderStageParams = {
+    {
+      VK_SHADER_STAGE_COMPUTE_BIT,
+      *computeShaderModule,
+      "main",
+      nullptr
+    }
+  };
+
+  std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
+  VulkanInterface::SpecifyPipelineShaderStages(shaderStageParams, shaderStageCreateInfos);
+
+  VulkanInterface::InitVulkanHandle(vulkanDevice, computePipelineLayout);
+  if (!VulkanInterface::CreatePipelineLayout(*vulkanDevice, { *descriptorSetLayout }, {}, *computePipelineLayout))
+  {
+    return false;
+  }
+
+  VulkanInterface::InitVulkanHandle(vulkanDevice, computePipeline);
+  if (!VulkanInterface::CreateComputePipeline(*vulkanDevice, 0, shaderStageCreateInfos[0], *computePipelineLayout, VK_NULL_HANDLE, VK_NULL_HANDLE, *computePipeline))
+  {
+    return false;
+  }
 
   return true;
 }

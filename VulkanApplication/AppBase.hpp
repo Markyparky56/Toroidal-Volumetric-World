@@ -118,10 +118,6 @@ protected:
 
   VulkanInterface::SwapchainParameters swapchain;
 
-  //VulkanHandle(VkCommandPool) commandPool;
-
-
-
   static uint32_t const numFrames;
   static VkFormat const depthFormat;
 

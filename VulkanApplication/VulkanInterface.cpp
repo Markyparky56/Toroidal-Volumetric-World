@@ -2109,7 +2109,7 @@ return true;
 
   bool CreateDescriptorSetLayout( VkDevice logicalDevice
                                 , std::vector<VkDescriptorSetLayoutBinding> const & bindings
-                                , VkDescriptorSetLayout descriptorSetLayout)
+                                , VkDescriptorSetLayout & descriptorSetLayout)
   {
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo = {
       VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -3026,6 +3026,7 @@ return true;
   {
     vkCmdDispatch(commandBuffer, xSize, ySize, zSize);
   }
+
   bool GetBinaryFileContents( std::string const & filename
                             , std::vector<unsigned char>& contents)
   {

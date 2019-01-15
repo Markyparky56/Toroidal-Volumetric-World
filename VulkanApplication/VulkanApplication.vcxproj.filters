@@ -45,6 +45,15 @@
     <None Include="frag.glsl">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="compute.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="compileshaders_debug.bat">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="compileshaders_release.bat">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ExceptionMessage.hpp">

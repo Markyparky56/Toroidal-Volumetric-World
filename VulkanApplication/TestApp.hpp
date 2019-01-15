@@ -19,32 +19,30 @@ private:
   VulkanHandle(VkCommandPool) graphicsCommandPool; // *
   VulkanHandle(VkCommandPool) computeCommandPool; // 
   std::vector<VkCommandBuffer>  graphicsCommandBuffers; // *
-  //VkCommandBuffer computeCommandBuffer;
+  std::vector<VkCommandBuffer> computeCommandBuffers;
   VulkanHandle(VkRenderPass) renderPass; // *
-  //VulkanHandle(VkFramebuffer) framebuffer;
+  
 
   std::vector<VulkanHandle(VkImage)> depthImages;
   std::vector<VulkanHandle(VkDeviceMemory)> depthImagesMemory;
 
   std::vector<FrameResources> frameResources;
 
-  //VulkanHandle(VkImage) image;
-  //VulkanHandle(VkDeviceMemory) imageMemory;
-  //VulkanHandle(VkImageView) imageView;
+  VulkanHandle(VkImage) image;
+  VulkanHandle(VkDeviceMemory) imageMemory;
+  VulkanHandle(VkImageView) imageView;
 
   VulkanHandle(VkPipeline) graphicsPipeline; // *
-  //VulkanHandle(VkPipeline) computePipeline;
+  VulkanHandle(VkPipeline) computePipeline;
 
   VulkanHandle(VkPipelineLayout) graphicsPipelineLayout; // *
-  //VulkanHandle(VkPipelineLayout) computePipelineLayout;
+  VulkanHandle(VkPipelineLayout) computePipelineLayout;
 
-  //VulkanHandle(VkDescriptorSetLayout) descriptorSetLayout; // 
-  //VulkanHandle(VkDescriptorPool) descriptorPool; // 
-  //std::vector<VkDescriptorSet> descriptorSets;
+  VulkanHandle(VkDescriptorSetLayout) descriptorSetLayout; // 
+  VulkanHandle(VkDescriptorPool) descriptorPool; // 
+  std::vector<VkDescriptorSet> descriptorSets;
 
   VulkanHandle(VkBuffer) vertexBuffer; // *
   VulkanHandle(VkDeviceMemory) bufferMemory; // *
-  //VulkanHandle(VkFence) drawingFence; // *
-  //VulkanHandle(VkSemaphore) imageAcquiredSemaphore; // *
-  //VulkanHandle(VkSemaphore) readyToPresentSemaphore; // *
+
 };
