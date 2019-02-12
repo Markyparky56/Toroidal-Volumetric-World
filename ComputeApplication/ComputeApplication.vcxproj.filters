@@ -1,0 +1,146 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\imgui">
+      <UniqueIdentifier>{8b7f64cc-6ecd-474b-a136-afaa31fb07f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\meshoptimiser">
+      <UniqueIdentifier>{2c371b01-07bb-491b-9c40-acdee2d0be35}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vk_mem_alloc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AppBase.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VulkanInterface.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VulkanInterface.Functions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VulkanInterface.OSWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ComputeApp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\imgui\imgui.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\imgui\imgui_demo.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\imgui\imgui_draw.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\imgui\imgui_impl_vulkan.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\imgui\imgui_widgets.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\imgui\imgui_impl_win32.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\clusterizer.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\indexcodec.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\indexgenerator.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\overdrawanalyzer.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\overdrawoptimizer.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\simplifier.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\stripifier.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\vcacheanalyzer.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\vcacheoptimizer.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\vertexcodec.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\vfetchanalyzer.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\meshoptimizer\src\vfetchoptimizer.cpp">
+      <Filter>Source Files\meshoptimiser</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ComputeApp.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AppBase.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsPipeline.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PipelineBase.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UniqueHandle.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VulkanInterface.Functions.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VulkanInterface.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VulkanInterface.OSWindow.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VulkanInterface.VulkanHandle.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HybridComputePipeline.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ComputePipeline.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="compileshaders_debug.bat">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="compileshaders_release.bat">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="ListOfVulkanFunctions.inl">
+      <Filter>Header Files</Filter>
+    </None>
+  </ItemGroup>
+</Project>
