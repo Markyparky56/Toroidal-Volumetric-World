@@ -836,6 +836,9 @@ namespace VulkanInterface
                                , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
                                , std::vector<FrameResources> & frameResources);
 
+  void ExecuteSecondaryCommandBuffers( VkCommandBuffer commandBuffer
+                                     , std::vector<VkCommandBuffer> const & secondaryCommandBuffers);
+
   // Destroy Handlers, set objects to VK_NULL_HANDLE after destruction
 
   void DestroyLogicalDevice(VkDevice & logicalDevice);

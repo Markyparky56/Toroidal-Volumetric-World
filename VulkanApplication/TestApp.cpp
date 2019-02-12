@@ -512,7 +512,7 @@ bool TestApp::SetupComputePipeline()
     return false;
   }
 
-  // Storeage Image
+  // Storage Image
   VulkanInterface::InitVulkanHandle(vulkanDevice, image);
   VulkanInterface::InitVulkanHandle(vulkanDevice, imageMemory);
   VulkanInterface::InitVulkanHandle(vulkanDevice, imageView);
@@ -606,7 +606,13 @@ bool TestApp::SetupComputePipeline()
   }
 
   VulkanInterface::InitVulkanHandle(vulkanDevice, computePipeline);
-  if (!VulkanInterface::CreateComputePipeline(*vulkanDevice, 0, shaderStageCreateInfos[0], *computePipelineLayout, VK_NULL_HANDLE, VK_NULL_HANDLE, *computePipeline))
+  if (!VulkanInterface::CreateComputePipeline(*vulkanDevice
+    , 0
+    , shaderStageCreateInfos[0]
+    , *computePipelineLayout
+    , VK_NULL_HANDLE
+    , VK_NULL_HANDLE
+    , *computePipeline))
   {
     return false;
   }
@@ -631,7 +637,7 @@ bool TestApp::SetupGraphicsBuffers()
   {
     return false;
   }
-
+  
   // BufferMemory
   VulkanInterface::InitVulkanHandle(vulkanDevice, bufferMemory);
   if (!VulkanInterface::AllocateAndBindMemoryObjectToBuffer(vulkanPhysicalDevice, *vulkanDevice, *vertexBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *bufferMemory))

@@ -473,9 +473,10 @@ namespace VulkanInterface
         static_cast<uint32_t>(info.priorities.size()),
         info.priorities.data()
         }
-      );
+      );      
+    }
 
-      VkDeviceCreateInfo deviceCreateInfo = {
+    VkDeviceCreateInfo deviceCreateInfo = {
         VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         nullptr,
         0,
@@ -486,14 +487,13 @@ namespace VulkanInterface
         static_cast<uint32_t>(desiredExtensions.size()),
         desiredExtensions.data(),
         desiredFeatures
-      };
+    };
 
-      VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice);
-      if ((result != VK_SUCCESS) || (logicalDevice == VK_NULL_HANDLE))
-      {
-        throw std::runtime_error("Could not create logical device");
-        return false;
-      }
+    VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice);
+    if ((result != VK_SUCCESS) || (logicalDevice == VK_NULL_HANDLE))
+    {
+      throw std::runtime_error("Could not create logical device");
+      return false;
     }
 
     return true;
@@ -3193,6 +3193,15 @@ return true;
     frameIndex = (frameIndex + 1) % frameResources.size();
 
     return true;
+  }
+
+  void ExecuteSecondaryCommandBuffers(VkCommandBuffer commandBuffer
+                                    , std::vector<VkCommandBuffer> const & secondaryCommandBuffers)
+  {
+    if (secondaryCommandBuffers.size() > 0)
+    {
+      vkCmdExecuteCommands(commandBuffer, static_cast<uint32_t>(secondaryCommandBuffers.size()), secondaryCommandBuffers.data());
+    }
   }
 
   void DestroyLogicalDevice(VkDevice & logicalDevice)
