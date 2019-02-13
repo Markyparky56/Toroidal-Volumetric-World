@@ -141,6 +141,7 @@
     <ClCompile Include="..\..\..\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="AppBase.cpp" />
     <ClCompile Include="ComputeApp.cpp" />
+    <ClCompile Include="GraphicsPipeline.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="vk_mem_alloc.cpp" />
     <ClCompile Include="VulkanInterface.cpp" />

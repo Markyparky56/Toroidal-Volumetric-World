@@ -96,6 +96,9 @@
     <ClCompile Include="..\..\..\meshoptimizer\src\vfetchoptimizer.cpp">
       <Filter>Source Files\meshoptimiser</Filter>
     </ClCompile>
+    <ClCompile Include="GraphicsPipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ComputeApp.hpp">
