@@ -136,7 +136,7 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters, VkI
   if (!vulkanDevice)
   {
     cleanupVulkan();
-    throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Failed to create logical device!"), "vulkanDevice == nullptr"));
+    // TODO: error "Failed to create logical device!" "vulkanDevice == nullptr";
     return false;
   }
 

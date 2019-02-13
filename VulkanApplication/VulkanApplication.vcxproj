@@ -28,7 +28,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AppBase.hpp" />
+    <ClInclude Include="DemoApp.hpp" />
     <ClInclude Include="ExceptionMessage.hpp" />
+    <ClInclude Include="GraphicsPipeline.hpp" />
+    <ClInclude Include="PipelineBase.hpp" />
     <ClInclude Include="TestApp.hpp" />
     <ClInclude Include="UniqueHandle.hpp" />
     <ClInclude Include="UnrecoverableException.hpp" />
@@ -38,22 +41,13 @@
     <ClInclude Include="VulkanInterface.OSWindow.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="basic.comp" />
+    <None Include="basic.frag" />
+    <None Include="basic.vert" />
     <None Include="compileshaders_debug.bat" />
     <None Include="compileshaders_release.bat" />
-    <None Include="compute.glsl">
-      <SubType>
-      </SubType>
-    </None>
     <None Include="cpp.hint" />
-    <None Include="frag.glsl">
-      <SubType>
-      </SubType>
-    </None>
     <None Include="ListOfVulkanFunctions.inl" />
-    <None Include="vert.glsl">
-      <SubType>
-      </SubType>
-    </None>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

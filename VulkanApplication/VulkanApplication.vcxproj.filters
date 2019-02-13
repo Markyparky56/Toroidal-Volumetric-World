@@ -39,19 +39,19 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="cpp.hint" />
-    <None Include="vert.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="frag.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="compute.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="compileshaders_debug.bat">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="compileshaders_release.bat">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="basic.comp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="basic.frag">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="basic.vert">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
@@ -80,8 +80,17 @@
     <ClInclude Include="VulkanInterface.VulkanHandle.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PipelineBase.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsPipeline.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="TestApp.hpp">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DemoApp.hpp">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

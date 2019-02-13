@@ -900,4 +900,223 @@ namespace VulkanInterface
   void DestroyShaderModule(VkDevice logicalDevice
     , VkShaderModule & shaderModule);
 
+  // VulkanMemoryAllocator Specific Functions
+  bool CreateBuffer(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize size
+    , VkBufferUsageFlags bufferUsage
+    , VkBuffer & buffer
+    , VmaAllocationCreateFlags allocationFlags
+    , VmaMemoryUsage memUsage
+    , VkMemoryPropertyFlags memoryProperties
+    , VmaPool pool
+    , VmaAllocation & allocation);
+
+  bool CreateImage(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkSampleCountFlagBits samples
+    , VkImageUsageFlags usageScenarios
+    , bool cubemap
+    , VkImage & image
+    , VmaAllocationCreateFlags allocationFlags
+    , VmaMemoryUsage memUsage
+    , VkMemoryPropertyFlags memoryProperties
+    , VmaPool pool
+    , VmaAllocation & allocation);
+
+  bool Create2DImageAndView(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkFormat format
+    , VkExtent2D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkSampleCountFlagBits samples
+    , VkImageUsageFlags usage
+    , VkImageAspectFlags aspect
+    , VkImage & image
+    , VkImageView & imageView
+    , VmaAllocationCreateFlags allocationFlags
+    , VmaMemoryUsage memUsage
+    , VkMemoryPropertyFlags memoryProperties
+    , VmaPool pool
+    , VmaAllocation & allocation);
+
+  bool CreateLayered2DImageWithCubemapView(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , uint32_t size
+    , uint32_t numMipmaps
+    , VkImageUsageFlags usage
+    , VkImageAspectFlags aspect
+    , VkImage & image
+    , VkImageView & imageView
+    , VmaAllocationCreateFlags allocationFlags
+    , VmaMemoryUsage memUsage
+    , VkMemoryPropertyFlags memoryProperties
+    , VmaPool pool
+    , VmaAllocation & allocation);
+
+  bool MapUpdateAndUnmapHostVisibleMemory(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VmaAllocation allocation
+    , VkDeviceSize dataSize
+    , void * data
+    , bool unmap
+    , void ** pointer);
+
+  bool UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
+      VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize dataSize
+    , void * data
+    , VkBuffer destinationBuffer
+    , VkDeviceSize destinationOffset
+    , VkAccessFlags destinationBufferCurrentAccess
+    , VkAccessFlags destinationBufferNewAccess
+    , VkPipelineStageFlags destinationBufferGeneratingStages
+    , VkPipelineStageFlags destinationBufferConsumingStages
+    , VkQueue queue
+    , VkCommandBuffer commandBuffer
+    , std::vector<VkSemaphore> signalSemaphores);
+
+  bool UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(   
+      VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize dataSize
+    , void * data
+    , VkImage destinationImage
+    , VkImageSubresourceLayers destinationImageSubresource
+    , VkOffset3D destinationImageOffset
+    , VkExtent3D destinationImageSize
+    , VkImageLayout destinationImageCurrentLayout
+    , VkImageLayout destinationImageNewLayout
+    , VkAccessFlags destinationImageCurrentAccess
+    , VkAccessFlags destinationImageNewAccess
+    , VkImageAspectFlags destinationImageAspect
+    , VkPipelineStageFlags destinationImageGeneratingStages
+    , VkPipelineStageFlags destinationImageConsumingStages
+    , VkQueue queue
+    , VkCommandBuffer commandBuffer
+    , std::vector<VkSemaphore> signalSemaphores);
+
+  bool CreateSampledImage(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkImageUsageFlags usage
+    , VkImageViewType viewType
+    , VkImageAspectFlags aspect
+    , bool linearFiltering
+    , VkImage & sampledImage
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
+    , VkImageView & sampledImageView);
+
+  bool CreateCombinedImageSampler(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkImageUsageFlags usage
+    , VkImageViewType viewType
+    , VkImageAspectFlags aspect
+    , VkFilter magFilter
+    , VkFilter minFilter
+    , VkSamplerMipmapMode mipmapMode
+    , VkSamplerAddressMode uAddressMode
+    , VkSamplerAddressMode vAddressMode
+    , VkSamplerAddressMode wAddressMode
+    , float lodBias
+    , bool anistropyEnable
+    , float maxAnisotropy
+    , bool compareEnable
+    , VkCompareOp compareOperator
+    , float minLod
+    , float maxLod
+    , VkBorderColor borderColor
+    , bool unnormalisedCoords
+    , VkSampler & sampler
+    , VkImage & sampledImage
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
+    , VkImageView & sampledImageView);
+
+  bool CreateStorageImage(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkImageUsageFlags usage
+    , VkImageViewType viewType
+    , VkImageAspectFlags aspect
+    , bool atomicOperations
+    , VkImage & storageImage
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
+    , VkImageView & storageImagesView);
+
+  bool CreateUniformTexelBuffer(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkFormat format
+    , VkDeviceSize size
+    , VkImageUsageFlags usage
+    , VkBuffer & uniformTexelBuffer
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
+    , VkBufferView & uniformTexelBufferView);
+
+  bool CreateStorageTexelBuffer(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkFormat format
+    , VkDeviceSize size
+    , VkBufferUsageFlags usage
+    , bool atomicOperations
+    , VkBuffer & storageTexelBuffer
+    , VmaMemoryUsage meUsage
+    , VmaAllocation & allocation
+    , VkBufferView & storageTexelBufferView);
+
+  bool CreateUniformBuffer(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize size
+    , VkBufferUsageFlags usage
+    , VkBuffer & uniformBuffer
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation);
+
+  bool CreateStorageBuffer(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VkDeviceSize size
+    , VkBufferUsageFlags usage
+    , VkBuffer & storageBuffer
+    , VkDeviceMemory & memoryObject);
+
+  bool CreateInputAttachment(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , VkImageUsageFlags usage
+    , VkImageViewType viewType
+    , VkImageAspectFlags aspect
+    , VkImage & inputAttachment
+    , VkDeviceMemory & memoryObject
+    , VkImageView & inputAttachmentImageView);
+
 }

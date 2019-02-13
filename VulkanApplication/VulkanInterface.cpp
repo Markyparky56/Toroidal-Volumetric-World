@@ -23,7 +23,7 @@ namespace VulkanInterface
 
     if (vkCreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &callback) != VK_SUCCESS)
     {
-      throw(std::runtime_error("Failed to set up debug callback!"));
+      // TODO: error, (std::runtime_error("Failed to set up debug callback!"));
       return false;
     }
     return true;
@@ -39,7 +39,7 @@ namespace VulkanInterface
 #endif
     if (library == nullptr)
     {
-      throw(std::runtime_error("Unable to load vulkan library, ptr returned is nullptr"));
+      // TODO: error, (std::runtime_error("Unable to load vulkan library, ptr returned is nullptr"));
     }
     return (library != nullptr);
   }
@@ -68,7 +68,7 @@ namespace VulkanInterface
 #define EXPORTED_VULKAN_FUNCTION( name ) \
     name = (PFN_##name)LoadFunction( library, #name ); \
     if(name == nullptr) { \
-      throw(std::runtime_error("Failed to load function " #name)); \
+      /* TODO: error, (std::runtime_error("Failed to load function " #name));*/ \
       return false; \
     } 
      
@@ -82,7 +82,7 @@ namespace VulkanInterface
 #define GLOBAL_LEVEL_VULKAN_FUNCTION( name ) \
     name = (PFN_##name)vkGetInstanceProcAddr( nullptr, #name ); \
     if(name == nullptr) { \
-      throw(std::runtime_error("Failed to load global-level function " #name)); \
+      /* TODO: error, (std::runtime_error("Failed to load global-level function " #name));*/ \
       return false; \
     }
 
@@ -98,7 +98,7 @@ namespace VulkanInterface
 #define INSTANCE_LEVEL_VULKAN_FUNCTION( name ) \
     name = (PFN_##name)vkGetInstanceProcAddr( instance, #name ); \
     if (name == nullptr) { \
-      throw(std::runtime_error("Failed to load instance-level function " #name)); \
+      /* TODO: error, (std::runtime_error("Failed to load instance-level function " #name));*/ \
       return false; \
     }
 
@@ -125,7 +125,7 @@ namespace VulkanInterface
 #define DEVICE_LEVEL_VULKAN_FUNCTION( name ) \
     name = (PFN_##name)vkGetDeviceProcAddr( device, #name ); \
     if(name == nullptr) { \
-      throw(std::runtime_error("Failed to load device-level function " #name)); \
+      /* TODO: error, (std::runtime_error("Failed to load device-level function " #name));*/ \
       return false; \
     }
 
@@ -135,7 +135,7 @@ namespace VulkanInterface
       if(std::string(enabledExtension) == std::string(extension)) { \
         name = (PFN_##name)vkGetDeviceProcAddr(device, #name); \
         if(name == nullptr) { \
-          throw(std::runtime_error("Failed to load extension device-level function " #name)); \
+          /* TODO: error, (std::runtime_error("Failed to load extension device-level function " #name));*/ \
           return false; \
         } \
       } \
@@ -154,7 +154,7 @@ namespace VulkanInterface
     result = vkEnumerateInstanceLayerProperties(&availableLayersCount, nullptr);
     if ((result != VK_SUCCESS) || (availableLayersCount < static_cast<uint32_t>(availableLayers.size())))
     {
-      throw(std::runtime_error("Could not get the number of available instance layers"));
+      // TODO: error, (std::runtime_error("Could not get the number of available instance layers"));
       return false;
     }
 
@@ -162,7 +162,7 @@ namespace VulkanInterface
     result = vkEnumerateInstanceLayerProperties(&availableLayersCount, availableLayers.data());
     if ((result != VK_SUCCESS) || (availableLayersCount < static_cast<uint32_t>(availableLayers.size())))
     {
-      throw(std::runtime_error("Could not enumerate available instance layers"));
+      // TODO: error, (std::runtime_error("Could not enumerate available instance layers"));
       return false;
     }
 
@@ -183,7 +183,7 @@ namespace VulkanInterface
     }
     if (!found)
     {
-      throw(std::runtime_error("Desired instance layer not found in available layers list"));
+      // TODO: error, (std::runtime_error("Desired instance layer not found in available layers list"));
     }
     return found;
   }  
@@ -197,7 +197,7 @@ namespace VulkanInterface
     result = vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, nullptr);
     if ((result != VK_SUCCESS) || (extensionsCount == 0))
     {
-      throw(std::runtime_error("Could not get the number of instance extensions"));
+      // TODO: error, (std::runtime_error("Could not get the number of instance extensions"));
       return false;
     }
 
@@ -205,7 +205,7 @@ namespace VulkanInterface
     result = vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, availableExtensions.data());
     if ((result != VK_SUCCESS) || (extensionsCount == 0))
     {
-      throw(std::runtime_error("Could not enumerate instance extensions"));
+      // TODO: error, (std::runtime_error("Could not enumerate instance extensions"));
       return false;
     }
 
@@ -232,48 +232,33 @@ namespace VulkanInterface
                           , VkInstance & instance)
   {
     std::vector<VkExtensionProperties> availableExtensions;
-    try
+    if (!GetAvailableInstanceExtensions(availableExtensions))
     {
-      GetAvailableInstanceExtensions(availableExtensions);
+      return false;
     }
-    catch (std::runtime_error const &e)
-    {
-      throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to get available extensions"), e));
-    }
+    
 
     // Search through availableExtensions for extensions in desiredExtensions
     for (auto & desiredExtension : desiredExtensions)
     {
-      try
+      if (!IsExtensionSupported(availableExtensions, desiredExtension))
       {
-        IsExtensionSupported(availableExtensions, desiredExtension);
-      }
-      catch (std::runtime_error const &e)
-      {
-        throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Desired extension is not supported by instance"), e));
+        return false;
       }
     }
 
     std::vector<VkLayerProperties> availableLayers;
-    try
+    if(!GetAvailableLayerSupport(availableLayers))
     {
-      GetAvailableLayerSupport(availableLayers);
-    }
-    catch (std::runtime_error const &e)
-    {
-      throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Instance does not support desired validation layers"), e));
-    }
+      return false;
+    }    
 
     // Search through availableLayers for layers in desiredLayers
     for (auto & desiredLayer : desiredLayers)
     {
-      try
+      if(!IsLayerSupported(availableLayers, desiredLayer))
       {
-        IsLayerSupported(availableLayers, desiredLayer);
-      }
-      catch (std::runtime_error const &e)
-      {
-        throw(UnrecoverableRuntimeException(CreateBasicExceptionMessage("Desired layer is not supported by instance"), e));
+        return false;
       }
     }
 
@@ -301,7 +286,7 @@ namespace VulkanInterface
     VkResult result = vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
     if ((result != VK_SUCCESS) || (instance == VK_NULL_HANDLE))
     {
-      throw(std::runtime_error("Could not create Vulkan Instance"));
+      // TODO: error, (std::runtime_error("Could not create Vulkan Instance"));
       return false;
     }
 
@@ -318,7 +303,7 @@ namespace VulkanInterface
     result = vkEnumeratePhysicalDevices(instance, &devicesCount, nullptr);
     if ((result != VK_SUCCESS) || (devicesCount == 0))
     {
-      throw(std::runtime_error("Could not get the number of available physical devices"));
+      // TODO: error, (std::runtime_error("Could not get the number of available physical devices"));
       return false;
     }
 
@@ -326,7 +311,7 @@ namespace VulkanInterface
     result = vkEnumeratePhysicalDevices(instance, &devicesCount, availableDevices.data());
     if ((result != VK_SUCCESS) || (devicesCount == 0))
     {
-      throw(std::runtime_error("Could not enumerate physical devices"));
+      // TODO: error, (std::runtime_error("Could not enumerate physical devices"));
       return false;
     }
 
@@ -342,7 +327,7 @@ namespace VulkanInterface
     result = vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionsCount, nullptr);
     if ((result != VK_SUCCESS) || (extensionsCount == 0))
     {
-      throw std::runtime_error("Could not get the number of device extensions");
+      // TODO: error,  std::runtime_error("Could not get the number of device extensions");
       return false;
     }
 
@@ -350,7 +335,7 @@ namespace VulkanInterface
     result = vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionsCount, availableExtensions.data());
     if ((result != VK_SUCCESS) || (extensionsCount == 0))
     {
-      throw std::runtime_error("Could not enumerate device extensions");
+      // TODO: error,  std::runtime_error("Could not enumerate device extensions");
       return false;
     }
 
@@ -373,7 +358,7 @@ namespace VulkanInterface
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamiliesCount, nullptr);
     if (queueFamiliesCount == 0)
     {
-      throw std::runtime_error("Could not get the number of queue families");
+      // TODO: error,  std::runtime_error("Could not get the number of queue families");
       return false;
     }
 
@@ -381,7 +366,7 @@ namespace VulkanInterface
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamiliesCount, queueFamilies.data());
     if (queueFamiliesCount == 0)
     {
-      throw std::runtime_error("Could not acquire properties of queue families");
+      // TODO: error,  std::runtime_error("Could not acquire properties of queue families");
       return false;
     }
 
@@ -414,14 +399,11 @@ namespace VulkanInterface
   bool SelectQueueFamilyThatSupportsPresentationToGivenSurface(VkPhysicalDevice physicalDevice, VkSurfaceKHR presentationSurface, uint32_t & queueFamilyIndex)
   {
     std::vector<VkQueueFamilyProperties> queueFamilies;
-    try
+
+    if (!CheckAvailableQueueFamiliesAndTheirProperties(physicalDevice, queueFamilies))
     {
-      CheckAvailableQueueFamiliesAndTheirProperties(physicalDevice, queueFamilies);      
-    }
-    catch (std::runtime_error const &e)
-    {
-      throw UnrecoverableRuntimeException(CreateBasicExceptionMessage("Unable to get queue families to check for family that supports given surface"), e);
-    }
+      return false;
+    }    
 
     for (uint32_t index = 0; index < static_cast<uint32_t>(queueFamilies.size()); ++index)
     {
@@ -492,7 +474,7 @@ namespace VulkanInterface
     VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice);
     if ((result != VK_SUCCESS) || (logicalDevice == VK_NULL_HANDLE))
     {
-      throw std::runtime_error("Could not create logical device");
+      // TODO: error,  std::runtime_error("Could not create logical device");
       return false;
     }
 
@@ -539,7 +521,7 @@ namespace VulkanInterface
 
     if ((result != VK_SUCCESS) || (presentationSurface == VK_NULL_HANDLE))
     {
-      throw std::runtime_error("Could not create presentation surface");
+      // TODO: error,  std::runtime_error("Could not create presentation surface");
       return false;
     }
 
@@ -555,7 +537,7 @@ namespace VulkanInterface
     result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, presentationSurface, &presentModesCount, nullptr);
     if ((result != VK_SUCCESS) || (presentModesCount == 0))
     {
-      throw std::runtime_error("Could not get the number of supported present modes");
+      // TODO: error,  std::runtime_error("Could not get the number of supported present modes");
       return false;
     }
 
@@ -563,7 +545,7 @@ namespace VulkanInterface
     result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, presentationSurface, &presentModesCount, presentModes.data());
     if ((result != VK_SUCCESS) || (presentModesCount == 0))
     {
-      throw std::runtime_error("Could not enumerate present modes");
+      // TODO: error,  std::runtime_error("Could not enumerate present modes");
       return false;
     }
 
@@ -587,7 +569,7 @@ namespace VulkanInterface
       }
     }
 
-    throw std::runtime_error("VK_PRESENT_MODE_FIFO_KHR is not supported! Run for the hills!");
+    // TODO: error,  std::runtime_error("VK_PRESENT_MODE_FIFO_KHR is not supported! Run for the hills!");
     return false;
   }
 

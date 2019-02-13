@@ -6,6 +6,19 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   {
     return false;
   }
+
+  if (!setupTaskflow())
+  {
+    return false;
+  }
+
+  // Prepare setup tasks
+  auto[vma, imgui] = systemTaskflow->silent_emplace(
+    [&]() { initialiseVulkanMemoryAllocator(); },
+    [&]() { initImGui(windowParameters.HWnd); }
+  );
+
+  systemTaskflow->dispatch().get();
 }
 
 bool ComputeApp::Update()
@@ -209,6 +222,7 @@ bool ComputeApp::setupTaskflow()
 
   graphicsTaskflow = std::make_unique<tf::Taskflow>(tfExecutor);
   computeTaskflow = std::make_unique<tf::Taskflow>(tfExecutor);
+  systemTaskflow = std::make_unique<tf::Taskflow>(tfExecutor);
 
   return false;
 }
@@ -241,6 +255,26 @@ bool ComputeApp::initImGui(HWND hwnd)
   {
     return false;
   }
+  
+  std::vector<VkDescriptorPoolSize> poolSizes = 
+  {
+    { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+    {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+    {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+    {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+    {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+    {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+  };
+  VulkanInterface::InitVulkanHandle(vulkanDevice, imGuiDescriptorPool);
+  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, true, 1000 * poolSizes.size(), poolSizes, *imGuiDescriptorPool))
+  {
+    return false;
+  }  
 
   ImGui_ImplVulkan_InitInfo initInfo = { 0 };
   initInfo.Instance = *vulkanInstance;
@@ -249,7 +283,7 @@ bool ComputeApp::initImGui(HWND hwnd)
   initInfo.QueueFamily = graphicsQueueParameters.familyIndex;
   initInfo.Queue = graphicsQueue;
   initInfo.PipelineCache = VK_NULL_HANDLE;
-  initInfo.DescriptorPool = *(graphicsPipeline.descriptorPool);
+  initInfo.DescriptorPool = *imGuiDescriptorPool;
   initInfo.Allocator = VK_NULL_HANDLE;
   initInfo.CheckVkResultFn = [](VkResult err) { if (err == VK_SUCCESS) return; else { std::cout << "ImGui Error (Non-success return value), Code: " << err << std::endl; if (err < 0) abort; }};
 
@@ -273,6 +307,13 @@ void ComputeApp::shutdownVulkanMemoryAllocator()
     vmaDestroyAllocator(allocator);
     allocator = VK_NULL_HANDLE;
   }
+}
+
+void ComputeApp::shutdownImGui()
+{
+  ImGui_ImplVulkan_Shutdown();
+  ImGui_ImplWin32_Shutdown();
+  ImGui::DestroyContext();
 }
 
 void ComputeApp::cleanupVulkan()

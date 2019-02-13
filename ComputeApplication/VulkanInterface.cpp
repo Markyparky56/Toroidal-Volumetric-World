@@ -1,4 +1,5 @@
 #include "VulkanInterface.hpp"
+#include "vk_mem_alloc.h"
 #include <sstream>
 
 namespace VulkanInterface
@@ -3373,5 +3374,604 @@ return true;
       vkDestroyShaderModule(logicalDevice, shaderModule, nullptr);
       shaderModule = VK_NULL_HANDLE;
     }
+  }
+
+  // VulkanMemoryAllocator specific functions
+  bool CreateBuffer(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize size
+    , VkBufferUsageFlags bufferUsage
+    , VkBuffer & buffer
+    , VmaAllocationCreateFlags allocationFlags
+    , VmaMemoryUsage memUsage
+    , VkMemoryPropertyFlags memoryProperties
+    , VmaPool pool
+    , VmaAllocation & allocation)
+  {
+    VkBufferCreateInfo bufferCreateInfo = {
+      VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+      nullptr,
+      0,
+      size,
+      bufferUsage,
+      VK_SHARING_MODE_EXCLUSIVE,
+      0,
+      nullptr
+    };
+    
+    VmaAllocationCreateInfo allocInfo = {
+      allocationFlags,
+      memUsage,
+      memoryProperties,
+      0,
+      0,
+      pool,
+
+    };
+
+    if (!vmaCreateBuffer(allocator, &bufferCreateInfo, &allocInfo, &buffer, &allocation, nullptr))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  // VulkanMemoryAllocator specific functions
+  bool CreateImage(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkSampleCountFlagBits samples
+    , VkImageUsageFlags usageScenarios
+    , bool cubemap
+    , VkImage & image
+    , VmaAllocationCreateFlags allocationFlags
+    , VmaMemoryUsage memUsage
+    , VkMemoryPropertyFlags memoryProperties
+    , VmaPool pool
+    , VmaAllocation & allocation)
+  {
+    VkImageCreateInfo imageCreateInfo = {
+      VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      nullptr,
+      cubemap ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0u,
+      type,
+      format,
+      size,
+      numMipmaps,
+      cubemap ? 6 * numLayers : numLayers,
+      samples,
+      VK_IMAGE_TILING_OPTIMAL,
+      usageScenarios,
+      VK_SHARING_MODE_EXCLUSIVE,
+      0,
+      nullptr,
+      VK_IMAGE_LAYOUT_UNDEFINED
+    };
+
+    VmaAllocationCreateInfo allocInfo = {
+      allocationFlags,
+      memUsage,
+      memoryProperties,
+      0,
+      0,
+      pool,
+
+    };
+
+    if (!vmaCreateImage(allocator, &imageCreateInfo, &allocInfo, &image, &allocation, nullptr))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool Create2DImageAndView(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkFormat format
+    , VkExtent2D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkSampleCountFlagBits samples
+    , VkImageUsageFlags usage
+    , VkImageAspectFlags aspect
+    , VkImage & image
+    , VkImageView & imageView
+    , VmaAllocationCreateFlags allocationFlags
+    , VmaMemoryUsage memUsage
+    , VkMemoryPropertyFlags memoryProperties
+    , VmaPool pool
+    , VmaAllocation & allocation)
+  {
+    if (!CreateImage(logicalDevice, allocator, VK_IMAGE_TYPE_2D, format, { size.width, size.height, 1 }, numMipmaps, numLayers, samples, usage, false, image, allocationFlags, memUsage, memoryProperties, pool, allocation))
+    {
+      return false;
+    }
+    if (!CreateImageView(logicalDevice, image, VK_IMAGE_VIEW_TYPE_2D, format, aspect, imageView))
+    {
+      return false;
+    }
+    return true;
+  }
+
+  bool CreateLayered2DImageWithCubemapView(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , uint32_t size
+    , uint32_t numMipmaps
+    , VkImageUsageFlags usage
+    , VkImageAspectFlags aspect
+    , VkImage & image
+    , VkImageView & imageView
+    , VmaAllocationCreateFlags allocationFlags
+    , VmaMemoryUsage memUsage
+    , VkMemoryPropertyFlags memoryProperties
+    , VmaPool pool
+    , VmaAllocation & allocation)
+  {
+    if (!CreateImage(logicalDevice, allocator, VK_IMAGE_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM, { size, size, 1 }, numMipmaps, 6, VK_SAMPLE_COUNT_1_BIT, usage, true, image, allocationFlags, memUsage, memoryProperties, pool, allocation))
+    {
+      return false;
+    }
+    if (!CreateImageView(logicalDevice, image, VK_IMAGE_VIEW_TYPE_CUBE, VK_FORMAT_R8G8B8A8_UNORM, aspect, imageView))
+    {
+      return false;
+    }
+    return true;
+  }
+
+  bool MapUpdateAndUnmapHostVisibleMemory(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VmaAllocation allocation
+    , VkDeviceSize dataSize
+    , void * data
+    , bool unmap
+    , void ** pointer)
+  {
+    VkResult result;
+    void * localPointer;
+    result = vmaMapMemory(allocator, allocation, &localPointer);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not map memory object"
+      return false;
+    }
+
+    std::memcpy(localPointer, data, dataSize);
+
+    vmaFlushAllocation(allocator, allocation, 0, dataSize);
+    if (unmap)
+    {
+      vmaUnmapMemory(allocator, allocation);
+    }
+    else if (pointer != nullptr)
+    {
+      *pointer = localPointer;
+    }
+
+    return true;
+  }
+
+  bool UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
+      VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize dataSize
+    , void * data
+    , VkBuffer destinationBuffer
+    , VkDeviceSize destinationOffset
+    , VkAccessFlags destinationBufferCurrentAccess
+    , VkAccessFlags destinationBufferNewAccess
+    , VkPipelineStageFlags destinationBufferGeneratingStages
+    , VkPipelineStageFlags destinationBufferConsumingStages
+    , VkQueue queue
+    , VkCommandBuffer commandBuffer
+    , std::vector<VkSemaphore> signalSemaphores)
+  {
+    VkBuffer stagingBuffer;
+    VmaAllocation allocation;
+    if (!CreateBuffer(
+        logicalDevice
+      , allocator, dataSize
+      , VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingBuffer
+      , VMA_ALLOCATION_CREATE_STRATEGY_FIRST_FIT_BIT
+      , VMA_MEMORY_USAGE_CPU_TO_GPU
+      , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+      , VK_NULL_HANDLE, allocation))
+    {
+      return false;
+    }
+
+    if (!MapUpdateAndUnmapHostVisibleMemory(logicalDevice, allocator, allocation, dataSize, data, true, nullptr))
+    {
+      return false;
+    }
+
+    if (!BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+    {
+      return false;
+    }
+
+    SetBufferMemoryBarrier(commandBuffer, destinationBufferGeneratingStages, VK_PIPELINE_STAGE_TRANSFER_BIT, { {destinationBuffer, destinationBufferCurrentAccess, VK_ACCESS_TRANSFER_WRITE_BIT, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED} });
+
+    CopyDataBetweenBuffers(commandBuffer, stagingBuffer, destinationBuffer, { {0, destinationOffset, dataSize} });
+
+    SetBufferMemoryBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, destinationBufferConsumingStages, { {destinationBuffer, VK_ACCESS_TRANSFER_WRITE_BIT, destinationBufferNewAccess, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED} });
+
+    if (!EndCommandBufferRecordingOp(commandBuffer))
+    {
+      return false;
+    }
+
+    VulkanHandle(VkFence) fence;
+    InitVulkanHandle(logicalDevice, fence);
+    if (!CreateFence(logicalDevice, false, *fence))
+    {
+      return false;
+    }
+
+    if (!SubmitCommandBuffersToQueue(queue, {}, { commandBuffer }, signalSemaphores, *fence))
+    {
+      return false;
+    }
+
+    if (!WaitForFences(logicalDevice, { *fence }, VK_FALSE, 500000000))
+    {
+      return false;
+    }
+
+    vmaDestroyBuffer(allocator, stagingBuffer, allocation);
+
+    return true;
+  }
+
+  bool UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(
+      VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize dataSize
+    , void * data
+    , VkImage destinationImage
+    , VkImageSubresourceLayers destinationImageSubresource
+    , VkOffset3D destinationImageOffset
+    , VkExtent3D destinationImageSize
+    , VkImageLayout destinationImageCurrentLayout
+    , VkImageLayout destinationImageNewLayout
+    , VkAccessFlags destinationImageCurrentAccess
+    , VkAccessFlags destinationImageNewAccess
+    , VkImageAspectFlags destinationImageAspect
+    , VkPipelineStageFlags destinationImageGeneratingStages
+    , VkPipelineStageFlags destinationImageConsumingStages
+    , VkQueue queue
+    , VkCommandBuffer commandBuffer
+    , std::vector<VkSemaphore> signalSemaphores)
+  {
+    //VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+    VkBuffer stagingBuffer;
+    VmaAllocation allocation;
+    if (!CreateBuffer(
+        logicalDevice
+      , allocator, dataSize
+      , VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingBuffer
+      , VMA_ALLOCATION_CREATE_STRATEGY_FIRST_FIT_BIT
+      , VMA_MEMORY_USAGE_CPU_TO_GPU
+      , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+      , VK_NULL_HANDLE, allocation))
+    {
+      return false;
+    }    
+
+    if (!MapUpdateAndUnmapHostVisibleMemory(logicalDevice, allocator, allocation, dataSize, data, true, nullptr))
+    {
+      return false;
+    }
+
+    if (!BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+    {
+      return false;
+    }
+
+    SetImageMemoryBarrier(commandBuffer, destinationImageGeneratingStages, VK_PIPELINE_STAGE_TRANSFER_BIT,
+      {
+        {
+          destinationImage,
+          destinationImageCurrentAccess,
+          VK_ACCESS_TRANSFER_WRITE_BIT,
+          destinationImageCurrentLayout,
+          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+          VK_QUEUE_FAMILY_IGNORED,
+          VK_QUEUE_FAMILY_IGNORED,
+          destinationImageAspect
+        }
+      }
+    );
+
+    CopyDataFromBufferToImage(commandBuffer, stagingBuffer, destinationImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+      {
+        {
+          0,
+          0,
+          0,
+          destinationImageSubresource,
+          destinationImageOffset,
+          destinationImageSize
+        }
+      }
+    );
+
+    SetImageMemoryBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, destinationImageConsumingStages,
+      {
+        {
+          destinationImage,
+          VK_ACCESS_TRANSFER_WRITE_BIT,
+          destinationImageNewAccess,
+          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+          destinationImageNewLayout,
+          VK_QUEUE_FAMILY_IGNORED,
+          VK_QUEUE_FAMILY_IGNORED,
+          destinationImageAspect
+        }
+      }
+    );
+
+    if (!EndCommandBufferRecordingOp(commandBuffer))
+    {
+      return false;
+    }
+
+    VulkanHandle(VkFence) fence;
+    InitVulkanHandle(logicalDevice, fence);
+    if (!CreateFence(logicalDevice, false, *fence))
+    {
+      return false;
+    }
+
+    if (!SubmitCommandBuffersToQueue(queue, {}, { commandBuffer }, signalSemaphores, *fence))
+    {
+      return false;
+    }
+
+    if (!WaitForFences(logicalDevice, { *fence }, VK_FALSE, 500000000))
+    {
+      return false;
+    }
+
+    vmaDestroyBuffer(allocator, stagingBuffer, allocation);
+
+    return true;
+  }
+
+  bool CreateSampledImage(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkImageUsageFlags usage
+    , VkImageViewType viewType
+    , VkImageAspectFlags aspect
+    , bool linearFiltering
+    , VkImage & sampledImage
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
+    , VkImageView & sampledImageView)
+  {
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+    if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT))
+    {
+      // TODO: error, "Provided format is not supported for a sampled image"
+      return false;
+    }
+
+    if (linearFiltering && !(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
+    {
+      // TODO: error, "Provided format is not supported for linear image filtering"
+      return false;
+    }
+
+    if (!CreateImage(logicalDevice, allocator
+      , type, format, size, numMipmaps, numLayers
+      , VK_SAMPLE_COUNT_1_BIT
+      , usage | VK_IMAGE_USAGE_SAMPLED_BIT
+      , false, sampledImage
+      , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
+      , memUsage
+      , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+      , VK_NULL_HANDLE, allocation))
+    {
+      return false;
+    }
+
+    if (!CreateImageView(logicalDevice, sampledImage, viewType, format, aspect, sampledImageView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateCombinedImageSampler(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkImageUsageFlags usage
+    , VkImageViewType viewType
+    , VkImageAspectFlags aspect
+    , VkFilter magFilter
+    , VkFilter minFilter
+    , VkSamplerMipmapMode mipmapMode
+    , VkSamplerAddressMode uAddressMode
+    , VkSamplerAddressMode vAddressMode
+    , VkSamplerAddressMode wAddressMode
+    , float lodBias
+    , bool anistropyEnable
+    , float maxAnisotropy
+    , bool compareEnable
+    , VkCompareOp compareOperator
+    , float minLod
+    , float maxLod
+    , VkBorderColor borderColor
+    , bool unnormalisedCoords
+    , VkSampler & sampler
+    , VkImage & sampledImage
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
+    , VkImageView & sampledImageView)
+  {
+    if (!CreateSampler(logicalDevice, magFilter, minFilter, mipmapMode, uAddressMode, vAddressMode, wAddressMode, lodBias, anistropyEnable, maxAnisotropy, compareEnable, compareOperator, minLod, maxLod, borderColor, unnormalisedCoords, sampler))
+    {
+      return false;
+    }
+
+    bool linearFiltering = (magFilter == VK_FILTER_LINEAR) || (minFilter == VK_FILTER_LINEAR) || (mipmapMode == VK_SAMPLER_MIPMAP_MODE_LINEAR);
+
+    if (!CreateSampledImage(physicalDevice, logicalDevice, allocator, type, format, size, numMipmaps, numLayers, usage, viewType, aspect, linearFiltering, sampledImage, memUsage, allocation, sampledImageView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateStorageImage(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , uint32_t numMipmaps
+    , uint32_t numLayers
+    , VkImageUsageFlags usage
+    , VkImageViewType viewType
+    , VkImageAspectFlags aspect
+    , bool atomicOperations
+    , VkImage & storageImage
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
+    , VkImageView & storageImagesView)
+  {
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+
+    if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
+    {
+      // TODO: error, "Provided format is not supported for a storage image"
+      return false;
+    }
+    if (atomicOperations && !(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT))
+    {
+      // TODO: error, "Provided format is not supported for atomic operations on storage images"
+      return false;
+    }
+
+    if (!CreateImage(logicalDevice, allocator, type, format, size, numMipmaps, numLayers, VK_SAMPLE_COUNT_1_BIT, usage | VK_IMAGE_USAGE_STORAGE_BIT, false, storageImage, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+    {
+      return false;
+    }
+
+    if (!CreateImageView(logicalDevice, storageImage, viewType, format, aspect, storageImagesView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateUniformTexelBuffer(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkFormat format
+    , VkDeviceSize size
+    , VkImageUsageFlags usage
+    , VkBuffer & uniformTexelBuffer
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
+    , VkBufferView & uniformTexelBufferView)
+  {
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+    if (!(formatProperties.bufferFeatures & VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT))
+    {
+      // TODO: error, "Provided format is not supported for a uniform texel buffer"
+      return false;
+    }
+
+    if (!CreateBuffer(logicalDevice, allocator, size, usage | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, uniformTexelBuffer
+      , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+    {
+      return false;
+    }
+
+    if (!CreateBufferView(logicalDevice, uniformTexelBuffer, format, 0, VK_WHOLE_SIZE, uniformTexelBufferView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateStorageTexelBuffer(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkFormat format
+    , VkDeviceSize size
+    , VkBufferUsageFlags usage
+    , bool atomicOperations
+    , VkBuffer & storageTexelBuffer
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
+    , VkBufferView & storageTexelBufferView)
+  {
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+    if (!(formatProperties.bufferFeatures & VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT))
+    {
+      // TODO: error, "Provided format is not supported for a uniform texel buffer"
+      return false;
+    }
+
+    if (atomicOperations && !(formatProperties.bufferFeatures & VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT))
+    {
+      // TODO: error, "provided format is not supported for atomic operations on storage texel buffers"
+      return false;
+    }
+
+    if (!CreateBuffer(logicalDevice, allocator, size, usage | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT, storageTexelBuffer
+    , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+    {
+      return false;
+    }
+
+    if (!CreateBufferView(logicalDevice, storageTexelBuffer, format, 0, VK_WHOLE_SIZE, storageTexelBufferView))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateUniformBuffer(VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize size
+    , VkBufferUsageFlags usage
+    , VkBuffer & uniformBuffer
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation)
+  {
+    if (!CreateBuffer(logicalDevice, allocator, size, usage | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uniformBuffer, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+    {
+      return false;
+    }
+
+    return true;
   }
 }

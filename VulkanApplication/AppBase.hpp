@@ -112,8 +112,9 @@ protected:
 
   VulkanHandle(VkSurfaceKHR) presentationSurface;
 
+  // TODO: These should be in pipeline classes
   VulkanInterface::QueueParameters graphicsQueue;
-  VulkanInterface::QueueParameters computeQueue;
+  VulkanInterface::QueueParameters computeQueue; 
   VulkanInterface::QueueParameters presentQueue;
 
   VulkanInterface::SwapchainParameters swapchain;
