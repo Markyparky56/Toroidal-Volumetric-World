@@ -285,7 +285,16 @@ bool ComputeApp::initImGui(HWND hwnd)
   initInfo.PipelineCache = VK_NULL_HANDLE;
   initInfo.DescriptorPool = *imGuiDescriptorPool;
   initInfo.Allocator = VK_NULL_HANDLE;
-  initInfo.CheckVkResultFn = [](VkResult err) { if (err == VK_SUCCESS) return; else { std::cout << "ImGui Error (Non-success return value), Code: " << err << std::endl; if (err < 0) abort; }};
+  initInfo.CheckVkResultFn = [](VkResult err) { 
+    if (err == VK_SUCCESS) return; 
+    else { 
+      std::cout << "ImGui Error (Non-success return value), Code: " << err << std::endl; 
+#if defined(_DEBUG)
+      if (err < 0) 
+        abort(); 
+#endif
+    }
+  };
 
   if (!ImGui_ImplVulkan_Init(&initInfo, *renderPass))
   {
@@ -318,6 +327,13 @@ void ComputeApp::shutdownImGui()
 
 void ComputeApp::cleanupVulkan()
 {
+  if (vulkanDevice) VulkanInterface::WaitForAllSubmittedCommandsToBeFinished(*vulkanDevice);
+
+  // VulkanHandle is useful for catching forgotten objects and ones with scoped/short-lifetimes, 
+  // but for the final shutdown we need to be explicit
+  VulkanInterface::DestroyDescriptorPool(*vulkanDevice, *imGuiDescriptorPool);
+  VulkanInterface::DestroyRenderPass(*vulkanDevice, *renderPass);
+
   if (vulkanDevice) VulkanInterface::vkDestroyDevice(*vulkanDevice, nullptr);
 
 #if defined(_DEBUG)
@@ -327,4 +343,20 @@ void ComputeApp::cleanupVulkan()
   if (presentationSurface) VulkanInterface::vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);
   if (vulkanInstance) VulkanInterface::vkDestroyInstance(*vulkanInstance, nullptr);
   if (vulkanLibrary) VulkanInterface::ReleaseVulkanLoaderLibrary(vulkanLibrary);
+}
+
+void ComputeApp::Shutdown()
+{
+  // We can shutdown some systems in parallel since they don't depend on each other
+  auto[vulkan, vma, imgui] = systemTaskflow->silent_emplace(
+    [&]() { cleanupVulkan(); },
+    [&]() { shutdownVulkanMemoryAllocator(); },
+    [&]() { shutdownImGui(); }
+  );
+  
+  // Task dependencies
+  vma.precede(vulkan);
+  imgui.precede(vulkan);
+
+  systemTaskflow->dispatch().get();
 }

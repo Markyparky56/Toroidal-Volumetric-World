@@ -651,7 +651,8 @@ bool TestApp::SetupGraphicsBuffers()
     , sizeof(vertices[0]) * vertices.size()
     , &vertices[0]
     , *vertexBuffer
-    , 0, 0
+    , 0
+    , 0
     , VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
     , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
     , VK_PIPELINE_STAGE_VERTEX_INPUT_BIT

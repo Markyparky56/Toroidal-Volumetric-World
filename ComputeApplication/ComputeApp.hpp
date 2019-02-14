@@ -21,6 +21,7 @@ private:
   bool initImGui(HWND hwnd);
   bool setupGraphicsPipeline();
 
+  void Shutdown() override;
   void shutdownVulkanMemoryAllocator();
   void shutdownImGui();
   void cleanupVulkan();

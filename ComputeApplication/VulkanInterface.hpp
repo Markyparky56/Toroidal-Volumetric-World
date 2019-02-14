@@ -1102,13 +1102,16 @@ namespace VulkanInterface
 
   bool CreateStorageBuffer(VkPhysicalDevice physicalDevice
     , VkDevice logicalDevice
+    , VmaAllocator allocator
     , VkDeviceSize size
     , VkBufferUsageFlags usage
     , VkBuffer & storageBuffer
-    , VkDeviceMemory & memoryObject);
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation);
 
   bool CreateInputAttachment(VkPhysicalDevice physicalDevice
     , VkDevice logicalDevice
+    , VmaAllocator allocator
     , VkImageType type
     , VkFormat format
     , VkExtent3D size
@@ -1116,7 +1119,8 @@ namespace VulkanInterface
     , VkImageViewType viewType
     , VkImageAspectFlags aspect
     , VkImage & inputAttachment
-    , VkDeviceMemory & memoryObject
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
     , VkImageView & inputAttachmentImageView);
 
 }

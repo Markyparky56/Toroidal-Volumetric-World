@@ -3974,4 +3974,63 @@ return true;
 
     return true;
   }
+
+  bool CreateStorageBuffer(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize size
+    , VkBufferUsageFlags usage
+    , VkBuffer & storageBuffer
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation)
+  {
+    if (!CreateBuffer(logicalDevice, allocator, size, usage | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, storageBuffer, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateInputAttachment(VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkImageType type
+    , VkFormat format
+    , VkExtent3D size
+    , VkImageUsageFlags usage
+    , VkImageViewType viewType
+    , VkImageAspectFlags aspect
+    , VkImage & inputAttachment
+    , VmaMemoryUsage memUsage
+    , VmaAllocation & allocation
+    , VkImageView & inputAttachmentImageView)
+  {
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties);
+    if ((aspect & VK_IMAGE_ASPECT_COLOR_BIT)
+      && !(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT))
+    {
+      // TODO: error, "Provided format is not supported for an input attachment"
+      return false;
+    }
+
+    if ((aspect & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) && !(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT))
+    {
+      // TODO: error, "Provided format is not supported for an input attachment"
+      return false;
+    }
+
+    if (!CreateImage(logicalDevice, allocator, type, format, size, 1, 1, VK_SAMPLE_COUNT_1_BIT, usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, false, inputAttachment, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+    {
+      return false;
+    }    
+
+    if (!CreateImageView(logicalDevice, inputAttachment, viewType, format, aspect, inputAttachmentImageView))
+    {
+      return false;
+    }
+
+    return true;
+  }
 }
