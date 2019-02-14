@@ -2,6 +2,8 @@
 #include "meshoptimizer.h"
 #include "FastNoise.h"
 
+#include "genNormals.hpp"
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -77,7 +79,7 @@ int main()
   // For multi-level LOD generation
   size_t targetIndexCount = static_cast<size_t>(indices.size() * 0.5f) / 3 * 3;
   float targetError = 1e-2f;
-  indices.resize(meshopt_simplify(&indices[0], &indices[0], indices.size(), &verts[0].x, verts.size(), sizeof(dualmc::Vertex), targetIndexCount, targetError));
+  //indices.resize(meshopt_simplify(&indices[0], &indices[0], indices.size(), &verts[0].x, verts.size(), sizeof(dualmc::Vertex), targetIndexCount, targetError));
 
   meshopt_optimizeVertexCache(&indices[0], &indices[0], indices.size(), verts.size());
 
@@ -85,6 +87,19 @@ int main()
 
   verts.resize(meshopt_optimizeVertexFetch(&verts[0], &indices[0], indices.size(), &vertices[0], verts.size(), sizeof(dualmc::Vertex)));
 
+  struct Vertex
+  {
+    glm::vec3 pos;
+    glm::vec3 normal;
+  };
+
+  std::vector<Vertex> vertnorm;
+  for (auto v : verts)
+  {
+    vertnorm.push_back({ {v.x, v.y, v.z}, {0.f, 0.f, 0.f} });
+  }
+  generateNormals(&vertnorm[0], vertnorm.size(), sizeof(Vertex), &indices[0], indices.size());
+  
   // Write obj file
   std::cout << "Writing OBJ file" << std::endl;
 
@@ -121,11 +136,16 @@ int main()
     return 0;
   }
 
-  std::cout << "Generating OBJ mesh with " << verts.size() << " vertices and " << indices.size()/3 << " faces" << std::endl;
+  std::cout << "Generating OBJ mesh with " << vertnorm.size() << " vertices and " << indices.size()/3 << " faces" << std::endl;
 
   // write vertices
-  for (auto const & v : verts) {
-    file2 << "v " << v.x << ' ' << v.y << ' ' << v.z << '\n';
+  for (auto const & v : vertnorm) {
+    file2 << "v " << v.pos.x << ' ' << v.pos.y << ' ' << v.pos.z << '\n';
+  }
+
+  // Write normals
+  for (auto const & v : vertnorm) {
+    file2 << "vn " << v.normal.x << ' ' << v.normal.y << ' ' << v.normal.z << '\n';
   }
 
   // write quad indices
