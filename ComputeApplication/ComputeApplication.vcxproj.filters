@@ -19,6 +19,9 @@
     <Filter Include="Source Files\meshoptimiser">
       <UniqueIdentifier>{2c371b01-07bb-491b-9c40-acdee2d0be35}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\ecs">
+      <UniqueIdentifier>{83c1fdc7-5f0f-43ed-a2fe-64214c800c1d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -133,6 +136,12 @@
     </ClInclude>
     <ClInclude Include="ComputePipeline.hpp">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="components.hpp">
+      <Filter>Header Files\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="chunk.entity.hpp">
+      <Filter>Header Files\ecs</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
