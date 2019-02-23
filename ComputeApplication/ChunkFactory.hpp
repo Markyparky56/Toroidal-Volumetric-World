@@ -4,6 +4,7 @@
 
 class ChunkFactory
 {
+public:
   ChunkFactory(entt::registry<> * const registry, VmaAllocator * const allocator)
     : registry(registry)
     , allocator(allocator)
