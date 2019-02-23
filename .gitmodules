@@ -1,0 +1,28 @@
+[submodule "external/cpp-cache"]
+	path = external/cpp-cache
+	url = https://github.com/Montellese/cpp-cache.git
+[submodule "external/cpp-taskflow"]
+	path = external/cpp-taskflow
+	url = https://github.com/cpp-taskflow/cpp-taskflow.git
+[submodule "external/dualmc"]
+	path = external/dualmc
+	url = https://github.com/dominikwodniok/dualmc.git
+[submodule "external/entt"]
+	path = external/entt
+	url = https://github.com/skypjack/entt.git
+[submodule "external/glm"]
+	path = external/glm
+	url = https://github.com/g-truc/glm.git
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui
+	branch = v1.68
+[submodule "external/meshoptimizer"]
+	path = external/meshoptimizer
+	url = https://github.com/zeux/meshoptimizer.git
+[submodule "external/VulkanMemoryAllocator"]
+	path = external/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "external/webgl-noise"]
+	path = external/webgl-noise
+	url = https://github.com/stegu/webgl-noise.git
