@@ -78,7 +78,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\..\cpp-taskflow;..\..\..\dualmc\include;..\..\..\entt\src;..\..\..\VulkanMemoryAllocator\src;..\..\..\imgui;C:\VulkanSDK\1.1.92.1\Include;..\..\..\meshoptimiser\src;..\..\..\glm;..\..\..\cpp-cache\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.92.1\Include;$(SolutionDir)/external/cpp-taskflow;$(SolutionDir)/external/dualmc/include;$(SolutionDir)/external/entt/src;$(SolutionDir)/external/VulkanMemoryAllocator/src;$(SolutionDir)/external/imgui;$(SolutionDir)/external/meshoptimiser/src;$(SolutionDir)/external/glm;$(SolutionDir)/external/cpp-cache/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -101,7 +101,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\..\cpp-taskflow;..\..\..\dualmc\include;..\..\..\entt\src;..\..\..\VulkanMemoryAllocator\src;..\..\..\imgui;C:\VulkanSDK\1.1.92.1\Include;..\..\..\meshoptimiser\src;..\..\..\glm;..\..\..\cpp-cache\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.92.1\Include;$(SolutionDir)/external/cpp-taskflow;$(SolutionDir)/external/dualmc/include;$(SolutionDir)/external/entt/src;$(SolutionDir)/external/VulkanMemoryAllocator/src;$(SolutionDir)/external/imgui;$(SolutionDir)/external/meshoptimiser/src;$(SolutionDir)/external/glm;$(SolutionDir)/external/cpp-cache/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;IMGUI_VULKAN_DEBUG_REPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -121,24 +121,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\imgui\imgui.cpp" />
-    <ClCompile Include="..\..\..\imgui\imgui_demo.cpp" />
-    <ClCompile Include="..\..\..\imgui\imgui_draw.cpp" />
-    <ClCompile Include="..\..\..\imgui\imgui_impl_vulkan.cpp" />
-    <ClCompile Include="..\..\..\imgui\imgui_impl_win32.cpp" />
-    <ClCompile Include="..\..\..\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\clusterizer.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\indexcodec.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\indexgenerator.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\overdrawanalyzer.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\overdrawoptimizer.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\simplifier.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\stripifier.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\vcacheanalyzer.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\vcacheoptimizer.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\vertexcodec.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\vfetchanalyzer.cpp" />
-    <ClCompile Include="..\..\..\meshoptimizer\src\vfetchoptimizer.cpp" />
+    <ClCompile Include="..\external\imgui\examples\imgui_impl_vulkan.cpp" />
+    <ClCompile Include="..\external\imgui\examples\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\external\imgui\imgui.cpp" />
+    <ClCompile Include="..\external\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\external\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\external\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\allocator.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\clusterizer.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\indexcodec.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\indexgenerator.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\overdrawanalyzer.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\overdrawoptimizer.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\simplifier.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\stripifier.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\vcacheanalyzer.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\vcacheoptimizer.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\vertexcodec.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\vfetchanalyzer.cpp" />
+    <ClCompile Include="..\external\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="AppBase.cpp" />
     <ClCompile Include="ComputeApp.cpp" />
     <ClCompile Include="GraphicsPipeline.cpp" />
