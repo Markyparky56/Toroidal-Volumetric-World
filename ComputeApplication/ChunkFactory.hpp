@@ -10,6 +10,11 @@ class ChunkFactory
   {
   }
 
+  ~ChunkFactory()
+  {
+    DestroyAllChunks();
+  }
+
   uint32_t CreateChunk(glm::vec3 pos, float dimX, float dimY, float dimZ)
   {
     auto entity = registry->create();
@@ -28,7 +33,12 @@ class ChunkFactory
 
   void DestroyAllChunks()
   {
-    registry->view<WorldPosition, VolumeData, ModelData, AABB>().each([&](auto entity) {registry->destroy(entity); });
+    registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
+      [&](const auto entity, auto&&...)
+      {
+        registry->destroy(entity); 
+      }
+    );
   }
 
 protected:

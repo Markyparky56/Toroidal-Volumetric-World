@@ -38,12 +38,12 @@ struct AABB
   float wdith, height, depth;
 };
 
-struct Frustum
-{
-  std::array<glm::vec4, 6> planes;
-};
-
-struct Controller
-{
-
-};
+//struct Frustum
+//{
+//  std::array<glm::vec4, 6> planes;
+//};
+//
+//struct Controller
+//{
+//
+//};

@@ -22,6 +22,9 @@
     <Filter Include="Header Files\ecs">
       <UniqueIdentifier>{83c1fdc7-5f0f-43ed-a2fe-64214c800c1d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\cache">
+      <UniqueIdentifier>{4f3decc3-e510-4311-a8fb-2728f91e756d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -140,8 +143,23 @@
     <ClInclude Include="components.hpp">
       <Filter>Header Files\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="chunk.entity.hpp">
+    <ClInclude Include="ChunkFactory.hpp">
       <Filter>Header Files\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="ChunkMap.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="common.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="voxel.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ChunkCache.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ReservedMap.hpp">
+      <Filter>Header Files\cache</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

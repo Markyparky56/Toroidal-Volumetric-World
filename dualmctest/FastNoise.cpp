@@ -27,6 +27,7 @@
 //
 
 #include "FastNoise.h"
+#include "float5int5.hpp"
 
 #include <math.h>
 #include <assert.h>
@@ -2099,8 +2100,10 @@ FN_DECIMAL FastNoise::SingleSimplexFractalRigidMulti(FN_DECIMAL x, FN_DECIMAL y,
   return (sum * FN_DECIMAL(1.25)) - FN_DECIMAL(1.0);;
 }
 
-static const FN_DECIMAL F5 = (sqrt(FN_DECIMAL(6)) - 1) / 5;
-static const FN_DECIMAL G5 = (6 - sqrt(FN_DECIMAL(6))) / 30;
+//static const FN_DECIMAL F5 = (sqrt(FN_DECIMAL(6)) - 1) / 5;
+//static const FN_DECIMAL G5 = (6 - sqrt(FN_DECIMAL(6))) / 30;
+static constexpr FN_DECIMAL F5 = (FN_DECIMAL(2.44948974278) - 1) / 5;
+static constexpr FN_DECIMAL G5 = (6 - FN_DECIMAL(2.44948974278)) / 30;
 
 FN_DECIMAL FastNoise::SingleSimplex(unsigned char offset, FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z, FN_DECIMAL w, FN_DECIMAL v) const
 {
@@ -2144,6 +2147,27 @@ FN_DECIMAL FastNoise::SingleSimplex(unsigned char offset, FN_DECIMAL x, FN_DECIM
 	if (z0 > v0) rankz++; else rankv++;
 
 	if (w0 > v0) rankw++; else rankv++;
+
+  //float5_s in = { x0, y0, z0, w0, v0 };
+  //float5_s ranks = { 0,0,0,0,0 };
+  //float4_s isX = stepf(float4_s{ in.y, in.z, in.w, in.v }, float4_s{ in.x, in.x, in.x, in.x });
+  //float3_s isY = stepf(float3_s{ in.z, in.w, in.v }, float3_s{ in.y, in.y, in.y });
+  //float3_s isZZW = stepf(float3_s{ in.w, in.v, in.v }, float3_s{ in.z, in.z, in.w });
+
+  //ranks.x = sum(isX);
+  //*reinterpret_cast<float4_s*>(&ranks.y) = { float4_s{ 1,1,1,1 } -isX };
+  //ranks.y += sum(isY);
+  //*reinterpret_cast<float3_s*>(&ranks.z) += { float3_s{ 1,1,1 } -isY };
+  //ranks.z += isZZW.x + isZZW.y;
+  //*reinterpret_cast<float2_s*>(&ranks.w) += { float2_s{ 1,1 } -float2_s{ isZZW.x, isZZW.y } };
+  //ranks.w += isZZW.z;
+  //ranks.v += 1 - isZZW.z;
+
+  //int rankx = static_cast<int>(ranks.x);
+  //int ranky = static_cast<int>(ranks.y);
+  //int rankz = static_cast<int>(ranks.z);
+  //int rankw = static_cast<int>(ranks.w);
+  //int rankv = static_cast<int>(ranks.v);
 
 	int i1 = rankx >= 4 ? 1 : 0;
 	int j1 = ranky >= 4 ? 1 : 0;
@@ -2249,6 +2273,184 @@ FN_DECIMAL FastNoise::SingleSimplex(unsigned char offset, FN_DECIMAL x, FN_DECIM
 
 	return (n0 + n1 + n2 + n3 + n4 + n5) * norm;
 }
+
+//static const FN_DECIMAL F5 = (sqrt(FN_DECIMAL(6)) - 1) / 5;
+//static const FN_DECIMAL G5 = (6 - sqrt(FN_DECIMAL(6))) / 30;
+float5_s Clamp(float5_s value, float min, float max)
+{
+  return {
+      std::max(min, std::min(value.x, max)),
+      std::max(min, std::min(value.y, max)),
+      std::max(min, std::min(value.z, max)),
+      std::max(min, std::min(value.w, max)),
+      std::max(min, std::min(value.v, max))
+  };
+}
+/*
+FN_DECIMAL FastNoise::SingleSimplex(unsigned char offset, FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z, FN_DECIMAL w, FN_DECIMAL v) const
+{
+  static const FN_DECIMAL norm = FN_DECIMAL(10.2);
+
+  FN_DECIMAL n0, n1, n2, n3, n4, n5;
+  float5_s in = { x,y,z,w,v };
+  FN_DECIMAL t = sum(in) * F5;
+  int5_s floor = {
+    FastFloor(in.x + t),
+    FastFloor(in.y + t),
+    FastFloor(in.z + t),
+    FastFloor(in.w + t),
+    FastFloor(in.v + t)
+  };
+  t = sum(floor) * G5;
+
+  float5_s P0 = float5_s{ static_cast<float>(floor.x)
+                        , static_cast<float>(floor.y)
+                        , static_cast<float>(floor.z)
+                        , static_cast<float>(floor.w)
+                        , static_cast<float>(floor.v) } - float5_s{ t, t, t, t, t };
+  float5_s p0 = in - P0;
+
+  float5_s ranks = { 0,0,0,0,0 };
+  float4_s isX = stepf(float4_s{ p0.y, p0.z, p0.w, p0.v }, float4_s{ p0.x, p0.x, p0.x, p0.x });
+  float3_s isY = stepf(float3_s{ p0.z, p0.w, p0.v }, float3_s{ p0.y, p0.y, p0.y });
+  float3_s isZZW = stepf(float3_s{ p0.w, p0.v, p0.v }, float3_s{ p0.z, p0.z, p0.w });
+
+  ranks.x = sum(isX);
+  *reinterpret_cast<float4_s*>(&ranks.y) = { float4_s{ 1,1,1,1 } -isX };
+  ranks.y += sum(isY);
+  *reinterpret_cast<float3_s*>(&ranks.z) += { float3_s{ 1,1,1 } -isY };
+  ranks.z += isZZW.x + isZZW.y;
+  *reinterpret_cast<float2_s*>(&ranks.w) += { float2_s{ 1,1 } -float2_s{ isZZW.x, isZZW.y } };
+  ranks.w += isZZW.z;
+  ranks.v += 1 - isZZW.z;
+
+  //float5_s i4 = Clamp(ranks, 0.0f, 1.0f);
+  //float5_s i3 = Clamp(ranks - float5_s{ 1.f, 1.f, 1.f, 1.f, 1.f }, 0.0f, 1.0f);
+  //float5_s i2 = Clamp(ranks - float5_s{ 2.f, 2.f, 2.f, 2.f, 2.f }, 0.0f, 1.0f);
+  //float5_s i1 = Clamp(ranks - float5_s{ 3.f, 3.f, 3.f, 3.f, 3.f }, 0.0f, 1.0f);
+  float5_s i1 = {
+    ranks.x >= 4 ? 1 : 0,
+    ranks.y >= 4 ? 1 : 0,
+    ranks.z >= 4 ? 1 : 0,
+    ranks.w >= 4 ? 1 : 0,
+    ranks.v >= 4 ? 1 : 0,
+  };
+  float5_s i2 = {
+    ranks.x >= 3 ? 1 : 0,
+    ranks.y >= 3 ? 1 : 0,
+    ranks.z >= 3 ? 1 : 0,
+    ranks.w >= 3 ? 1 : 0,
+    ranks.v >= 3 ? 1 : 0,
+  };
+  float5_s i3 = {
+    ranks.x >= 2 ? 1 : 0,
+    ranks.y >= 2 ? 1 : 0,
+    ranks.z >= 2 ? 1 : 0,
+    ranks.w >= 2 ? 1 : 0,
+    ranks.v >= 2 ? 1 : 0,
+  };
+  float5_s i4 = {
+    ranks.x >= 1 ? 1 : 0,
+    ranks.y >= 1 ? 1 : 0,
+    ranks.z >= 1 ? 1 : 0,
+    ranks.w >= 1 ? 1 : 0,
+    ranks.v >= 1 ? 1 : 0,
+  };
+  
+  constexpr float5_s C = {
+    FN_DECIMAL(G5),
+    FN_DECIMAL(2.0*G5),
+    FN_DECIMAL(3.0*G5),
+    FN_DECIMAL(4.0*G5),
+    FN_DECIMAL(-1.0 + 5.0*G5)
+  };
+
+  float5_s p1 = p0 - i1 + float5_s{ C.x, C.x, C.x, C.x, C.x };
+  float5_s p2 = p0 - i2 + float5_s{ C.y, C.y, C.y, C.y, C.y };
+  float5_s p3 = p0 - i3 + float5_s{ C.z, C.z, C.z, C.z, C.z };
+  float5_s p4 = p0 - i4 + float5_s{ C.w, C.w, C.w, C.w, C.w };
+  float5_s p5 = p0 + float5_s{ C.v, C.v, C.v, C.v, C.v };
+
+  t = FN_DECIMAL(0.7) - magnitudeSqrd(p0);
+  if (t < 0) n0 = 0;
+  else
+  {
+    t *= t;
+    n0 = t * t * GradCoord5D(offset, floor.x, floor.y, floor.z, floor.w, floor.v, p0.x, p0.y, p0.z, p0.w, p0.v);
+  }
+
+  t = FN_DECIMAL(0.7) - magnitudeSqrd(p1);
+  if (t < 0) n1 = 0;
+  else
+  {
+    t *= t;
+    n1 = t * t * GradCoord5D(offset
+      , floor.x + static_cast<int>(i1.x)
+      , floor.y + static_cast<int>(i1.y)
+      , floor.z + static_cast<int>(i1.z)
+      , floor.w + static_cast<int>(i1.w)
+      , floor.v + static_cast<int>(i1.v)
+      , p1.x, p1.y, p1.z, p1.w, p1.v);
+  }
+
+  t = FN_DECIMAL(0.7) - magnitudeSqrd(p2);
+  if (t < 0) n2 = 0;
+  else
+  {
+    t *= t;
+    n2 = t * t * GradCoord5D(offset
+      , floor.x + static_cast<int>(i2.x)
+      , floor.y + static_cast<int>(i2.y)
+      , floor.z + static_cast<int>(i2.z)
+      , floor.w + static_cast<int>(i2.w)
+      , floor.v + static_cast<int>(i2.v)
+      , p2.x, p2.y, p2.z, p2.w, p2.v);
+  }
+
+  t = FN_DECIMAL(0.7) - magnitudeSqrd(p3);
+  if (t < 0) n3 = 0;
+  else
+  {
+    t *= t;
+    n3 = t * t * GradCoord5D(offset
+      , floor.x + static_cast<int>(i3.x)
+      , floor.y + static_cast<int>(i3.y)
+      , floor.z + static_cast<int>(i3.z)
+      , floor.w + static_cast<int>(i3.w)
+      , floor.v + static_cast<int>(i3.v)
+      , p3.x, p3.y, p3.z, p3.w, p3.v);
+  }
+
+  t = FN_DECIMAL(0.7) - magnitudeSqrd(p4);
+  if (t < 0) n4 = 0;
+  else
+  {
+    t *= t;
+    n4 = t * t * GradCoord5D(offset
+      , floor.x + static_cast<int>(i4.x)
+      , floor.y + static_cast<int>(i4.y)
+      , floor.z + static_cast<int>(i4.z)
+      , floor.w + static_cast<int>(i4.w)
+      , floor.v + static_cast<int>(i4.v)
+      , p4.x, p4.y, p4.z, p4.w, p4.v);
+  }
+
+  t = FN_DECIMAL(0.7) - magnitudeSqrd(p5);
+  if (t < 0) n5 = 0;
+  else
+  {
+    t *= t;
+    n5 = t * t * GradCoord5D(offset
+      , floor.x + 1
+      , floor.y + 1
+      , floor.z + 1
+      , floor.w + 1
+      , floor.v + 1
+      , p5.x, p5.y, p5.z, p5.w, p5.v);
+  }
+
+  return (n0 + n1 + n2 + n3 + n4 + n5) * norm;
+}*/
 
 FN_DECIMAL FastNoise::GetSimplex(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z, FN_DECIMAL w, FN_DECIMAL v) const
 {

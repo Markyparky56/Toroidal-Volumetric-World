@@ -65,5 +65,8 @@
     <ClInclude Include="genNormals.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="float5int5.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

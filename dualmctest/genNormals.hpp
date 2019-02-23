@@ -49,7 +49,6 @@ inline void generateNormals(
   {
     glm::vec3 * normal = reinterpret_cast<glm::vec3*>(&vertexArray[norm(i)]);
 
-    //assert(!(normal->x == 0.f && normal->y == 0.f && normal->z == 0.f));
     if (normal->x == 0 && normal->y == 0 && normal->z == 0) continue;
     else *normal = glm::normalize(*normal);
   }

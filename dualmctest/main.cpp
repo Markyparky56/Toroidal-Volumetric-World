@@ -67,7 +67,7 @@ int main()
     {
       for (int32_t x = 0; x < noiseVolume.dimX; ++x, ++p) // Increment p each step of inner-most loop
       {
-        float v = noiseFbm.GetSimplexFractal(static_cast<float>(x) + 1234.5f, static_cast<float>(y) + 1234.5f, static_cast<float>(z) + 1234.5f, 8574.f, -1234.5f);
+        float v = noiseFbm.GetSimplexFractal(static_cast<float>(x) + 4234.5f, static_cast<float>(y) + 1234.5f, static_cast<float>(z) + 1234.5f, 8574.f, -1234.5f);
                 //* noiseFbm.GetSimplexFractal(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
         //v = (v > 1.f) ? 1.f : ((v < -1.f) ? -1.f : v);
 
@@ -125,7 +125,7 @@ int main()
 
   // See: https://github.com/zeux/meshoptimizer/blob/master/demo/main.cpp#L403
   // For multi-level LOD generation
-  size_t targetIndexCount = static_cast<size_t>(indices.size() * 0.7f) / 3 * 3;
+  size_t targetIndexCount = static_cast<size_t>(indices.size() * 1.0f) / 3 * 3;
   float targetError = 1e-3f;
   indices.resize(meshopt_simplify(&indices[0], &indices[0], indices.size(), &verts[0].x, verts.size(), sizeof(dualmc::Vertex), targetIndexCount, targetError));
 

@@ -78,7 +78,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\..\cpp-taskflow;..\..\..\dualmc\include;..\..\..\entt\src;..\..\..\VulkanMemoryAllocator\src;..\..\..\imgui;C:\VulkanSDK\1.1.92.1\Include;..\..\..\meshoptimiser\src;..\..\..\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\cpp-taskflow;..\..\..\dualmc\include;..\..\..\entt\src;..\..\..\VulkanMemoryAllocator\src;..\..\..\imgui;C:\VulkanSDK\1.1.92.1\Include;..\..\..\meshoptimiser\src;..\..\..\glm;..\..\..\cpp-cache\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -101,7 +101,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\..\cpp-taskflow;..\..\..\dualmc\include;..\..\..\entt\src;..\..\..\VulkanMemoryAllocator\src;..\..\..\imgui;C:\VulkanSDK\1.1.92.1\Include;..\..\..\meshoptimiser\src;..\..\..\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\cpp-taskflow;..\..\..\dualmc\include;..\..\..\entt\src;..\..\..\VulkanMemoryAllocator\src;..\..\..\imgui;C:\VulkanSDK\1.1.92.1\Include;..\..\..\meshoptimiser\src;..\..\..\glm;..\..\..\cpp-cache\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;IMGUI_VULKAN_DEBUG_REPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -150,14 +150,19 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AppBase.hpp" />
-    <ClInclude Include="chunk.entity.hpp" />
+    <ClInclude Include="ChunkCache.hpp" />
+    <ClInclude Include="ChunkFactory.hpp" />
+    <ClInclude Include="ChunkMap.hpp" />
+    <ClInclude Include="common.hpp" />
     <ClInclude Include="components.hpp" />
     <ClInclude Include="ComputeApp.hpp" />
     <ClInclude Include="ComputePipeline.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="HybridComputePipeline.hpp" />
     <ClInclude Include="PipelineBase.hpp" />
+    <ClInclude Include="ReservedMap.hpp" />
     <ClInclude Include="UniqueHandle.hpp" />
+    <ClInclude Include="voxel.hpp" />
     <ClInclude Include="VulkanInterface.Functions.hpp" />
     <ClInclude Include="VulkanInterface.hpp" />
     <ClInclude Include="VulkanInterface.OSWindow.hpp" />
