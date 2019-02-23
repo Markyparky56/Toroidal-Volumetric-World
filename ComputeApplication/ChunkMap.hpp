@@ -31,7 +31,7 @@ public:
 
   ChunkStatus chunkStatus(uint64_t const key, ChunkCache & cache)
   {
-    if (map.find(key) != map.end())
+    if (map.count(key))
     {
       return ChunkStatus::Loaded;
     }

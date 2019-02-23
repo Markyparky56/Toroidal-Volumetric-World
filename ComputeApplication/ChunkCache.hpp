@@ -22,11 +22,11 @@ public:
   ChunkCacheData retrieve(KeyType const key)
   {
     ChunkCacheData data = cache.get(key);
-    //cache.try_get(key, data);
     cache.erase(key);
     return data;
   }
 
 protected:
-  cpp_cache::fifo_cache<KeyType, ChunkCacheData, ChunkMapCacheSize, ReservedMap<KeyType, ChunkCacheData, ChunkMapCacheSize>> cache; // Chunks might get unloaded but we might need it again if the player backtracks
+  // Chunks might get unloaded but we might need it again if the player backtracks
+  cpp_cache::fifo_cache< KeyType, ChunkCacheData, ChunkMapCacheSize, ReservedMap<KeyType, ChunkCacheData, ChunkMapCacheSize>> cache; 
 };
