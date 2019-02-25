@@ -78,7 +78,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.92.1\Include;$(SolutionDir)/external/cpp-taskflow;$(SolutionDir)/external/dualmc/include;$(SolutionDir)/external/entt/src;$(SolutionDir)/external/VulkanMemoryAllocator/src;$(SolutionDir)/external/imgui;$(SolutionDir)/external/meshoptimiser/src;$(SolutionDir)/external/glm;$(SolutionDir)/external/cpp-cache/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.92.1\Include;$(SolutionDir)/external/cpp-taskflow;$(SolutionDir)/external/dualmc/include;$(SolutionDir)/external/entt/src;$(SolutionDir)/external/VulkanMemoryAllocator/src;$(SolutionDir)/external/imgui;$(SolutionDir)/external/imgui/examples;$(SolutionDir)/external/meshoptimiser/src;$(SolutionDir)/external/glm;$(SolutionDir)/external/cpp-cache/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -101,7 +101,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.92.1\Include;$(SolutionDir)/external/cpp-taskflow;$(SolutionDir)/external/dualmc/include;$(SolutionDir)/external/entt/src;$(SolutionDir)/external/VulkanMemoryAllocator/src;$(SolutionDir)/external/imgui;$(SolutionDir)/external/meshoptimiser/src;$(SolutionDir)/external/glm;$(SolutionDir)/external/cpp-cache/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.92.1\Include;$(SolutionDir)/external/cpp-taskflow;$(SolutionDir)/external/dualmc/include;$(SolutionDir)/external/entt/src;$(SolutionDir)/external/VulkanMemoryAllocator/src;$(SolutionDir)/external/imgui;$(SolutionDir)/external/imgui/examples;$(SolutionDir)/external/meshoptimiser/src;$(SolutionDir)/external/glm;$(SolutionDir)/external/cpp-cache/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;IMGUI_VULKAN_DEBUG_REPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
