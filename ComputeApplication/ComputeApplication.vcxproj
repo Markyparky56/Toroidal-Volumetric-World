@@ -141,6 +141,7 @@
     <ClCompile Include="..\external\meshoptimizer\src\vfetchanalyzer.cpp" />
     <ClCompile Include="..\external\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="AppBase.cpp" />
+    <ClCompile Include="ChunkManager.cpp" />
     <ClCompile Include="ComputeApp.cpp" />
     <ClCompile Include="GraphicsPipeline.cpp" />
     <ClCompile Include="main.cpp" />
@@ -153,6 +154,7 @@
     <ClInclude Include="AppBase.hpp" />
     <ClInclude Include="ChunkCache.hpp" />
     <ClInclude Include="ChunkFactory.hpp" />
+    <ClInclude Include="ChunkManager.hpp" />
     <ClInclude Include="ChunkMap.hpp" />
     <ClInclude Include="common.hpp" />
     <ClInclude Include="components.hpp" />
