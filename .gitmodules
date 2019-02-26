@@ -15,7 +15,7 @@
 	url = https://github.com/g-truc/glm.git
 [submodule "external/imgui"]
 	path = external/imgui
-	url = https://github.com/ocornut/imgui
+url=https://github.com/Markyparky56/imgui
 	branch = v1.68
 [submodule "external/meshoptimizer"]
 	path = external/meshoptimizer
