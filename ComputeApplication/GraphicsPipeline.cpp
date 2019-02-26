@@ -9,3 +9,7 @@ GraphicsPipeline::~GraphicsPipeline()
 {
 
 }
+
+void GraphicsPipeline::cleanup()
+{
+}

@@ -7,8 +7,9 @@ class GraphicsPipeline : public PipelineBase
 public:
   GraphicsPipeline();
   ~GraphicsPipeline();
+  void cleanup() override;
 
-  VulkanHandle(VkDescriptorPool) descriptorPool;
+  VkDescriptorPool descriptorPool;
   std::vector<VkDescriptorSetLayout> layouts;
 
   VkRenderPass renderPass;

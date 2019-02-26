@@ -10,10 +10,10 @@
 #include <stdexcept>
 
 #include "taskflow\taskflow.hpp"
-
 #include "VulkanInterface.Functions.hpp"
 #include "VulkanInterface.OSWindow.hpp"
 #include "VulkanInterface.VulkanHandle.hpp"
+#include "vk_mem_alloc.h"
 
 #undef CreateSemaphore
 

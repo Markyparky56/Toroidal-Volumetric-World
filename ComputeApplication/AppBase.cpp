@@ -126,9 +126,9 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters, VkI
       // If we've reached this point we're in the clear
       vulkanPhysicalDevice = physicalDevice;
       VulkanInterface::LoadDeviceLevelVulkanFunctions(*vulkanDevice, desiredDeviceExtensions);
-      VulkanInterface::vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 0, &graphicsQueueParameters.handle);
-      VulkanInterface::vkGetDeviceQueue(*vulkanDevice, computeQueueParameters.familyIndex, 0, &computeQueueParameters.handle);
-      VulkanInterface::vkGetDeviceQueue(*vulkanDevice, presentQueueParameters.familyIndex, 0, &presentQueueParameters.handle);
+      vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 0, &graphicsQueueParameters.handle);
+      vkGetDeviceQueue(*vulkanDevice, computeQueueParameters.familyIndex, 0, &computeQueueParameters.handle);
+      vkGetDeviceQueue(*vulkanDevice, presentQueueParameters.familyIndex, 0, &presentQueueParameters.handle);
       break;
     }
   }
@@ -199,14 +199,14 @@ void AppBase::Shutdown()
 void AppBase::cleanupVulkan()
 {
   // We need to work backwards, destroying device-level objects before instance-level objects, and so on
-  if (vulkanDevice) VulkanInterface::vkDestroyDevice(*vulkanDevice, nullptr);
+  if (vulkanDevice) vkDestroyDevice(*vulkanDevice, nullptr);
 
 #if defined(_DEBUG)
   if (callback) VulkanInterface::vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr);
 #endif
 
-  if (presentationSurface) VulkanInterface::vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);  
-  if (vulkanInstance) VulkanInterface::vkDestroyInstance(*vulkanInstance, nullptr);
+  if (presentationSurface) vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);  
+  if (vulkanInstance) vkDestroyInstance(*vulkanInstance, nullptr);
   if (vulkanLibrary) VulkanInterface::ReleaseVulkanLoaderLibrary(vulkanLibrary);
 }
 

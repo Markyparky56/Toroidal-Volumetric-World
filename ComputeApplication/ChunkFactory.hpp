@@ -21,7 +21,7 @@ public:
     auto entity = registry->create();
     registry->assign<WorldPosition>(entity, pos);
     registry->assign<VolumeData>(entity, nullptr, nullptr, allocator);
-    registry->assign<ModelData>(entity, nullptr, nullptr, nullptr, allocator);
+    registry->assign<ModelData>(entity, nullptr, nullptr, nullptr, nullptr, allocator);
     registry->assign<AABB>(entity, dimX, dimY, dimZ);
 
     return entity;
@@ -35,7 +35,7 @@ public:
   void DestroyAllChunks()
   {
     registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
-      [&](const auto entity, auto&&...)
+      [&](const uint32_t entity, auto&&...)
       {
         registry->destroy(entity); 
       }

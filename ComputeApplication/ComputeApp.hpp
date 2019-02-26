@@ -20,6 +20,7 @@ private:
   bool initialiseVulkanMemoryAllocator();
   bool initImGui(HWND hwnd);
   bool setupGraphicsPipeline();
+  bool setupTerrainGenerator();
 
   void Shutdown() override;
   void shutdownVulkanMemoryAllocator();

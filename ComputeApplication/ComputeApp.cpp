@@ -181,14 +181,14 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
         vulkanPhysicalDevice = physicalDevice;
         VulkanInterface::LoadDeviceLevelVulkanFunctions(*vulkanDevice, desiredDeviceExtensions);
         // Retrieve graphics queue handle
-        VulkanInterface::vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 0, &graphicsQueue);
+        vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 0, &graphicsQueue);
         // Retrieve "present queue" handle
-        VulkanInterface::vkGetDeviceQueue(*vulkanDevice, presentQueueParameters.familyIndex, 0, &presentQueue);
+        vkGetDeviceQueue(*vulkanDevice, presentQueueParameters.familyIndex, 0, &presentQueue);
         // Retrieve compute queue handles
         computeQueues.resize(numComputeThreads, VK_NULL_HANDLE);
         for (int i = 1; i < numComputeThreads; i++)
         {
-          VulkanInterface::vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, i, &computeQueues[i - 1]);
+          vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, i, &computeQueues[i - 1]);
         }
       }
     }
@@ -309,6 +309,11 @@ bool ComputeApp::setupGraphicsPipeline()
   return false;
 }
 
+bool ComputeApp::setupTerrainGenerator()
+{
+  return false;
+}
+
 void ComputeApp::shutdownVulkanMemoryAllocator()
 {
   if (allocator)
@@ -334,14 +339,14 @@ void ComputeApp::cleanupVulkan()
   VulkanInterface::DestroyDescriptorPool(*vulkanDevice, *imGuiDescriptorPool);
   VulkanInterface::DestroyRenderPass(*vulkanDevice, *renderPass);
 
-  if (vulkanDevice) VulkanInterface::vkDestroyDevice(*vulkanDevice, nullptr);
+  if (vulkanDevice) vkDestroyDevice(*vulkanDevice, nullptr);
 
 #if defined(_DEBUG)
   if (callback) VulkanInterface::vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr);
 #endif
 
-  if (presentationSurface) VulkanInterface::vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);
-  if (vulkanInstance) VulkanInterface::vkDestroyInstance(*vulkanInstance, nullptr);
+  if (presentationSurface) vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);
+  if (vulkanInstance) vkDestroyInstance(*vulkanInstance, nullptr);
   if (vulkanLibrary) VulkanInterface::ReleaseVulkanLoaderLibrary(vulkanLibrary);
 }
 

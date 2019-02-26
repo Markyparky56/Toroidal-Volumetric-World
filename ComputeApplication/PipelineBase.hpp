@@ -6,6 +6,7 @@ class PipelineBase
 public:
   PipelineBase() {}
   virtual ~PipelineBase() = 0;
+  virtual void cleanup() = 0;
 
   VkPipeline handle;
 protected:
