@@ -9,6 +9,8 @@
 #include <functional>
 #include <stdexcept>
 
+#include "taskflow\taskflow.hpp"
+
 #include "VulkanInterface.Functions.hpp"
 #include "VulkanInterface.OSWindow.hpp"
 #include "VulkanInterface.VulkanHandle.hpp"
@@ -132,6 +134,11 @@ namespace VulkanInterface
   struct VertexBufferParameters {
     VkBuffer buffer;
     VkDeviceSize memoryOffset;
+  };
+
+  struct CommandBufferRecordingParameters {
+    VkCommandBuffer commandBuffer;
+    std::function<bool(VkCommandBuffer)> recordingFunction;
   };
 
   bool SetupDebugCallback(VkInstance instance
@@ -836,6 +843,13 @@ namespace VulkanInterface
 
   void ExecuteSecondaryCommandBuffers( VkCommandBuffer commandBuffer
                                      , std::vector<VkCommandBuffer> const & secondaryCommandBuffers);
+
+  bool RecordAndsubmitCommandBuffersConcurrently( std::vector<CommandBufferRecordingParameters> const & recordingOperations
+                                                , VkQueue queue
+                                                , std::vector<WaitSemaphoreInfo> waitSemaphoreInfos
+                                                , std::vector<VkSemaphore> signalSemaphores
+                                                , VkFence fence
+                                                , tf::Taskflow * const taskflow);
 
   // Destroy Handlers, set objects to VK_NULL_HANDLE after destruction
 

@@ -3187,6 +3187,41 @@ return true;
     }
   }
 
+  bool RecordAndsubmitCommandBuffersConcurrently( std::vector<CommandBufferRecordingParameters> const & recordingOperations
+                                                , VkQueue queue
+                                                , std::vector<WaitSemaphoreInfo> waitSemaphoreInfos
+                                                , std::vector<VkSemaphore> signalSemaphores
+                                                , VkFence fence
+                                                , tf::Taskflow * const taskflow)
+  {
+    // Add recording ops as tasks
+    for (auto op : recordingOperations)
+    {
+      taskflow->silent_emplace([&]() { 
+        op.recordingFunction(op.commandBuffer); 
+      });
+    }
+
+    // Dispatch tasks
+    auto dispatch = taskflow->dispatch();
+
+    // Construct command buffer vector for submission
+    std::vector<VkCommandBuffer> commandBuffers(recordingOperations.size());
+    for (size_t i = 0; i < recordingOperations.size(); ++i)
+    {
+      commandBuffers[i] = recordingOperations[i].commandBuffer;
+    }
+
+    // Wait for tasks to finish
+    dispatch.get();
+    
+    if (!SubmitCommandBuffersToQueue(queue, waitSemaphoreInfos, commandBuffers, signalSemaphores, fence))
+    {
+      return false;
+    }
+    return true;
+  }
+
   void DestroyLogicalDevice(VkDevice & logicalDevice)
   {
     if (logicalDevice != VK_NULL_HANDLE)
