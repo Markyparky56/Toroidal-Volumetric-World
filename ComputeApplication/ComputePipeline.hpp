@@ -5,7 +5,7 @@
 class ComputePipeline : public PipelineBase
 {
 public:
-  ComputePipeline();
+  ComputePipeline(VkDevice * const logicalDevice);
   ~ComputePipeline();
   void cleanup() override;
 

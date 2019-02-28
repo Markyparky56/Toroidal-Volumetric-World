@@ -34,7 +34,7 @@ private:
     return key;
   }
 
-  ChunkStatus chunkStatus(uint64_t const key, ChunkCache & cache)
+  ChunkStatus chunkStatus(uint64_t const key)
   {
     if (map.isChunkLoaded(key))
     {

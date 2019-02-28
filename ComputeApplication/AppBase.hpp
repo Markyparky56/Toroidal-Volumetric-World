@@ -119,8 +119,8 @@ protected:
 
   VulkanInterface::SwapchainParameters swapchain;
 
-  static uint32_t const numFrames;
-  static VkFormat const depthFormat;
+  static uint32_t constexpr numFrames = 3;
+  static VkFormat constexpr depthFormat = VK_FORMAT_D16_UNORM;
 
   VkDebugUtilsMessengerEXT callback;
 

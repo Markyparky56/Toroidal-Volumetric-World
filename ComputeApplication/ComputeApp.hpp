@@ -19,6 +19,8 @@ private:
   bool setupTaskflow();
   bool initialiseVulkanMemoryAllocator();
   bool initImGui(HWND hwnd);
+  bool setupCommandPoolAndBuffers();
+  bool setupRenderPass();
   bool setupGraphicsPipeline();
   bool setupTerrainGenerator();
 
@@ -34,12 +36,20 @@ private:
   // Vulkan Memory Allocator
   VmaAllocator allocator;
 
-  VulkanHandle(VkDescriptorPool) imGuiDescriptorPool;
+  VkDescriptorPool imGuiDescriptorPool;
 
-  GraphicsPipeline graphicsPipeline; // This could feasibly be a vector if we ever want a more complex render setup
+  std::unique_ptr<GraphicsPipeline> graphicsPipeline; // This could feasibly be a vector if we ever want a more complex render setup
                                      // But having explicitly named pipelines would probably be better
 
-  VulkanHandle(VkRenderPass) renderPass;
+  static constexpr uint32_t chunkViewDistance = 7;
+  static constexpr uint32_t maxChunks = chunkViewDistance * chunkViewDistance * chunkViewDistance;
+
+  VkRenderPass renderPass;
+  std::vector<VulkanInterface::FrameResources> frameResources;
+  VkCommandPool graphicsCommandPool;
+  std::vector<VkCommandBuffer> frameCommandBuffers;
+  std::vector<VkCommandBuffer> chunkCommandBuffers;
+  //uint32_t graphicsQueueFamily, presentQueueFamily, computeQueueFamily;
   VkQueue graphicsQueue, presentQueue;
   std::vector<VkQueue> computeQueues;
 };

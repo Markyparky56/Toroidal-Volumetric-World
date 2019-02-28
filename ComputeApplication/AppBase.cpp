@@ -1,8 +1,5 @@
 #include "AppBase.hpp"
 
-const uint32_t AppBase::numFrames = 3;
-const VkFormat AppBase::depthFormat = VK_FORMAT_D16_UNORM;
-
 AppBase::AppBase()
   : vulkanLibrary(nullptr)
   , ready(false)
@@ -202,7 +199,7 @@ void AppBase::cleanupVulkan()
   if (vulkanDevice) vkDestroyDevice(*vulkanDevice, nullptr);
 
 #if defined(_DEBUG)
-  if (callback) VulkanInterface::vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr);
+  if (callback) vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr);
 #endif
 
   if (presentationSurface) vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);  

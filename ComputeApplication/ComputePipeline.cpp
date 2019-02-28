@@ -1,6 +1,7 @@
 #include "ComputePipeline.hpp"
 
-ComputePipeline::ComputePipeline()
+ComputePipeline::ComputePipeline(VkDevice * const logicalDevice)
+  : PipelineBase(logicalDevice)
 {
 }
 

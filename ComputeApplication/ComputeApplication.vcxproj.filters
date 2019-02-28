@@ -196,5 +196,11 @@
     <None Include="ListOfVulkanFunctions.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="chunk_directionalLight.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="chunk_directionalLight.frag">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

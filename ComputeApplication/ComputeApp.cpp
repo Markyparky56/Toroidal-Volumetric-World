@@ -13,12 +13,22 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   }
 
   // Prepare setup tasks
-  auto[vma, imgui] = systemTaskflow->silent_emplace(
+  auto[vma, imgui, commandBuffers, renderpass, gpipeline] = systemTaskflow->silent_emplace(
     [&]() { initialiseVulkanMemoryAllocator(); },
-    [&]() { initImGui(windowParameters.HWnd); }
+    [&]() { initImGui(windowParameters.HWnd); },
+    [&]() { setupCommandPoolAndBuffers(); },
+    [&]() { setupRenderPass(); },
+    [&]() { setupGraphicsPipeline(); }
   );
 
+  // Task dependencies
+  vma.precede(gpipeline);
+  renderpass.precede(imgui);
+
+  // Execute and wait for completion
   systemTaskflow->dispatch().get();
+
+  return true;
 }
 
 bool ComputeApp::Update()
@@ -40,9 +50,9 @@ bool ComputeApp::Resize()
 
   if (!VulkanInterface::CreateFramebuffersForFrameResources(
     *vulkanDevice
-    , *renderPass
+    , renderPass
     , swapchain
-    , graphicsPipeline.frameResources)
+    , frameResources)
     )
   {
     return false;
@@ -131,7 +141,7 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
     // Check how many concurrent threads we have available (like 4 or 8, depending on cpu)
     auto numConcurrentThreads = std::thread::hardware_concurrency();
     // We want to reserve one for rendering and allocate the rest for compute
-    int numComputeThreads = numConcurrentThreads - 1;
+    uint32_t numComputeThreads = numConcurrentThreads - 1;
     if (numComputeThreads < 1)
       return false; // Bail, this isn't going to end well with a single thread    
 
@@ -160,7 +170,7 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
         }
       }
 
-      for (int i = 0; i < numComputeThreads; i++)
+      for (uint32_t i = 0; i < numComputeThreads; i++)
       {
         queuePriorities.push_back(computeQueuePriority);
       }
@@ -186,7 +196,7 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
         vkGetDeviceQueue(*vulkanDevice, presentQueueParameters.familyIndex, 0, &presentQueue);
         // Retrieve compute queue handles
         computeQueues.resize(numComputeThreads, VK_NULL_HANDLE);
-        for (int i = 1; i < numComputeThreads; i++)
+        for (uint32_t i = 1; i < numComputeThreads; i++)
         {
           vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, i, &computeQueues[i - 1]);
         }
@@ -214,6 +224,8 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
   {
     return false;
   }
+
+  return true;
 }
 
 bool ComputeApp::setupTaskflow()
@@ -260,18 +272,17 @@ bool ComputeApp::initImGui(HWND hwnd)
   {
     { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
     { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-    {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-    {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-    {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-    {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-    {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+    { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+    { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+    { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+    { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+    { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
   };
-  VulkanInterface::InitVulkanHandle(vulkanDevice, imGuiDescriptorPool);
-  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, true, 1000 * poolSizes.size(), poolSizes, *imGuiDescriptorPool))
+  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, true, 1000 * static_cast<uint32_t>(poolSizes.size()), poolSizes, imGuiDescriptorPool))
   {
     return false;
   }  
@@ -283,7 +294,7 @@ bool ComputeApp::initImGui(HWND hwnd)
   initInfo.QueueFamily = graphicsQueueParameters.familyIndex;
   initInfo.Queue = graphicsQueue;
   initInfo.PipelineCache = VK_NULL_HANDLE;
-  initInfo.DescriptorPool = *imGuiDescriptorPool;
+  initInfo.DescriptorPool = imGuiDescriptorPool;
   initInfo.Allocator = VK_NULL_HANDLE;
   initInfo.CheckVkResultFn = [](VkResult err) { 
     if (err == VK_SUCCESS) return; 
@@ -296,7 +307,7 @@ bool ComputeApp::initImGui(HWND hwnd)
     }
   };
 
-  if (!ImGui_ImplVulkan_Init(&initInfo, *renderPass))
+  if (!ImGui_ImplVulkan_Init(&initInfo, renderPass))
   {
     return false;
   }
@@ -304,8 +315,127 @@ bool ComputeApp::initImGui(HWND hwnd)
   return true;
 }
 
+bool ComputeApp::setupCommandPoolAndBuffers()
+{
+  // Create Graphics Command Pool
+  if (!VulkanInterface::CreateCommandPool(*vulkanDevice
+    , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+    , graphicsQueueParameters.familyIndex
+    , graphicsCommandPool))
+  {
+    return false;
+  }
+
+  // Allocate primary command buffers for frame resources
+  if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
+    , graphicsCommandPool
+    , VK_COMMAND_BUFFER_LEVEL_PRIMARY
+    , numFrames
+    , frameCommandBuffers))
+  {
+    return false;
+  }
+
+  // Allocate secondary command buffers for chunk models
+  if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
+    , graphicsCommandPool
+    , VK_COMMAND_BUFFER_LEVEL_SECONDARY
+    , maxChunks
+    , chunkCommandBuffers))
+  {
+    return false;
+  }
+
+  // TODO: Compute command pool and buffers
+
+  return true;
+}
+
+bool ComputeApp::setupRenderPass()
+{
+  std::vector<VkAttachmentDescription> attachmentDescriptions = {
+    {
+      0,
+      swapchain.format,
+      VK_SAMPLE_COUNT_1_BIT,
+      VK_ATTACHMENT_LOAD_OP_CLEAR,
+      VK_ATTACHMENT_STORE_OP_STORE,
+      VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+      VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_IMAGE_LAYOUT_UNDEFINED,
+      VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    },
+    {
+      0,
+      VK_FORMAT_D16_UNORM,
+      VK_SAMPLE_COUNT_1_BIT,
+      VK_ATTACHMENT_LOAD_OP_CLEAR,
+      VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+      VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_IMAGE_LAYOUT_UNDEFINED,
+      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    }
+  };
+
+  VkAttachmentReference depthAttachment = {
+    1,
+    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
+
+  std::vector<VulkanInterface::SubpassParameters> subpassParameters = {
+    {
+      VK_PIPELINE_BIND_POINT_GRAPHICS,
+      {}, // InputAttachments
+      {
+        {
+          0,
+          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        }
+      }, // ColorAttachments
+      {}, // ResolveAttachments
+      &depthAttachment,
+      {}
+    }
+  };
+
+  std::vector<VkSubpassDependency> subpassDependecies = {
+    {
+      VK_SUBPASS_EXTERNAL,
+      0,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      VK_ACCESS_MEMORY_READ_BIT,
+      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+      VK_DEPENDENCY_BY_REGION_BIT
+    },
+    {
+      0,
+      VK_SUBPASS_EXTERNAL,
+      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+      VK_ACCESS_MEMORY_READ_BIT,
+      VK_DEPENDENCY_BY_REGION_BIT
+    }
+  };
+
+  if (!VulkanInterface::CreateRenderPass(*vulkanDevice, attachmentDescriptions, subpassParameters, subpassDependecies, renderPass))
+  {
+    return false;
+  }
+  return true;
+}
+
 bool ComputeApp::setupGraphicsPipeline()
 {
+  graphicsPipeline = std::make_unique<GraphicsPipeline>(&(*vulkanDevice), &renderPass, "Data/chunk_directionalLight.vert", "Data/chunk_directionalLight.frag");
+
+  //std::vector<VkDescriptorPoolSize> poolSizes = {};
+  //graphicsPipeline->setupDescriptorPool(poolSizes);
+
+  graphicsPipeline->init();
+
   return false;
 }
 
@@ -336,13 +466,13 @@ void ComputeApp::cleanupVulkan()
 
   // VulkanHandle is useful for catching forgotten objects and ones with scoped/short-lifetimes, 
   // but for the final shutdown we need to be explicit
-  VulkanInterface::DestroyDescriptorPool(*vulkanDevice, *imGuiDescriptorPool);
-  VulkanInterface::DestroyRenderPass(*vulkanDevice, *renderPass);
+  VulkanInterface::DestroyDescriptorPool(*vulkanDevice, imGuiDescriptorPool);
+  VulkanInterface::DestroyRenderPass(*vulkanDevice, renderPass);
 
   if (vulkanDevice) vkDestroyDevice(*vulkanDevice, nullptr);
 
 #if defined(_DEBUG)
-  if (callback) VulkanInterface::vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr);
+  if (callback) vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr);
 #endif
 
   if (presentationSurface) vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);

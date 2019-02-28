@@ -176,6 +176,14 @@
     <ClInclude Include="VulkanInterface.VulkanHandle.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="chunk_directionalLight.frag">
+      <SubType>
+      </SubType>
+    </None>
+    <None Include="chunk_directionalLight.vert">
+      <SubType>
+      </SubType>
+    </None>
     <None Include="compileshaders_debug.bat" />
     <None Include="compileshaders_release.bat" />
     <None Include="ListOfVulkanFunctions.inl" />
