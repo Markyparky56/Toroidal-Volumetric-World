@@ -340,10 +340,19 @@ bool ComputeApp::setupCommandPoolAndBuffers()
   if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
     , graphicsCommandPool
     , VK_COMMAND_BUFFER_LEVEL_SECONDARY
-    , maxChunks
-    , chunkCommandBuffers))
+    , maxChunks*numFrames
+    , chunkCommandBuffersVec))
   {
     return false;
+  }
+
+  // Setup command buffer stacks
+  for (uint32_t i = 0; i < numFrames; i++)
+  {
+    for (uint32_t buffer = maxChunks*i; buffer < maxChunks; buffer++)
+    {
+      chunkCommandBufferStacks[i].push(&chunkCommandBuffersVec[buffer]);
+    }
   }
 
   // TODO: Compute command pool and buffers

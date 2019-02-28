@@ -1087,7 +1087,13 @@ return true;
     return false;
   }
 
-  bool CheckIfProcesingOfSubmittedCommandBuffersHasFinished(VkDevice logicalDevice, VkQueue queue, std::vector<WaitSemaphoreInfo> waitSemaphoreInfos, std::vector<VkCommandBuffer> commandBuffers, std::vector<VkSemaphore> signalSemaphore, VkFence fence, uint64_t timeout, VkResult & waitStatus)
+  bool CheckIfProcesingOfSubmittedCommandBuffersHasFinished(VkDevice logicalDevice
+    , VkQueue queue
+    , std::vector<WaitSemaphoreInfo> waitSemaphoreInfos
+    , std::vector<VkCommandBuffer> commandBuffers
+    , std::vector<VkSemaphore> signalSemaphore
+    , VkFence fence
+    , uint64_t timeout)
   {
     if (!SubmitCommandBuffersToQueue(queue, waitSemaphoreInfos, commandBuffers, signalSemaphore, fence))
     {
@@ -2922,10 +2928,10 @@ return true;
     {
       std::vector<VkBuffer> buffers;
       std::vector<VkDeviceSize> offsets;
-      for (auto & bufferParameters : bufferParameters)
+      for (auto & bufferParameter : bufferParameters)
       {
-        buffers.push_back(bufferParameters.buffer);
-        offsets.push_back(bufferParameters.memoryOffset);
+        buffers.push_back(bufferParameter.buffer);
+        offsets.push_back(bufferParameter.memoryOffset);
       }
       vkCmdBindVertexBuffers(commandBuffer, firstBinding, static_cast<uint32_t>(bufferParameters.size()), buffers.data(), offsets.data());
     }
@@ -3077,28 +3083,18 @@ return true;
     , VkQueue graphicsQueue
     , VkQueue presentQueue
     , VkSwapchainKHR swapchain
-    , VkExtent2D swapchainSize
-    , std::vector<VkImageView> const & swapchainImageViews
-    , VkImageView depthAttachment
     , std::vector<WaitSemaphoreInfo> const & waitInfos
     , VkSemaphore imageAcquiredSemaphore
     , VkSemaphore readyToPresentSemaphore
     , VkFence finishedDrawingFence
     , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
     , VkCommandBuffer commandBuffer
-    , VkRenderPass renderPass
     , VulkanHandle(VkFramebuffer) & framebuffer)
   {
     uint32_t imageIndex;
     if (!AcquireSwapchainImage(logicalDevice, swapchain, imageAcquiredSemaphore, VK_NULL_HANDLE, imageIndex))
     {
       return false;
-    }
-
-    std::vector<VkImageView> attachments = { swapchainImageViews[imageIndex] };
-    if (depthAttachment != VK_NULL_HANDLE)
-    {
-      attachments.push_back(depthAttachment);
     }
 
     if (!framebuffer) return false; // Yo, create your framebuffers first, we ain't doing that per-frame leak stuff anymore
@@ -3138,7 +3134,13 @@ return true;
     return true;
   }
 
-  bool RenderWithFrameResources(VkDevice logicalDevice, VkQueue graphicsQueue, VkQueue presentQueue, VkSwapchainKHR swapchain, VkExtent2D swapchainSize, std::vector<VkImageView> const & swapchainImageViews, VkRenderPass renderPass, std::vector<WaitSemaphoreInfo> const & waitInfos, std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer, std::vector<FrameResources>& frameResources)
+  bool RenderWithFrameResources(VkDevice logicalDevice
+    , VkQueue graphicsQueue
+    , VkQueue presentQueue
+    , VkSwapchainKHR swapchain
+    , std::vector<WaitSemaphoreInfo> const & waitInfos
+    , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
+    , std::vector<FrameResources>& frameResources)
   {
     static uint32_t frameIndex = 0;
     FrameResources & currentFrame = frameResources[frameIndex];
@@ -3157,16 +3159,12 @@ return true;
                                       , graphicsQueue
                                       , presentQueue
                                       , swapchain
-                                      , swapchainSize
-                                      , swapchainImageViews
-                                      , *currentFrame.depthAttachment
                                       , waitInfos
                                       , *currentFrame.imageAcquiredSemaphore
                                       , *currentFrame.readyToPresentSemaphore
                                       , *currentFrame.drawingFinishedFence
                                       , recordCommandBuffer
                                       , currentFrame.commandBuffer
-                                      , renderPass
                                       , currentFrame.framebuffer)
       )
     {
@@ -3197,7 +3195,7 @@ return true;
     // Add recording ops as tasks
     for (auto op : recordingOperations)
     {
-      taskflow->silent_emplace([&]() { 
+      taskflow->emplace([&]() { 
         op.recordingFunction(op.commandBuffer); 
       });
     }
@@ -3412,8 +3410,7 @@ return true;
   }
 
   // VulkanMemoryAllocator specific functions
-  bool CreateBuffer(VkDevice logicalDevice
-    , VmaAllocator allocator
+  bool CreateBuffer(VmaAllocator allocator
     , VkDeviceSize size
     , VkBufferUsageFlags bufferUsage
     , VkBuffer & buffer
@@ -3453,8 +3450,7 @@ return true;
   }
 
   // VulkanMemoryAllocator specific functions
-  bool CreateImage(VkDevice logicalDevice
-    , VmaAllocator allocator
+  bool CreateImage(VmaAllocator allocator
     , VkImageType type
     , VkFormat format
     , VkExtent3D size
@@ -3523,7 +3519,7 @@ return true;
     , VmaPool pool
     , VmaAllocation & allocation)
   {
-    if (!CreateImage(logicalDevice, allocator, VK_IMAGE_TYPE_2D, format, { size.width, size.height, 1 }, numMipmaps, numLayers, samples, usage, false, image, allocationFlags, memUsage, memoryProperties, pool, allocation))
+    if (!CreateImage(allocator, VK_IMAGE_TYPE_2D, format, { size.width, size.height, 1 }, numMipmaps, numLayers, samples, usage, false, image, allocationFlags, memUsage, memoryProperties, pool, allocation))
     {
       return false;
     }
@@ -3548,7 +3544,7 @@ return true;
     , VmaPool pool
     , VmaAllocation & allocation)
   {
-    if (!CreateImage(logicalDevice, allocator, VK_IMAGE_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM, { size, size, 1 }, numMipmaps, 6, VK_SAMPLE_COUNT_1_BIT, usage, true, image, allocationFlags, memUsage, memoryProperties, pool, allocation))
+    if (!CreateImage(allocator, VK_IMAGE_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM, { size, size, 1 }, numMipmaps, 6, VK_SAMPLE_COUNT_1_BIT, usage, true, image, allocationFlags, memUsage, memoryProperties, pool, allocation))
     {
       return false;
     }
@@ -3559,8 +3555,7 @@ return true;
     return true;
   }
 
-  bool MapUpdateAndUnmapHostVisibleMemory(VkDevice logicalDevice
-    , VmaAllocator allocator
+  bool MapUpdateAndUnmapHostVisibleMemory(VmaAllocator allocator
     , VmaAllocation allocation
     , VkDeviceSize dataSize
     , void * data
@@ -3609,8 +3604,7 @@ return true;
     VkBuffer stagingBuffer;
     VmaAllocation allocation;
     if (!CreateBuffer(
-        logicalDevice
-      , allocator, dataSize
+        allocator, dataSize
       , VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingBuffer
       , VMA_ALLOCATION_CREATE_STRATEGY_FIRST_FIT_BIT
       , VMA_MEMORY_USAGE_CPU_TO_GPU
@@ -3620,7 +3614,7 @@ return true;
       return false;
     }
 
-    if (!MapUpdateAndUnmapHostVisibleMemory(logicalDevice, allocator, allocation, dataSize, data, true, nullptr))
+    if (!MapUpdateAndUnmapHostVisibleMemory(allocator, allocation, dataSize, data, true, nullptr))
     {
       return false;
     }
@@ -3687,8 +3681,7 @@ return true;
     VkBuffer stagingBuffer;
     VmaAllocation allocation;
     if (!CreateBuffer(
-        logicalDevice
-      , allocator, dataSize
+        allocator, dataSize
       , VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingBuffer
       , VMA_ALLOCATION_CREATE_STRATEGY_FIRST_FIT_BIT
       , VMA_MEMORY_USAGE_CPU_TO_GPU
@@ -3698,7 +3691,7 @@ return true;
       return false;
     }    
 
-    if (!MapUpdateAndUnmapHostVisibleMemory(logicalDevice, allocator, allocation, dataSize, data, true, nullptr))
+    if (!MapUpdateAndUnmapHostVisibleMemory(allocator, allocation, dataSize, data, true, nullptr))
     {
       return false;
     }
@@ -3809,7 +3802,7 @@ return true;
       return false;
     }
 
-    if (!CreateImage(logicalDevice, allocator
+    if (!CreateImage(allocator
       , type, format, size, numMipmaps, numLayers
       , VK_SAMPLE_COUNT_1_BIT
       , usage | VK_IMAGE_USAGE_SAMPLED_BIT
@@ -3908,7 +3901,7 @@ return true;
       return false;
     }
 
-    if (!CreateImage(logicalDevice, allocator, type, format, size, numMipmaps, numLayers, VK_SAMPLE_COUNT_1_BIT, usage | VK_IMAGE_USAGE_STORAGE_BIT, false, storageImage, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+    if (!CreateImage(allocator, type, format, size, numMipmaps, numLayers, VK_SAMPLE_COUNT_1_BIT, usage | VK_IMAGE_USAGE_STORAGE_BIT, false, storageImage, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
     {
       return false;
     }
@@ -3940,7 +3933,7 @@ return true;
       return false;
     }
 
-    if (!CreateBuffer(logicalDevice, allocator, size, usage | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, uniformTexelBuffer
+    if (!CreateBuffer(allocator, size, usage | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, uniformTexelBuffer
       , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
     {
       return false;
@@ -3980,7 +3973,7 @@ return true;
       return false;
     }
 
-    if (!CreateBuffer(logicalDevice, allocator, size, usage | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT, storageTexelBuffer
+    if (!CreateBuffer(allocator, size, usage | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT, storageTexelBuffer
     , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
     {
       return false;
@@ -3994,15 +3987,14 @@ return true;
     return true;
   }
 
-  bool CreateUniformBuffer(VkDevice logicalDevice
-    , VmaAllocator allocator
+  bool CreateUniformBuffer(VmaAllocator allocator
     , VkDeviceSize size
     , VkBufferUsageFlags usage
     , VkBuffer & uniformBuffer
     , VmaMemoryUsage memUsage
     , VmaAllocation & allocation)
   {
-    if (!CreateBuffer(logicalDevice, allocator, size, usage | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uniformBuffer, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+    if (!CreateBuffer(allocator, size, usage | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uniformBuffer, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
     {
       return false;
     }
@@ -4010,16 +4002,14 @@ return true;
     return true;
   }
 
-  bool CreateStorageBuffer(VkPhysicalDevice physicalDevice
-    , VkDevice logicalDevice
-    , VmaAllocator allocator
+  bool CreateStorageBuffer(VmaAllocator allocator
     , VkDeviceSize size
     , VkBufferUsageFlags usage
     , VkBuffer & storageBuffer
     , VmaMemoryUsage memUsage
     , VmaAllocation & allocation)
   {
-    if (!CreateBuffer(logicalDevice, allocator, size, usage | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, storageBuffer, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+    if (!CreateBuffer(allocator, size, usage | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, storageBuffer, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
     {
       return false;
     }
@@ -4056,7 +4046,7 @@ return true;
       return false;
     }
 
-    if (!CreateImage(logicalDevice, allocator, type, format, size, 1, 1, VK_SAMPLE_COUNT_1_BIT, usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, false, inputAttachment, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+    if (!CreateImage(allocator, type, format, size, 1, 1, VK_SAMPLE_COUNT_1_BIT, usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, false, inputAttachment, VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
     {
       return false;
     }    

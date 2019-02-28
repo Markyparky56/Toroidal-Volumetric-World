@@ -295,8 +295,7 @@ namespace VulkanInterface
                                                           , std::vector<VkCommandBuffer> commandBuffers
                                                           , std::vector<VkSemaphore> signalSemaphore
                                                           , VkFence fence
-                                                          , uint64_t timeout
-                                                          , VkResult & waitStatus);
+                                                          , uint64_t timeout);
   bool WaitUntilAllCommandsSubmittedToQueueAreFinished(VkQueue queue);
   bool WaitForAllSubmittedCommandsToBeFinished(VkDevice logicalDevice);
   void FreeCommandBuffers(VkDevice logicalDevice
@@ -818,25 +817,18 @@ namespace VulkanInterface
                                     , VkQueue graphicsQueue
                                     , VkQueue presentQueue
                                     , VkSwapchainKHR swapchain
-                                    , VkExtent2D swapchainSize
-                                    , std::vector<VkImageView> const & swapchainImageViews
-                                    , VkImageView depthAttachment
                                     , std::vector<WaitSemaphoreInfo> const & waitInfos
                                     , VkSemaphore imageAcquiredSemaphore
                                     , VkSemaphore readyToPresentSemaphore
                                     , VkFence finishedDrawingFence
                                     , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
                                     , VkCommandBuffer commandBuffer
-                                    , VkRenderPass renderPass
                                     , VulkanHandle(VkFramebuffer) & framebuffer);
 
   bool RenderWithFrameResources( VkDevice logicalDevice
                                , VkQueue graphicsQueue
                                , VkQueue presentQueue
                                , VkSwapchainKHR swapchain
-                               , VkExtent2D swapchainSize
-                               , std::vector<VkImageView> const & swapchainImageViews
-                               , VkRenderPass renderPass
                                , std::vector<WaitSemaphoreInfo> const & waitInfos
                                , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
                                , std::vector<FrameResources> & frameResources);
@@ -915,8 +907,7 @@ namespace VulkanInterface
     , VkShaderModule & shaderModule);
 
   // VulkanMemoryAllocator Specific Functions
-  bool CreateBuffer(VkDevice logicalDevice
-    , VmaAllocator allocator
+  bool CreateBuffer(VmaAllocator allocator
     , VkDeviceSize size
     , VkBufferUsageFlags bufferUsage
     , VkBuffer & buffer
@@ -926,8 +917,7 @@ namespace VulkanInterface
     , VmaPool pool
     , VmaAllocation & allocation);
 
-  bool CreateImage(VkDevice logicalDevice
-    , VmaAllocator allocator
+  bool CreateImage(VmaAllocator allocator
     , VkImageType type
     , VkFormat format
     , VkExtent3D size
@@ -974,8 +964,7 @@ namespace VulkanInterface
     , VmaPool pool
     , VmaAllocation & allocation);
 
-  bool MapUpdateAndUnmapHostVisibleMemory(VkDevice logicalDevice
-    , VmaAllocator allocator
+  bool MapUpdateAndUnmapHostVisibleMemory(VmaAllocator allocator
     , VmaAllocation allocation
     , VkDeviceSize dataSize
     , void * data
@@ -1106,17 +1095,14 @@ namespace VulkanInterface
     , VmaAllocation & allocation
     , VkBufferView & storageTexelBufferView);
 
-  bool CreateUniformBuffer(VkDevice logicalDevice
-    , VmaAllocator allocator
+  bool CreateUniformBuffer(VmaAllocator allocator
     , VkDeviceSize size
     , VkBufferUsageFlags usage
     , VkBuffer & uniformBuffer
     , VmaMemoryUsage memUsage
     , VmaAllocation & allocation);
 
-  bool CreateStorageBuffer(VkPhysicalDevice physicalDevice
-    , VkDevice logicalDevice
-    , VmaAllocator allocator
+  bool CreateStorageBuffer(VmaAllocator allocator
     , VkDeviceSize size
     , VkBufferUsageFlags usage
     , VkBuffer & storageBuffer

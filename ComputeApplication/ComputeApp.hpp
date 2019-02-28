@@ -7,6 +7,9 @@
 #include "imgui_impl_win32.h"
 #include "imgui_impl_vulkan.h"
 
+#include <stack>
+#include <array>
+
 class ComputeApp : public AppBase
 {
 public:
@@ -48,7 +51,8 @@ private:
   std::vector<VulkanInterface::FrameResources> frameResources;
   VkCommandPool graphicsCommandPool;
   std::vector<VkCommandBuffer> frameCommandBuffers;
-  std::vector<VkCommandBuffer> chunkCommandBuffers;
+  std::vector<VkCommandBuffer> chunkCommandBuffersVec;
+  std::array<std::stack<VkCommandBuffer*>, numFrames> chunkCommandBufferStacks;
   //uint32_t graphicsQueueFamily, presentQueueFamily, computeQueueFamily;
   VkQueue graphicsQueue, presentQueue;
   std::vector<VkQueue> computeQueues;
