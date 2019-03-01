@@ -144,6 +144,7 @@
     <ClCompile Include="..\external\meshoptimizer\src\vfetchanalyzer.cpp" />
     <ClCompile Include="..\external\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="AppBase.cpp" />
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ChunkFactory.cpp" />
     <ClCompile Include="ChunkManager.cpp" />
     <ClCompile Include="ComputeApp.cpp" />
@@ -157,6 +158,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AppBase.hpp" />
+    <ClInclude Include="Camera.hpp" />
     <ClInclude Include="ChunkCache.hpp" />
     <ClInclude Include="ChunkFactory.hpp" />
     <ClInclude Include="ChunkManager.hpp" />
