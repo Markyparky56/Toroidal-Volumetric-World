@@ -12,7 +12,9 @@ namespace VulkanInterface
     Quit,
     Click,
     Move,
-    Wheel
+    Wheel,
+    KeyDown,
+    KeyUp
   };
   // Little helper macro to save on writing static casts everywhere
 #define e2UINT(in) static_cast<UINT>(in)
@@ -38,6 +40,10 @@ namespace VulkanInterface
       if (VK_ESCAPE == wParam) {
         PostMessage(hWnd, e2UINT(UserMessage::Quit), wParam, lParam); break;
       }
+      else {
+        PostMessage(hWnd, e2UINT(UserMessage::KeyDown), wParam, lParam); break;
+      }
+    case WM_KEYUP: PostMessage(hWnd, e2UINT(UserMessage::KeyUp), wParam, lParam); break;
     case WM_CLOSE: PostMessage(hWnd, e2UINT(UserMessage::Quit), wParam, lParam); break;
     default:
       return DefWindowProc(hWnd, message, wParam, lParam);
@@ -117,6 +123,12 @@ namespace VulkanInterface
             break;
           case UserMessage::Wheel:
             app.MouseWheel(static_cast<short>(msg.wParam) * 0.002f);
+            break;
+          case UserMessage::KeyDown:
+            app.KeyDown(static_cast<unsigned int>(msg.wParam));
+            break;
+          case UserMessage::KeyUp:
+            app.KeyUp(static_cast<unsigned int>(msg.wParam));
             break;
           case UserMessage::Resize:
             if (!app.Resize())

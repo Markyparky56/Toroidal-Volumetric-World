@@ -243,6 +243,16 @@ void AppBase::MouseReset()
   MouseState.Wheel = { false, 0.f };
 }
 
+void AppBase::KeyDown(unsigned int keyIndex)
+{
+  KeyboardState.Keys[keyIndex].IsDown = true;
+}
+
+void AppBase::KeyUp(unsigned int keyIndex)
+{
+  KeyboardState.Keys[keyIndex].IsDown = false;
+}
+
 void AppBase::UpdateTime()
 {
   TimerState.Update();

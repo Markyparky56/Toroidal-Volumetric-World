@@ -31,6 +31,12 @@ protected:
     {}
   } MouseState;
 
+  struct KeyboardState {
+    struct KeyState {
+      bool IsDown;
+    } Keys[256];
+  } KeyboardState;
+
   struct TimerState {
     float GetTime() const {
       auto duration = time.time_since_epoch();
@@ -64,6 +70,8 @@ public:
   virtual void MouseMove(int x, int y);
   virtual void MouseWheel(float distance);
   virtual void MouseReset();
+  virtual void KeyDown(unsigned int keyIndex);
+  virtual void KeyUp(unsigned int keyIndex);
   virtual void UpdateTime();
   virtual bool IsReady();
 

@@ -8,7 +8,7 @@
 class ChunkManager
 {
 public:
-  ChunkManager(entt::registry<> * const registry, VmaAllocator * const allocator);
+  ChunkManager(entt::registry<> * const registry, VmaAllocator * const allocator, VkDevice * const logicalDevice);
   ~ChunkManager();
 
   enum class ChunkStatus
@@ -18,14 +18,23 @@ public:
     Loaded
   };
 
-  // Returns a list of EntityHandle, ChunkStatus pairs of chunks not yet loaded into the ChunkMap
-  // These chunks may be cached, if so their volume data can be retrieved via getChunkVolumeDataFromC
+  // Returns a list of <EntityHandle, ChunkStatus> pairs of chunks not yet loaded into the ChunkMap
+  // These chunks may be cached, if so their volume data can be retrieved via getChunkVolumeDataFromCache
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> getChunkSpawnList(glm::vec3 const playerPos);
-  ChunkCacheData getChunkVolumeDataFromCache(KeyType const key);
+  bool getChunkVolumeDataFromCache(KeyType const key, ChunkCacheData & data);
+
+  void despawnChunks(glm::vec3 const playerPos);
+
+  // Insert a chunks handle into the chunk map
   void loadChunk(KeyType const key, EntityHandle const handle);
+  
+  // Remove a chunk from the chunk map, caching its volume data and destroying its entity in the registry
+  void unloadChunk(KeyType const key);
 
 private:
   entt::registry<> * const registry;
+  VkDevice * const logicalDevice;
+  VmaAllocator * const allocator;
   ChunkFactory factory;
   ChunkCache cache;
   ChunkMap map;  

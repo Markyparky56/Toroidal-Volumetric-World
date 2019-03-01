@@ -1,8 +1,11 @@
 #include "ChunkManager.hpp"
+#include "VulkanInterface.hpp"
 
-ChunkManager::ChunkManager(entt::registry<> * const registry, VmaAllocator * const allocator)
+ChunkManager::ChunkManager(entt::registry<> * const registry, VmaAllocator * const allocator, VkDevice * const logicalDevice)
   : factory(registry, allocator)
   , registry(registry)
+  , logicalDevice(logicalDevice)
+  , allocator(allocator)
 {
 
 }
@@ -47,14 +50,68 @@ std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> ChunkManager::ge
   }
 }
 
-ChunkCacheData ChunkManager::getChunkVolumeDataFromCache(KeyType const key)
+bool ChunkManager::getChunkVolumeDataFromCache(KeyType const key, ChunkCacheData & data)
 {
-  return cache.retrieve(key);
+  return cache.retrieve(key, data);
+}
+
+void ChunkManager::despawnChunks(glm::vec3 const playerPos)
+{
+  // Find the closest chunk from which to base our search off using double precision
+  glm::vec3 offsetPlayerPos = {
+        static_cast<float>(static_cast<double>(playerPos.x) - std::fmod(static_cast<double>(playerPos.x), static_cast<double>(TechnicalChunkDim))),
+        static_cast<float>(static_cast<double>(playerPos.y) - std::fmod(static_cast<double>(playerPos.y), static_cast<double>(TechnicalChunkDim))),
+        static_cast<float>(static_cast<double>(playerPos.z) - std::fmod(static_cast<double>(playerPos.z), static_cast<double>(TechnicalChunkDim)))
+  };
+
+  uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkSpawnRadius * invTechnicalChunkDim);
+  std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
+
+  for (float z = offsetPlayerPos.z - chunkRadius; z <= offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
+  {
+    for (float y = offsetPlayerPos.y - chunkRadius; y <= offsetPlayerPos.y + chunkRadius; y += TechnicalChunkDim)
+    {
+      for (float x = offsetPlayerPos.x - chunkRadius; x <= offsetPlayerPos.x + chunkRadius; x += TechnicalChunkDim)
+      {
+        glm::vec3 chunkPos = { x,y,z };
+        KeyType key = chunkKey(chunkPos);
+        if (pointInDespawnRange(offsetPlayerPos, chunkPos))
+        {
+          ChunkStatus status = chunkStatus(key);
+          if (status == ChunkStatus::Loaded)
+          {
+            unloadChunk(key);
+          }
+        }
+      }
+    }
+  }
 }
 
 void ChunkManager::loadChunk(KeyType const key, EntityHandle const handle)
 {
   map.loadChunk(key, handle);
+}
+
+void ChunkManager::unloadChunk(KeyType const key)
+{
+  EntityHandle handle = map.unloadChunk(key);
+  ChunkCacheData data;
+  VolumeData volume = registry->get<VolumeData>(handle);
+  void * ptr;
+  VkResult result = vmaMapMemory(*allocator, volume.volumeAllocation, &ptr);
+  if (result == VK_SUCCESS)
+  {
+    vmaInvalidateAllocation(*allocator, volume.volumeAllocation, volume.volumeAllocation->GetOffset(), volume.volumeAllocation->GetSize());
+    memcpy(data.data(), ptr, sizeof(ChunkCacheData));
+    vmaUnmapMemory(*allocator, volume.volumeAllocation);
+    cache.add(key, data);
+    factory.DestroyChunk(handle);
+  }
+  else
+  {
+    // PANIC
+  }
 }
 
 KeyType ChunkManager::chunkKey(glm::vec3 const pos)
@@ -92,6 +149,6 @@ bool ChunkManager::pointInSpawnRange(glm::vec3 const playerPos, glm::vec3 const 
 
 bool ChunkManager::pointInDespawnRange(glm::vec3 const playerPos, glm::vec3 const point)
 {
-  bool result = (point.x - playerPos.x)*(point.x - playerPos.x) + (point.y - playerPos.y)*(point.y - playerPos.y) + (point.z - playerPos.z)*(point.z - playerPos.z) <= chunkDespawnRadius * chunkDespawnRadius;
+  bool result = (point.x - playerPos.x)*(point.x - playerPos.x) + (point.y - playerPos.y)*(point.y - playerPos.y) + (point.z - playerPos.z)*(point.z - playerPos.z) > chunkDespawnRadius * chunkDespawnRadius;
   return result;
 }

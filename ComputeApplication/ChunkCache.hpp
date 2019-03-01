@@ -14,16 +14,23 @@ public:
     return cache.has(key);
   }
 
-  void add(KeyType const key, ChunkCacheData && data)
+  void add(KeyType const key, ChunkCacheData & data)
   {
     cache.insert(key, std::move(data));
   }
 
-  ChunkCacheData retrieve(KeyType const key)
+  bool retrieve(KeyType const key, ChunkCacheData & data)
   {
-    ChunkCacheData data = cache.get(key);
+    if (cache.try_get(key, data))
+    {
+      cache.erase(key);
+      return true;
+    }
+    else
+    {
+      return false;
+    }
     cache.erase(key);
-    return data;
   }
 
 protected:

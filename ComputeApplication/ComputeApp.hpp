@@ -7,6 +7,7 @@
 #include "imgui_impl_win32.h"
 #include "imgui_impl_vulkan.h"
 #include "common.hpp"
+#include "ChunkManager.hpp"
 
 #include <stack>
 #include <array>
@@ -26,12 +27,22 @@ private:
   bool setupCommandPoolAndBuffers();
   bool setupRenderPass();
   bool setupGraphicsPipeline();
+  bool setupChunkManager();
   bool setupTerrainGenerator();
 
   void Shutdown() override;
   void shutdownVulkanMemoryAllocator();
   void shutdownImGui();
   void cleanupVulkan();
+
+  // App logic
+  void updateUser();
+  void checkForNewChunks();
+  void getChunkRenderList();
+  void recordChunkDrawCalls();
+  void drawChunks();
+
+  bool chunkIsWithinFrustum();
 
   // cpp-taskflow taskflows and shared executor
   std::unique_ptr<tf::Taskflow> graphicsTaskflow, computeTaskflow, systemTaskflow;
@@ -56,4 +67,6 @@ private:
   //uint32_t graphicsQueueFamily, presentQueueFamily, computeQueueFamily;
   VkQueue graphicsQueue, presentQueue;
   std::vector<VkQueue> computeQueues;
+
+  std::unique_ptr<ChunkManager> chunkManager;
 };

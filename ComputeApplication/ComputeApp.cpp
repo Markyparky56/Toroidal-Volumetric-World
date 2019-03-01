@@ -448,6 +448,11 @@ bool ComputeApp::setupGraphicsPipeline()
   return false;
 }
 
+bool ComputeApp::setupChunkManager()
+{
+  return false;
+}
+
 bool ComputeApp::setupTerrainGenerator()
 {
   return false;
@@ -487,6 +492,32 @@ void ComputeApp::cleanupVulkan()
   if (presentationSurface) vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);
   if (vulkanInstance) vkDestroyInstance(*vulkanInstance, nullptr);
   if (vulkanLibrary) VulkanInterface::ReleaseVulkanLoaderLibrary(vulkanLibrary);
+}
+
+void ComputeApp::updateUser()
+{
+}
+
+void ComputeApp::checkForNewChunks()
+{
+  //auto chunkList = chunkManager->getChunkSpawnList()
+}
+
+void ComputeApp::getChunkRenderList()
+{
+}
+
+void ComputeApp::recordChunkDrawCalls()
+{
+}
+
+void ComputeApp::drawChunks()
+{
+}
+
+bool ComputeApp::chunkIsWithinFrustum()
+{
+  return false;
 }
 
 void ComputeApp::Shutdown()

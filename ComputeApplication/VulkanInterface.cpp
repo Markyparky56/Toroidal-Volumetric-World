@@ -3440,7 +3440,7 @@ return true;
       0,
       0,
       pool,
-
+      nullptr
     };
 
     if (!vmaCreateBuffer(allocator, &bufferCreateInfo, &allocInfo, &buffer, &allocation, nullptr))
@@ -3493,7 +3493,7 @@ return true;
       0,
       0,
       pool,
-
+      nullptr
     };
 
     if (!vmaCreateImage(allocator, &imageCreateInfo, &allocInfo, &image, &allocation, nullptr))
