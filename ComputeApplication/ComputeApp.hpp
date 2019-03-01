@@ -6,6 +6,7 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_vulkan.h"
+#include "common.hpp"
 
 #include <stack>
 #include <array>
@@ -39,13 +40,12 @@ private:
   // Vulkan Memory Allocator
   VmaAllocator allocator;
 
+  // ImGui gets a dedicated descriptor pool with everything
   VkDescriptorPool imGuiDescriptorPool;
 
   std::unique_ptr<GraphicsPipeline> graphicsPipeline; // This could feasibly be a vector if we ever want a more complex render setup
                                      // But having explicitly named pipelines would probably be better
 
-  static constexpr uint32_t chunkViewDistance = 7;
-  static constexpr uint32_t maxChunks = chunkViewDistance * chunkViewDistance * chunkViewDistance;
 
   VkRenderPass renderPass;
   std::vector<VulkanInterface::FrameResources> frameResources;

@@ -9,12 +9,6 @@ struct VolumeData
   VmaAllocation volumeAllocation;
   VmaAllocator * allocator;
 
-  //VolumeData(VkBuffer vbuf, VmaAllocation vbufAlloc, VmaAllocator * allocator)
-  //  : volumeBuffer(vbuf)
-  //  , volumeAllocation(vbufAlloc)
-  //  , allocator(allocator)
-  //{}
-
   ~VolumeData()
   {
     vmaDestroyBuffer(*allocator, volumeBuffer, volumeAllocation);
@@ -26,14 +20,6 @@ struct ModelData
   VkBuffer vertexBuffer, indexBuffer;
   VmaAllocation vbufferAllocation, ibufferAllocation;
   VmaAllocator * allocator;
-
-  //ModelData(VkBuffer vbuf, VkBuffer ibuf, VmaAllocation vbufAlloc, VmaAllocation ibufAlloc, VmaAllocator * allocator)
-  //  : vertexBuffer(vbuf)
-  //  , indexBuffer(ibuf)
-  //  , vbufferAllocation(vbufAlloc)
-  //  , ibufferAllocation(ibufAlloc)
-  //  , allocator(allocator)
-  //{}
 
   ~ModelData()
   {

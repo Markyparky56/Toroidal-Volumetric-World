@@ -21,12 +21,17 @@ public:
     map[key] = entity;
   }
 
-  //Returns entity handle
+  //Returns entity handle so ChunkManager can cache the volume data
   EntityHandle unloadChunk(uint64_t const key)
   {
     EntityHandle handle = map.at(key);
     map.erase(key);
     return handle;
+  }
+
+  EntityHandle get(uint64_t const key)
+  {
+    return map[key];
   }
 
 protected:

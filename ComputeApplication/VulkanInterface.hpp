@@ -831,7 +831,8 @@ namespace VulkanInterface
                                , VkSwapchainKHR swapchain
                                , std::vector<WaitSemaphoreInfo> const & waitInfos
                                , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
-                               , std::vector<FrameResources> & frameResources);
+                               , std::vector<FrameResources> & frameResources
+                               , uint32_t & nextFrameIndex);
 
   void ExecuteSecondaryCommandBuffers( VkCommandBuffer commandBuffer
                                      , std::vector<VkCommandBuffer> const & secondaryCommandBuffers);

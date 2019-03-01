@@ -11,11 +11,6 @@ public:
   ChunkManager(entt::registry<> * const registry, VmaAllocator * const allocator);
   ~ChunkManager();
 
-private:
-  ChunkFactory factory;
-  ChunkCache cache;
-  ChunkMap map;
-
   enum class ChunkStatus
   {
     NotLoadedNotCached,
@@ -23,30 +18,20 @@ private:
     Loaded
   };
 
-  KeyType chunkKey(glm::vec3 pos)
-  {
-    KeyType x = static_cast<KeyType>(pos.x)
-      , y = static_cast<KeyType>(pos.y)
-      , z = static_cast<KeyType>(pos.z);
+  // Returns a list of EntityHandle, ChunkStatus pairs of chunks not yet loaded into the ChunkMap
+  // These chunks may be cached, if so their volume data can be retrieved via getChunkVolumeDataFromC
+  std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> getChunkSpawnList(glm::vec3 const playerPos);
+  ChunkCacheData getChunkVolumeDataFromCache(KeyType const key);
+  void loadChunk(KeyType const key, EntityHandle const handle);
 
-    KeyType key = ((x & 0x1FFFFF) << 43) | ((y & 0x1FFFFF) << 22) | (z & 0x3FFFFF);
+private:
+  entt::registry<> * const registry;
+  ChunkFactory factory;
+  ChunkCache cache;
+  ChunkMap map;  
 
-    return key;
-  }
-
-  ChunkStatus chunkStatus(uint64_t const key)
-  {
-    if (map.isChunkLoaded(key))
-    {
-      return ChunkStatus::Loaded;
-    }
-    else if (cache.has(key))
-    {
-      return ChunkStatus::NotLoadedCached;
-    }
-    else
-    {
-      return ChunkStatus::NotLoadedNotCached;
-    }
-  }
+  KeyType chunkKey(glm::vec3 const pos);
+  ChunkStatus chunkStatus(uint64_t const key);
+  bool pointInSpawnRange(glm::vec3 const playerPos, glm::vec3 const point);
+  bool pointInDespawnRange(glm::vec3 const playerPos, glm::vec3 const point);
 };

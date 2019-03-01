@@ -27,6 +27,10 @@ public:
   }
 
 protected:
-  // Chunks might get unloaded but we might need it again if the player backtracks
-  cpp_cache::fifo_cache< KeyType, ChunkCacheData, ChunkMapCacheSize, ReservedMap<KeyType, ChunkCacheData, ChunkMapCacheSize>> cache; 
+  // Chunks might get unloaded but we might need it again if the player backtracks,
+  // So we use a fifo cache to store the last few unloaded chunks volume data for quick reloading
+  cpp_cache::fifo_cache< KeyType
+                       , ChunkCacheData
+                       , ChunkMapCacheSize
+                       , ReservedMap<KeyType, ChunkCacheData, ChunkMapCacheSize> > cache; 
 };

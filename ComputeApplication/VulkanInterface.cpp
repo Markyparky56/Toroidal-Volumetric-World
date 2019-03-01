@@ -3140,7 +3140,8 @@ return true;
     , VkSwapchainKHR swapchain
     , std::vector<WaitSemaphoreInfo> const & waitInfos
     , std::function<bool(VkCommandBuffer, uint32_t, VkFramebuffer)> recordCommandBuffer
-    , std::vector<FrameResources>& frameResources)
+    , std::vector<FrameResources>& frameResources
+    , uint32_t & nextFrameIndex)
   {
     static uint32_t frameIndex = 0;
     FrameResources & currentFrame = frameResources[frameIndex];
@@ -3172,6 +3173,7 @@ return true;
     }
 
     frameIndex = (frameIndex + 1) % frameResources.size();
+    nextFrameIndex = frameIndex;
 
     return true;
   }
