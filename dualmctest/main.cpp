@@ -75,40 +75,83 @@ int main()
     0.f, 0.f, sinf(-0.23f), cosf(-0.23f)
   );
   //noiseFbm.SetFrequency(1.f);
-  noiseFbm.SetSeed(42);
-  // Take x,z between [0,1), 
-  for (int32_t z = -noiseVolume.dimZ/2; z < noiseVolume.dimZ/2; ++z)
+  noiseFbm.SetSeed(3256);
+  
+  //for (int32_t z = -noiseVolume.dimZ/2; z < noiseVolume.dimZ/2; ++z)
+  //{
+  //  for (int32_t y = -noiseVolume.dimY/2 + 64; y < noiseVolume.dimY/2 + 64; ++y)
+  //  {
+  //    for (int32_t x = -noiseVolume.dimX/2 - 32; x < noiseVolume.dimX/2 - 32; ++x, ++p) // Increment p each step of inner-most loop
+  //    {
+  //      float theta = (static_cast<float>(x) / (32.f * 32.f)) * 2.0 * static_cast<float>(PI);
+  //      float phi = (static_cast<float>(z) / (32.f * 32.f)) * 2.0 * static_cast<float>(PI);
+  //      float Y = static_cast<float>(y);
+  //      float h_amp = 1.0f;
+  //      float h_r = 32.f;
+  //      float height = 0.0f;
+  //      float t_amp = 1.0f;
+  //      float t_r = 32.f;
+  //      float terrain = 0.0f;
+
+  //      // height map
+  //      for (int i = 0; i < 3; i++)
+  //      {
+  //        glm::vec4 p = glm::vec4(
+  //          h_r * std::cos(theta),
+  //          h_r * std::sin(theta),
+  //          h_r * std::cos(phi),
+  //          h_r * std::sin(phi)
+  //        );
+  //       // p *= rot0;
+  //        //p *= rot1;
+  //        height += h_amp * noiseFbm.GetSimplex(p.x, p.y, p.z, p.w);
+  //        h_amp *= 0.65f;
+  //        h_r *= 2.0f;
+  //      }
+  //      // terrain 
+  //      for (int i = 0; i < 4; i++)
+  //      {
+  //        glm::vec4 p = glm::vec4(
+  //            123.456
+  //          , -432.912
+  //          , -198.023
+  //          , 543.298) + glm::vec4(
+  //          t_r * std::cos(theta),
+  //          t_r * std::sin(theta),
+  //          t_r * std::cos(phi),
+  //          t_r * std::sin(phi)
+  //        );
+  //        p = rot0 * p;
+  //        p = rot1 * p;
+  //        terrain += t_amp * noiseFbm.GetSimplex(p.x, p.y, p.z, p.w, Y, 0.f)*.5f;
+  //        t_amp *= 0.65f;
+  //        t_r *= 2.2f;
+  //      }
+  //      //terrain = terrain * ((height*.5f)+.5f);
+  //      //float height = noiseFbm.GetSimplexFractal(px, py, pz, pw);
+  //      //float noise = noiseFbm.GetSimplexFractal(px, py, pz, pw, pv) + height;
+  //      //float v = noiseFbm.GetSimplexFractal(static_cast<float>(x) + 4234.5f, static_cast<float>(y) + 1234.5f, static_cast<float>(z) + 1234.5f, 8574.f, -1234.5f);
+  //              //* noiseFbm.GetSimplexFractal(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
+  //      //v = (v > 1.f) ? 1.f : ((v < -1.f) ? -1.f : v);
+  //      //terrain = noiseFbm.GetSimplex(x, y, z, 1234.5678f, 9876.5432f);
+  //      noiseVolume.data[p] = static_cast<uint16_t>(terrain * std::numeric_limits<uint16_t>::max());
+  //    }
+  //  }
+  //}
+
+  constexpr float voxelStep = (1.f / 64.f)*(1.f / 32.f);
+  constexpr float normedHalfChunkDim = 18.f * (1.f / (64.f*32.f));
+  for (float z = -normedHalfChunkDim; z < normedHalfChunkDim; z+=voxelStep)
   {
-    for (int32_t y = -noiseVolume.dimY/2; y < noiseVolume.dimY/2; ++y)
+    for (float y = -18.f; y < 18.f; y += 1.f)
     {
-      for (int32_t x = -noiseVolume.dimX/2; x < noiseVolume.dimX/2; ++x, ++p) // Increment p each step of inner-most loop
+      for (float x = -normedHalfChunkDim; x < normedHalfChunkDim; x += voxelStep, p++)
       {
-        float theta = (static_cast<float>(x) / (32.f * 32.f)) * 2.0 * static_cast<float>(PI);
-        float phi = (static_cast<float>(z) / (32.f * 32.f)) * 2.0 * static_cast<float>(PI);
-        float Y = static_cast<float>(y)/32.f;
-        float h_amp = 1.0f;
-        float h_r = 32.f;
-        float height = 0.0f;
+        float theta = x * 2.0 * static_cast<float>(PI);
+        float phi = z * 2.0 * static_cast<float>(PI);
         float t_amp = 1.0f;
         float t_r = 32.f;
         float terrain = 0.0f;
-
-        // height map
-        for (int i = 0; i < 0; i++)
-        {
-          glm::vec4 p = glm::vec4(
-            h_r * std::cos(theta),
-            h_r * std::sin(theta),
-            h_r * std::cos(phi),
-            h_r * std::sin(phi)
-          );
-         // p *= rot0;
-          //p *= rot1;
-          height += h_amp * noiseFbm.GetSimplex(p.x, p.y, p.z, p.w);
-          h_amp *= 0.65f;
-          h_r *= 2.0f;
-        }
-        // terrain 
         for (int i = 0; i < 4; i++)
         {
           glm::vec4 p = glm::vec4(
@@ -121,18 +164,12 @@ int main()
             t_r * std::cos(phi),
             t_r * std::sin(phi)
           );
-          //p = rot0 * p;
-          //p = rot1 * p;
-          terrain += t_amp * noiseFbm.GetSimplex(p.x, p.y, p.z, p.w, Y, 0.f);
+          p = rot0 * p;
+          p = rot1 * p;
+          terrain += t_amp * noiseFbm.GetSimplex(p.x, p.y, p.z, p.w, y, 0.f)*.5f;
           t_amp *= 0.65f;
           t_r *= 2.2f;
         }
-        //float height = noiseFbm.GetSimplexFractal(px, py, pz, pw);
-        //float noise = noiseFbm.GetSimplexFractal(px, py, pz, pw, pv) + height;
-        //float v = noiseFbm.GetSimplexFractal(static_cast<float>(x) + 4234.5f, static_cast<float>(y) + 1234.5f, static_cast<float>(z) + 1234.5f, 8574.f, -1234.5f);
-                //* noiseFbm.GetSimplexFractal(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
-        //v = (v > 1.f) ? 1.f : ((v < -1.f) ? -1.f : v);
-        //terrain = noiseFbm.GetSimplex(x, y, z, 1234.5678f, 9876.5432f);
         noiseVolume.data[p] = static_cast<uint16_t>(terrain * std::numeric_limits<uint16_t>::max());
       }
     }

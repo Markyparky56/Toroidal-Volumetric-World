@@ -5,6 +5,7 @@
 #include "voxel.hpp"
 #include "common.hpp"
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 //#include "ComputePipeline.hpp" // Coming soon(tm)
 
 class TerrainGenerator
