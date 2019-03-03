@@ -1,15 +1,31 @@
 #pragma once
 #include "taskflow\taskflow.hpp"
 #include "FastNoise.h"
+#include <array>
+#include "voxel.hpp"
+#include "common.hpp"
+#include <glm/vec3.hpp>
 //#include "ComputePipeline.hpp" // Coming soon(tm)
 
 class TerrainGenerator
 {
 public:
-  TerrainGenerator();
-  ~TerrainGenerator();
+  TerrainGenerator()
+  {
+    noise.SetFractalType(FastNoise::FractalType::FBM);
+  }
+  ~TerrainGenerator() {}
 
+  void SetSeed(int seed)
+  {
+    noise.SetSeed(seed);
+  }
+
+  std::array<Voxel, TrueChunkDim> getChunkVolume(glm::vec3 chunkPos);
 
 private:
-  FastNoise noise;
+   FastNoise noise;
+
+   inline FN_DECIMAL ScaleBias(float x, float y, float z, float w, float v, float scale, float bias);
+
 };

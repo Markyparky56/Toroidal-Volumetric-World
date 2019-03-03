@@ -10,3 +10,4 @@ static constexpr unsigned int maxChunks = chunkViewDistance * chunkViewDistance 
 static constexpr float invTechnicalChunkDim = 1.f / TechnicalChunkDim;
 static constexpr float chunkSpawnRadius = TechnicalChunkDim * chunkSpawnDistance;
 static constexpr float chunkDespawnRadius = chunkSpawnRadius * 1.5f;
+static constexpr double PI = 3.141592653589793238462643383279;

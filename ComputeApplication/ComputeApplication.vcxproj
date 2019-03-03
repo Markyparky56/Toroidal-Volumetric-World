@@ -151,6 +151,7 @@
     <ClCompile Include="ComputePipeline.cpp" />
     <ClCompile Include="GraphicsPipeline.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="TerrainGenerator.cpp" />
     <ClCompile Include="vk_mem_alloc.cpp" />
     <ClCompile Include="VulkanInterface.cpp" />
     <ClCompile Include="VulkanInterface.Functions.cpp" />
@@ -171,6 +172,7 @@
     <ClInclude Include="HybridComputePipeline.hpp" />
     <ClInclude Include="PipelineBase.hpp" />
     <ClInclude Include="ReservedMap.hpp" />
+    <ClInclude Include="SurfaceExtractor.hpp" />
     <ClInclude Include="TerrainGenerator.hpp" />
     <ClInclude Include="UniqueHandle.hpp" />
     <ClInclude Include="voxel.hpp" />

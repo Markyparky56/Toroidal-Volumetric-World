@@ -8,6 +8,8 @@
 #include "imgui_impl_vulkan.h"
 #include "common.hpp"
 #include "ChunkManager.hpp"
+#include "Camera.hpp"
+#include "TerrainGenerator.hpp"
 
 #include <stack>
 #include <array>
@@ -29,9 +31,12 @@ private:
   bool setupGraphicsPipeline();
   bool setupChunkManager();
   bool setupTerrainGenerator();
+  bool setupECS();
 
   void Shutdown() override;
   void shutdownVulkanMemoryAllocator();
+  void shutdownChunkManager();
+  void shutdownGraphicsPipeline();
   void shutdownImGui();
   void cleanupVulkan();
 
@@ -69,4 +74,22 @@ private:
   std::vector<VkQueue> computeQueues;
 
   std::unique_ptr<ChunkManager> chunkManager;
+  std::unique_ptr<entt::registry<>> registry;
+  std::unique_ptr<TerrainGenerator> terrainGen;
+
+  std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkRenderList;
+
+  Camera camera;
+  static constexpr float cameraSpeed = 1.f;
+  glm::vec2 screenCentre;
+  bool lockMouse = true;
+  double gameTime;
+  float buttonPressGracePeriod = 0.2f;
+  struct SettingsLastChangeTimes
+  {
+    float toggleMouseLock;
+  } settingsLastChangeTimes;
+  struct CamRot {
+    float roll, yaw, pitch;
+  } camRot;
 };

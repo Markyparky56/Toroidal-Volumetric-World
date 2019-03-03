@@ -50,28 +50,90 @@ int main()
   noiseRigid.SetFractalType(FastNoise::FractalType::RigidMulti);
   noiseFbm.SetFractalType(FastNoise::FractalType::FBM);
   noiseFbm.SetFrequency(0.02f);
+  constexpr double PI = 3.141592653589793238462643383279;
 
-  constexpr unsigned int dim = 68;
+  constexpr unsigned int dim = 36;
   noiseVolume = {
     dim, dim, dim,
     16, 
     { {}, {} }
   };
-  noiseVolume.data.resize(dim * dim * dim * 2);
+  noiseVolume.data.resize(dim * dim * dim);
 
   tp genNoiseStart = hrclock::now();
   int32_t p = 0;
-  for (int32_t z = 0; z < noiseVolume.dimZ; ++z)
+  glm::mat4 rot0 = glm::mat4(
+    cosf(0.77f), 0.f, -cosf(0.77f), 0.f,
+    0.f, 1.f, 0.f, 0.f,
+    sinf(0.77f), 0.f, cos(0.77f), 0.f,
+    0.f, 0.f, 0.f, 1.f
+  );
+  glm::mat4 rot1 = glm::mat4(
+    1.f, 0.f, 0.f, 0.f,
+    0.f, 1.f, 0.f, 0.f,
+    0.f, 0.f, cosf(-0.23f), -sinf(0.23f),
+    0.f, 0.f, sinf(-0.23f), cosf(-0.23f)
+  );
+  //noiseFbm.SetFrequency(1.f);
+  noiseFbm.SetSeed(42);
+  // Take x,z between [0,1), 
+  for (int32_t z = -noiseVolume.dimZ/2; z < noiseVolume.dimZ/2; ++z)
   {
-    for (int32_t y = 0; y < noiseVolume.dimY; ++y)
+    for (int32_t y = -noiseVolume.dimY/2; y < noiseVolume.dimY/2; ++y)
     {
-      for (int32_t x = 0; x < noiseVolume.dimX; ++x, ++p) // Increment p each step of inner-most loop
+      for (int32_t x = -noiseVolume.dimX/2; x < noiseVolume.dimX/2; ++x, ++p) // Increment p each step of inner-most loop
       {
-        float v = noiseFbm.GetSimplexFractal(static_cast<float>(x) + 4234.5f, static_cast<float>(y) + 1234.5f, static_cast<float>(z) + 1234.5f, 8574.f, -1234.5f);
+        float theta = (static_cast<float>(x) / (32.f * 32.f)) * 2.0 * static_cast<float>(PI);
+        float phi = (static_cast<float>(z) / (32.f * 32.f)) * 2.0 * static_cast<float>(PI);
+        float Y = static_cast<float>(y)/32.f;
+        float h_amp = 1.0f;
+        float h_r = 32.f;
+        float height = 0.0f;
+        float t_amp = 1.0f;
+        float t_r = 32.f;
+        float terrain = 0.0f;
+
+        // height map
+        for (int i = 0; i < 0; i++)
+        {
+          glm::vec4 p = glm::vec4(
+            h_r * std::cos(theta),
+            h_r * std::sin(theta),
+            h_r * std::cos(phi),
+            h_r * std::sin(phi)
+          );
+         // p *= rot0;
+          //p *= rot1;
+          height += h_amp * noiseFbm.GetSimplex(p.x, p.y, p.z, p.w);
+          h_amp *= 0.65f;
+          h_r *= 2.0f;
+        }
+        // terrain 
+        for (int i = 0; i < 4; i++)
+        {
+          glm::vec4 p = glm::vec4(
+              123.456
+            , -432.912
+            , -198.023
+            , 543.298) + glm::vec4(
+            t_r * std::cos(theta),
+            t_r * std::sin(theta),
+            t_r * std::cos(phi),
+            t_r * std::sin(phi)
+          );
+          //p = rot0 * p;
+          //p = rot1 * p;
+          terrain += t_amp * noiseFbm.GetSimplex(p.x, p.y, p.z, p.w, Y, 0.f);
+          t_amp *= 0.65f;
+          t_r *= 2.2f;
+        }
+        //float height = noiseFbm.GetSimplexFractal(px, py, pz, pw);
+        //float noise = noiseFbm.GetSimplexFractal(px, py, pz, pw, pv) + height;
+        //float v = noiseFbm.GetSimplexFractal(static_cast<float>(x) + 4234.5f, static_cast<float>(y) + 1234.5f, static_cast<float>(z) + 1234.5f, 8574.f, -1234.5f);
                 //* noiseFbm.GetSimplexFractal(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
         //v = (v > 1.f) ? 1.f : ((v < -1.f) ? -1.f : v);
-
-        noiseVolume.data[p] = static_cast<uint16_t>(v * std::numeric_limits<uint16_t>::max());
+        //terrain = noiseFbm.GetSimplex(x, y, z, 1234.5678f, 9876.5432f);
+        noiseVolume.data[p] = static_cast<uint16_t>(terrain * std::numeric_limits<uint16_t>::max());
       }
     }
   }
@@ -109,31 +171,35 @@ int main()
 
 
   // Mesh Optimiser magic
+  
   size_t indexCount = unpackedIndices.size(), vertexCount;
   std::vector<dualmc::Vertex> verts;
   std::vector<unsigned int> indices;
-  { // Temp remap vector
-    std::vector<unsigned int> remap(indexCount);    
-    vertexCount = meshopt_generateVertexRemap(&remap[0], &unpackedIndices[0], indexCount, &vertices[0], vertices.size(), sizeof(dualmc::Vertex));
-    
-    indices.resize(indexCount);
-    meshopt_remapIndexBuffer(&indices[0], &unpackedIndices[0], indexCount, &remap[0]);
+  if (unpackedIndices.size() > 0)
+  {
+    { // Temp remap vector
+      std::vector<unsigned int> remap(indexCount);
+      vertexCount = meshopt_generateVertexRemap(&remap[0], &unpackedIndices[0], indexCount, &vertices[0], vertices.size(), sizeof(dualmc::Vertex));
 
-    verts.resize(vertexCount);
-    meshopt_remapVertexBuffer(&verts[0], &vertices[0], vertexCount, sizeof(dualmc::Vertex), &remap[0]);
+      indices.resize(indexCount);
+      meshopt_remapIndexBuffer(&indices[0], &unpackedIndices[0], indexCount, &remap[0]);
+
+      verts.resize(vertexCount);
+      meshopt_remapVertexBuffer(&verts[0], &vertices[0], vertexCount, sizeof(dualmc::Vertex), &remap[0]);
+    }
+
+    // See: https://github.com/zeux/meshoptimizer/blob/master/demo/main.cpp#L403
+    // For multi-level LOD generation
+    size_t targetIndexCount = static_cast<size_t>(indices.size() * 1.0f) / 3 * 3;
+    float targetError = 1e-3f;
+    indices.resize(meshopt_simplify(&indices[0], &indices[0], indices.size(), &verts[0].x, verts.size(), sizeof(dualmc::Vertex), targetIndexCount, targetError));
+
+    meshopt_optimizeVertexCache(&indices[0], &indices[0], indices.size(), verts.size());
+
+    meshopt_optimizeOverdraw(&indices[0], &indices[0], indices.size(), &verts[0].x, verts.size(), sizeof(dualmc::Vertex), 1.01f);
+
+    verts.resize(meshopt_optimizeVertexFetch(&verts[0], &indices[0], indices.size(), &verts[0], verts.size(), sizeof(dualmc::Vertex)));
   }
-
-  // See: https://github.com/zeux/meshoptimizer/blob/master/demo/main.cpp#L403
-  // For multi-level LOD generation
-  size_t targetIndexCount = static_cast<size_t>(indices.size() * 1.0f) / 3 * 3;
-  float targetError = 1e-3f;
-  indices.resize(meshopt_simplify(&indices[0], &indices[0], indices.size(), &verts[0].x, verts.size(), sizeof(dualmc::Vertex), targetIndexCount, targetError));
-
-  meshopt_optimizeVertexCache(&indices[0], &indices[0], indices.size(), verts.size());
-
-  meshopt_optimizeOverdraw(&indices[0], &indices[0], indices.size(), &verts[0].x, verts.size(), sizeof(dualmc::Vertex), 1.01f);  
-
-  verts.resize(meshopt_optimizeVertexFetch(&verts[0], &indices[0], indices.size(), &verts[0], verts.size(), sizeof(dualmc::Vertex)));
   tp meshOptEnd = hrclock::now();
 
   struct Vertex
@@ -144,11 +210,14 @@ int main()
 
   tp genNormalsStart = hrclock::now();
   std::vector<Vertex> vertnorm;
-  for (auto v : verts)
+  if (verts.size() > 0)
   {
-    vertnorm.push_back({ {v.x, v.y, v.z}, {0.f, 0.f, 0.f} });
+    for (auto v : verts)
+    {
+      vertnorm.push_back({ {v.x, v.y, v.z}, {0.f, 0.f, 0.f} });
+    }
+    generateNormals(&vertnorm[0], vertnorm.size(), sizeof(Vertex), &indices[0], indices.size());
   }
-  generateNormals(&vertnorm[0], vertnorm.size(), sizeof(Vertex), &indices[0], indices.size());
   tp genNormalsEnd = hrclock::now();
   
   // Write obj file

@@ -1,8 +1,10 @@
 #pragma once
+#include <cstdint>
+
 // Voxel Memory Structure
 // Could be more complicated, i.e. materials and blending, data packing
 // Demo just needs density for meshing
 struct Voxel
 {
-  float density;
+  uint16_t density;
 };

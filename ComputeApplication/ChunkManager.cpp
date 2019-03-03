@@ -114,6 +114,12 @@ void ChunkManager::unloadChunk(KeyType const key)
   }
 }
 
+void ChunkManager::shutdown()
+{
+  factory.DestroyAllChunks();
+  cache.clear();
+}
+
 KeyType ChunkManager::chunkKey(glm::vec3 const pos)
 {
   KeyType x = static_cast<KeyType>(pos.x)

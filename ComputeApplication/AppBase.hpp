@@ -142,6 +142,8 @@ protected:
     return VK_FALSE;
   }
 
+  HWND hWnd;
+
   friend VulkanInterface::WindowFramework;
 };
                                                                                                                                                                                                         

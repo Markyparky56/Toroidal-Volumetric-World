@@ -19,6 +19,13 @@ GraphicsPipeline::~GraphicsPipeline()
 void GraphicsPipeline::cleanup()
 {
   if (descriptorPool) VulkanInterface::DestroyDescriptorPool(*logicalDevice, descriptorPool);
+  if (handle) VulkanInterface::DestroyPipeline(*logicalDevice, handle);
+  if (pipelineLayout) VulkanInterface::DestroyPipelineLayout(*logicalDevice, pipelineLayout);
+  if (layouts.size() > 0)
+  {
+    for (auto & layout : layouts)
+      VulkanInterface::DestroyDescriptorSetLayout(*logicalDevice, layout);
+  }
 }
 
 bool GraphicsPipeline::init()

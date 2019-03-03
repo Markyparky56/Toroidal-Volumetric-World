@@ -33,6 +33,11 @@ public:
     cache.erase(key);
   }
 
+  void clear()
+  {
+    cache.clear();
+  }
+
 protected:
   // Chunks might get unloaded but we might need it again if the player backtracks,
   // So we use a fifo cache to store the last few unloaded chunks volume data for quick reloading

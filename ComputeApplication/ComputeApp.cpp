@@ -2,10 +2,23 @@
 
 bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
 {
+  // Setup some basic data
+  gameTime = 0.0;
+  settingsLastChangeTimes = { 0.f };
+  lockMouse = true;
+  ShowCursor(!lockMouse);
+  camera.SetPosition({ 0.f, 0.f, 0.f });
+  camera.SetUp({ 0.f, 1.f, 0.f });
+  camRot = { 0.f, 0.f, 0.f };
+
+  hWnd = windowParameters.HWnd;
+
   if (!setupVulkanAndCreateSwapchain(windowParameters))
   {
     return false;
   }
+
+  screenCentre = { static_cast<float>(swapchain.size.width), static_cast<float>(swapchain.size.height) };
 
   if (!setupTaskflow())
   {
@@ -13,26 +26,57 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   }
 
   // Prepare setup tasks
-  auto[vma, imgui, commandBuffers, renderpass, gpipeline] = systemTaskflow->silent_emplace(
-    [&]() { initialiseVulkanMemoryAllocator(); },
-    [&]() { initImGui(windowParameters.HWnd); },
-    [&]() { setupCommandPoolAndBuffers(); },
-    [&]() { setupRenderPass(); },
-    [&]() { setupGraphicsPipeline(); }
+  bool resVMA, resImGui, resCmdBufs, resRenderpass, resGpipe, resChnkMngr, resTerGen, resECS;
+  auto[vma, imgui, commandBuffers, renderpass, gpipeline, chunkmanager, terraingen, ecs] = systemTaskflow->emplace(
+    [&]() { resVMA = initialiseVulkanMemoryAllocator(); },
+    [&]() { resImGui = initImGui(windowParameters.HWnd); },
+    [&]() { resCmdBufs = setupCommandPoolAndBuffers(); },
+    [&]() { resRenderpass = setupRenderPass(); },
+    [&]() { 
+      if (!resRenderpass) { resGpipe = false; return; }
+      resGpipe = setupGraphicsPipeline(); },
+    [&]() { 
+      if (!resECS && !resVMA) { resChnkMngr = false; return; }
+      resChnkMngr = setupChunkManager(); },
+    [&]() { resTerGen = setupTerrainGenerator(); },
+    [&]() { resECS = setupECS(); }
   );
 
   // Task dependencies
   vma.precede(gpipeline);
+  vma.precede(chunkmanager);
+  renderpass.precede(gpipeline);
   renderpass.precede(imgui);
+  ecs.precede(chunkmanager);
 
   // Execute and wait for completion
-  systemTaskflow->dispatch().get();
+  systemTaskflow->dispatch().get();  
+
+  if (!resVMA || !resImGui || !resCmdBufs || !resRenderpass || !resGpipe || !resChnkMngr || !resTerGen || !resECS)
+  {
+    return false;
+  }
 
   return true;
 }
 
 bool ComputeApp::Update()
 {
+  gameTime += TimerState.GetDeltaTime();
+
+  auto[userUpdate, spawnChunks, renderList, recordDrawCalls, draw] = systemTaskflow->emplace(
+    [&]() { updateUser(); },
+    [&]() { checkForNewChunks(); },
+    [&]() { getChunkRenderList(); },
+    [&]() { recordChunkDrawCalls(); },
+    [&]() { drawChunks(); }
+  );
+
+  userUpdate.precede(spawnChunks);
+  userUpdate.precede(renderList);
+  renderList.precede(recordDrawCalls);
+  recordDrawCalls.precede(draw);
+
   return false;
 }
 
@@ -450,12 +494,23 @@ bool ComputeApp::setupGraphicsPipeline()
 
 bool ComputeApp::setupChunkManager()
 {
-  return false;
+  chunkManager = std::make_unique<ChunkManager>(registry, allocator, vulkanDevice);
+
+  return true;
 }
 
 bool ComputeApp::setupTerrainGenerator()
 {
-  return false;
+  terrainGen = std::make_unique<TerrainGenerator>();
+
+  return true;
+}
+
+bool ComputeApp::setupECS()
+{
+  registry = std::make_unique<entt::registry<>>();
+
+  return true;
 }
 
 void ComputeApp::shutdownVulkanMemoryAllocator()
@@ -465,6 +520,16 @@ void ComputeApp::shutdownVulkanMemoryAllocator()
     vmaDestroyAllocator(allocator);
     allocator = VK_NULL_HANDLE;
   }
+}
+
+void ComputeApp::shutdownChunkManager()
+{
+  chunkManager->shutdown();
+}
+
+void ComputeApp::shutdownGraphicsPipeline()
+{
+  graphicsPipeline->cleanup();
 }
 
 void ComputeApp::shutdownImGui()
@@ -496,15 +561,97 @@ void ComputeApp::cleanupVulkan()
 
 void ComputeApp::updateUser()
 {
+  bool moveLeft = (KeyboardState.Keys['A'].IsDown || KeyboardState.Keys[VK_LEFT].IsDown);
+  bool moveRight = (KeyboardState.Keys['D'].IsDown || KeyboardState.Keys[VK_RIGHT].IsDown);
+  bool moveForward = (KeyboardState.Keys['W'].IsDown || KeyboardState.Keys[VK_UP].IsDown);
+  bool moveBackwards = (KeyboardState.Keys['S'].IsDown || KeyboardState.Keys[VK_DOWN].IsDown);
+  bool moveUp = (KeyboardState.Keys[VK_SPACE].IsDown);
+  bool moveDown = (KeyboardState.Keys[VK_CONTROL].IsDown);
+  bool toggleMouseLock = (KeyboardState.Keys[VK_F1].IsDown);
+
+  if (toggleMouseLock)
+  {
+    if (gameTime >= settingsLastChangeTimes.toggleMouseLock + buttonPressGracePeriod)
+    {
+      lockMouse = !lockMouse;
+      settingsLastChangeTimes.toggleMouseLock = static_cast<float>(gameTime);
+    }
+  }
+
+  float dt = TimerState.GetDeltaTime();
+  // Handle movement controls
+  auto camPos = camera.GetPosition();
+  if (moveLeft || moveRight)
+  {
+    if (moveLeft && !moveRight)
+    {
+      camPos -= (camera.GetRight() * dt * cameraSpeed);
+    }
+    else if (moveRight && !moveLeft)
+    {
+      camPos += (camera.GetRight() * dt * cameraSpeed);
+    }
+  }
+  if (moveForward || moveBackwards)
+  {
+    if (moveForward && !moveBackwards)
+    {
+      camPos += (camera.GetForward() * dt * cameraSpeed);
+    }
+    else if (moveBackwards && !moveForward)
+    {
+      camPos -= (camera.GetForward() * dt * cameraSpeed);
+    }
+  }
+  if (moveUp || moveDown)
+  {
+    if (moveUp && !moveDown)
+    {
+      camPos += (camera.GetUp() * dt * cameraSpeed);
+    }
+    else if (moveDown && !moveUp)
+    {
+      camPos -= (camera.GetUp() * dt * cameraSpeed);
+    }
+  }
+
+  // Handle look controls
+  glm::vec2 dir = screenCentre - glm::vec2(MouseState.Position.Delta.X, MouseState.Position.Delta.Y);
+  dir = glm::normalize(dir);  
+  camRot.pitch += dir.y * (90.f*dt);
+  camRot.yaw += dir.x * (90.f*dt);
+
+  camera.SetPosition(camPos);
+  camera.SetPitch(camRot.pitch);
+  camera.SetYaw(camRot.yaw);
+  camera.SetRoll(camRot.roll);
+  camera.Update();
+
+  if (lockMouse)
+  {
+    POINT pt; 
+    pt.x = static_cast<LONG>(screenCentre.x);
+    pt.y = static_cast<LONG>(screenCentre.y);
+    ClientToScreen(static_cast<HWND>(hWnd), &pt);
+    SetCursorPos(pt.x, pt.y);
+  }
 }
 
 void ComputeApp::checkForNewChunks()
 {
-  //auto chunkList = chunkManager->getChunkSpawnList()
+  auto chunkList = chunkManager->getChunkSpawnList(camera.GetPosition());
+  for (auto & chunk : chunkList)
+  {
+    if (chunk.second == ChunkManager::ChunkStatus::NotLoadedCached)
+    {
+
+    }
+  }
 }
 
 void ComputeApp::getChunkRenderList()
 {
+  
 }
 
 void ComputeApp::recordChunkDrawCalls()
@@ -517,21 +664,26 @@ void ComputeApp::drawChunks()
 
 bool ComputeApp::chunkIsWithinFrustum()
 {
-  return false;
+  return true;
 }
 
 void ComputeApp::Shutdown()
 {
   // We can shutdown some systems in parallel since they don't depend on each other
-  auto[vulkan, vma, imgui] = systemTaskflow->silent_emplace(
+  auto[vulkan, vma, imgui, chnkMngr, gpipe] = systemTaskflow->emplace(
     [&]() { cleanupVulkan(); },
     [&]() { shutdownVulkanMemoryAllocator(); },
-    [&]() { shutdownImGui(); }
+    [&]() { shutdownImGui(); },
+    [&]() { shutdownChunkManager(); },
+    [&]() { shutdownGraphicsPipeline(); }
   );
   
   // Task dependencies
   vma.precede(vulkan);
   imgui.precede(vulkan);
+  chnkMngr.precede(vulkan);
+  chnkMngr.precede(vma);
+  gpipe.precede(vulkan);
 
   systemTaskflow->dispatch().get();
 }
