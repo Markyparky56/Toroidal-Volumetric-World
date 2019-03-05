@@ -1,13 +1,14 @@
 #include "dualmc.h"
 #include "meshoptimizer.h"
 #include "FastNoise.h"
-
+#include "glm\glm.hpp"
 #include "genNormals.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <chrono>
+#include <array>
 
 using tp = std::chrono::high_resolution_clock::time_point;
 using hrclock = std::chrono::high_resolution_clock;
@@ -47,18 +48,19 @@ int main()
 {
   FastNoise noiseRigid(42);
   FastNoise noiseFbm(244224);
+  FastNoise noise(42);
   noiseRigid.SetFractalType(FastNoise::FractalType::RigidMulti);
   noiseFbm.SetFractalType(FastNoise::FractalType::FBM);
   noiseFbm.SetFrequency(0.02f);
   constexpr double PI = 3.141592653589793238462643383279;
 
-  constexpr unsigned int dim = 36;
+  constexpr unsigned int dim = 132;
   noiseVolume = {
     dim, dim, dim,
     16, 
     { {}, {} }
   };
-  noiseVolume.data.resize(dim * dim * dim);
+  noiseVolume.data.resize(dim * dim * dim,0);
 
   tp genNoiseStart = hrclock::now();
   int32_t p = 0;
@@ -75,7 +77,7 @@ int main()
     0.f, 0.f, sinf(-0.23f), cosf(-0.23f)
   );
   //noiseFbm.SetFrequency(1.f);
-  noiseFbm.SetSeed(3256);
+  noise.SetSeed(2424);
   
   //for (int32_t z = -noiseVolume.dimZ/2; z < noiseVolume.dimZ/2; ++z)
   //{
@@ -139,20 +141,88 @@ int main()
   //  }
   //}
 
-  constexpr float voxelStep = (1.f / 64.f)*(1.f / 32.f);
-  constexpr float normedHalfChunkDim = 18.f * (1.f / (64.f*32.f));
-  for (float z = -normedHalfChunkDim; z < normedHalfChunkDim; z+=voxelStep)
+  constexpr float voxelStep = (1.f / 64.f)*(1.f / 128.f);
+  constexpr float normedHalfChunkDim = 66.f * (1.f / (64.f*128.f));
+
+  std::array<float, 132*132> heightmap;
+  // Calculate height map (this can/should be GPU compute)
+  uint32_t hm_p = 0;
+  for (float z = -normedHalfChunkDim; z < normedHalfChunkDim; z += voxelStep)
   {
-    for (float y = -18.f; y < 18.f; y += 1.f)
+    for (float x = -normedHalfChunkDim/* + 128.f*voxelStep*/; x < normedHalfChunkDim/* + 128.f*voxelStep*/; x += voxelStep, hm_p++)
     {
-      for (float x = -normedHalfChunkDim; x < normedHalfChunkDim; x += voxelStep, p++)
+      float theta = x * 2.0 * static_cast<float>(PI);
+      float phi = z * 2.0 * static_cast<float>(PI);
+      float h_amp = 1.0f;
+      float h_r = 128.f;
+      float height = 0.0f;
+      //for (int i = 0; i < 5; i++)
+      //{
+      //  glm::vec4 p = glm::vec4(
+      //    h_r * std::cos(theta),
+      //    h_r * std::sin(theta),
+      //    h_r * std::cos(phi),
+      //    h_r * std::sin(phi)
+      //  );
+      //  height += h_amp * noise.GetSimplex(p.x, p.y, p.z, p.w);
+      //  h_amp *= 0.65f;
+      //  h_r *= 2.23f;
+      //}
+      {
+        glm::vec4 p = glm::vec4(
+          h_r * std::cos(theta),
+          h_r * std::sin(theta),
+          h_r * std::cos(phi),
+          h_r * std::sin(phi)
+        );
+        height = h_amp * (1.f - glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w)));
+        h_amp *= 0.65f;
+        h_r *= 2.23f;
+        for (int i = 0; i < 4; i++)
+        {
+          glm::vec4 p = glm::vec4(
+            h_r * std::cos(theta),
+            h_r * std::sin(theta),
+            h_r * std::cos(phi),
+            h_r * std::sin(phi)
+          );
+          height -= h_amp * (1.f - glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w)));
+          h_amp *= 0.65f;
+          h_r *= 2.23f;
+        }
+      }
+      float w = 0.125;
+      float k = glm::floor(height / w);
+      float f = (height - k * w) / w;
+      float s = glm::min(2.f*f, 1.f);
+      height = ((k + s) * w);
+      heightmap[hm_p] = height;
+    }
+  }
+
+  uint32_t zI, xI; zI = 0;
+  for (float z = -normedHalfChunkDim; z < normedHalfChunkDim; z+=voxelStep, zI++)
+  {
+    //for (float y =   64.f; y < 196.f; y += 1.f)
+    for (float y =  -66.f; y <  66.f; y += 1.f)
+    //for (float y = -196.f; y < -64.f; y += 1.f)
+    {
+      xI = 0;
+      for (float x = -normedHalfChunkDim/* + 128.f*voxelStep*/; x < normedHalfChunkDim/* + 128.f*voxelStep*/; x += voxelStep, p++, xI++)
       {
         float theta = x * 2.0 * static_cast<float>(PI);
         float phi = z * 2.0 * static_cast<float>(PI);
-        float t_amp = 1.0f;
+        float t_amp = 10.0f;
         float t_r = 32.f;
-        float terrain = 0.0f;
-        for (int i = 0; i < 4; i++)
+        glm::vec4 ws_p = glm::vec4(
+          t_r * std::cos(theta),
+          t_r * std::sin(theta),
+          t_r * std::cos(phi),
+          t_r * std::sin(phi)
+        );
+        float terrain = (-y)+(heightmap[zI * 132 + xI] * 128.f);
+        //std::cout << terrain << "->";
+        for (int i = 0; i < 6; i++)
         {
           glm::vec4 p = glm::vec4(
               123.456
@@ -166,10 +236,13 @@ int main()
           );
           p = rot0 * p;
           p = rot1 * p;
-          terrain += t_amp * noiseFbm.GetSimplex(p.x, p.y, p.z, p.w, y, 0.f)*.5f;
-          t_amp *= 0.65f;
-          t_r *= 2.2f;
+          terrain += (t_amp * noise.GetSimplex(p.x, p.y, p.z, p.w, y))*32.f;
+          t_amp *= 0.6f;
+          t_r *= 2.25f;
         }
+        //std::cout << terrain << std::endl;
+        terrain = glm::clamp(terrain, -1.f, 1.f);
+        terrain = (terrain *.5f) + .5f;
         noiseVolume.data[p] = static_cast<uint16_t>(terrain * std::numeric_limits<uint16_t>::max());
       }
     }
@@ -182,8 +255,8 @@ int main()
 
   tp genMeshStart = hrclock::now();
   dualmc::DualMC<uint16_t> builder;
-  uint16_t iso = static_cast<uint16_t>(0.5 * std::numeric_limits<uint16_t>::max());
-  builder.buildTris(noiseVolume.data.data(), noiseVolume.dimX, noiseVolume.dimY, noiseVolume.dimZ, iso, true, false, vertices, triIndexes);
+  //uint16_t iso = static_cast<uint16_t>(0.5 * std::numeric_limits<uint16_t>::max());
+  builder.buildTris(noiseVolume.data.data(), noiseVolume.dimX, noiseVolume.dimY, noiseVolume.dimZ, static_cast<uint16_t>(0.5f * std::numeric_limits<uint16_t>::max()), true, false, vertices, triIndexes);
   tp genMeshEnd = hrclock::now();
   //builder.build(noiseVolume.data.data(), noiseVolume.dimX, noiseVolume.dimY, noiseVolume.dimZ, iso, true, false, vertices, quadIndexes);
 

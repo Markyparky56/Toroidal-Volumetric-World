@@ -29,7 +29,7 @@ std::array<Voxel, TrueChunkDim> TerrainGenerator::getChunkVolume(glm::vec3 chunk
   constexpr float voxelStep = invWorldDimension * invTechnicalChunkDim;
   constexpr float normedHalfChunkDim = static_cast<float>(HalfChunkDim) * invWorldDimensionInVoxels;
   std::array<float, TrueChunkDim*TrueChunkDim> heightmap;
-  // Calculate height map (this can be GPU compute)
+  // Calculate height map (this can/should be GPU compute)
   uint32_t hm_p = 0;
   for (float z = normedChunkPos.z - normedHalfChunkDim; z <= normedChunkPos.z + normedHalfChunkDim; z += voxelStep)
   {
