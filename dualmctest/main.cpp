@@ -77,7 +77,7 @@ int main()
     0.f, 0.f, sinf(-0.23f), cosf(-0.23f)
   );
   //noiseFbm.SetFrequency(1.f);
-  noise.SetSeed(2424);
+  noise.SetSeed(4422);
   
   //for (int32_t z = -noiseVolume.dimZ/2; z < noiseVolume.dimZ/2; ++z)
   //{
@@ -147,16 +147,16 @@ int main()
   std::array<float, 132*132> heightmap;
   // Calculate height map (this can/should be GPU compute)
   uint32_t hm_p = 0;
-  for (float z = -normedHalfChunkDim; z < normedHalfChunkDim; z += voxelStep)
+  for (float z = -normedHalfChunkDim - 128.f*voxelStep; z < normedHalfChunkDim - 128.f*voxelStep; z += voxelStep)
   {
     for (float x = -normedHalfChunkDim/* + 128.f*voxelStep*/; x < normedHalfChunkDim/* + 128.f*voxelStep*/; x += voxelStep, hm_p++)
     {
       float theta = x * 2.0 * static_cast<float>(PI);
       float phi = z * 2.0 * static_cast<float>(PI);
       float h_amp = 1.0f;
-      float h_r = 128.f;
+      float h_r = 64.f;
       float height = 0.0f;
-      //for (int i = 0; i < 5; i++)
+      //for (int i = 0; i < 6; i++)
       //{
       //  glm::vec4 p = glm::vec4(
       //    h_r * std::cos(theta),
@@ -176,9 +176,9 @@ int main()
           h_r * std::sin(phi)
         );
         height = h_amp * (1.f - glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w)));
-        h_amp *= 0.65f;
-        h_r *= 2.23f;
-        for (int i = 0; i < 4; i++)
+        h_amp *= 0.8f;
+        h_r *= 2.0f;
+        for (int i = 0; i < 6; i++)
         {
           glm::vec4 p = glm::vec4(
             h_r * std::cos(theta),
@@ -187,8 +187,8 @@ int main()
             h_r * std::sin(phi)
           );
           height -= h_amp * (1.f - glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w)));
-          h_amp *= 0.65f;
-          h_r *= 2.23f;
+          h_amp *= 0.55f;
+          h_r *= 2.45f;
         }
       }
       float w = 0.125;
@@ -196,31 +196,37 @@ int main()
       float f = (height - k * w) / w;
       float s = glm::min(2.f*f, 1.f);
       height = ((k + s) * w);
-      heightmap[hm_p] = height;
+      heightmap[hm_p] = (height*.5f)+.5f;
     }
   }
 
   uint32_t zI, xI; zI = 0;
-  for (float z = -normedHalfChunkDim; z < normedHalfChunkDim; z+=voxelStep, zI++)
+  for (float z = -normedHalfChunkDim - (128.f*voxelStep); z < normedHalfChunkDim - (128.f*voxelStep); z+=voxelStep, zI++)
   {
+    //for (float y = 194.f; y < 326.f; y += 1.f)
     //for (float y =   64.f; y < 196.f; y += 1.f)
-    for (float y =  -66.f; y <  66.f; y += 1.f)
-    //for (float y = -196.f; y < -64.f; y += 1.f)
+    //for (float y =  -66.f; y <  66.f; y += 1.f)
+    for (float y = -196.f; y < -64.f; y += 1.f)
     {
       xI = 0;
       for (float x = -normedHalfChunkDim/* + 128.f*voxelStep*/; x < normedHalfChunkDim/* + 128.f*voxelStep*/; x += voxelStep, p++, xI++)
       {
         float theta = x * 2.0 * static_cast<float>(PI);
         float phi = z * 2.0 * static_cast<float>(PI);
-        float t_amp = 10.0f;
-        float t_r = 32.f;
+        float t_amp = 1.0f;
+        float t_r = 64.f;
         glm::vec4 ws_p = glm::vec4(
           t_r * std::cos(theta),
           t_r * std::sin(theta),
           t_r * std::cos(phi),
           t_r * std::sin(phi)
         );
-        float terrain = (-y)+(heightmap[zI * 132 + xI] * 128.f);
+        //float terrain = (-y) + glm::abs(heightmap[zI * 132 + xI] * 128.f);
+        //float terrain = (-y) + (((heightmap[zI * 132 + xI] * .5f) + 0.5f) * 128.f);
+        //float terrain = -(heightmap[zI * 132 + xI] * 128.f);
+        //float terrain = (heightmap[zI * 132 + xI] * 128.f);
+        //float terrain = 64.f - y - (heightmap[zI * 132 + xI] * 128.f);
+        float terrain = -y + (heightmap[zI * 132 + xI] * 256.f);
         //std::cout << terrain << "->";
         for (int i = 0; i < 6; i++)
         {
@@ -236,9 +242,11 @@ int main()
           );
           p = rot0 * p;
           p = rot1 * p;
-          terrain += (t_amp * noise.GetSimplex(p.x, p.y, p.z, p.w, y))*32.f;
-          t_amp *= 0.6f;
-          t_r *= 2.25f;
+          //terrain -= (t_amp * glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w, y)))*64.f;
+          terrain -= (t_amp * noise.GetSimplex(p.x, p.y, p.z, p.w, y))*64.f;
+          //terrain += (t_amp * noise.GetSimplex(p.x, p.y, p.z, p.w, y))*46.f;
+          t_amp *= 0.75f;
+          t_r *= 2.4f;
         }
         //std::cout << terrain << std::endl;
         terrain = glm::clamp(terrain, -1.f, 1.f);

@@ -503,6 +503,8 @@ bool ComputeApp::setupTerrainGenerator()
 {
   terrainGen = std::make_unique<TerrainGenerator>();
 
+  terrainGen->SetSeed(4422);
+
   return true;
 }
 

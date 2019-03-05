@@ -22,7 +22,7 @@ public:
     noise.SetSeed(seed);
   }
 
-  std::array<Voxel, TrueChunkDim> getChunkVolume(glm::vec3 chunkPos);
+  std::array<Voxel, ChunkSize> getChunkVolume(glm::vec3 chunkPos);
 
 private:
    FastNoise noise;
