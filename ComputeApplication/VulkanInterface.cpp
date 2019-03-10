@@ -108,7 +108,7 @@ namespace VulkanInterface
     for(auto & enabledExtension : enabledExtensions) { \
       if(std::string(enabledExtension) == std::string(extension)) { \
         name = (PFN_##name)vkGetInstanceProcAddr( instance, #name ); \
-        std::cout << name << std::endl; \
+        /*std::cout << name << std::endl; */\
         if (name == nullptr) { \
           std::cout << "Failed to load extension instance-level function " <<  #name << std::endl; \
           return false; \
@@ -2512,6 +2512,28 @@ return true;
       0,
       sourceCode.size(),
       reinterpret_cast<uint32_t const *>(sourceCode.data())
+    };
+
+    VkResult result = vkCreateShaderModule(logicalDevice, &shaderModuleCreateInfo, nullptr, &shaderModule);
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Could not create a shader module"
+      return false;
+    }
+
+    return true;
+  }
+
+  bool CreateShaderModule(VkDevice logicalDevice
+    , std::vector<unsigned int> const & sourceCode
+    , VkShaderModule & shaderModule)
+  {
+    VkShaderModuleCreateInfo shaderModuleCreateInfo = {
+      VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+      nullptr,
+      0,
+      sourceCode.size(),
+      sourceCode.data()
     };
 
     VkResult result = vkCreateShaderModule(logicalDevice, &shaderModuleCreateInfo, nullptr, &shaderModule);

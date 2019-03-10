@@ -1,5 +1,8 @@
 #include "ComputeApp.hpp"
 
+//#include "chunkDirectionalLight.vert.spv.h"
+//#include "chunkDirectionalLight.frag.spv.h"
+
 bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
 {
   // Setup some basic data
@@ -27,9 +30,9 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
 
   // Prepare setup tasks
   bool resVMA, resImGui, resCmdBufs, resRenderpass, resGpipe, resChnkMngr, resTerGen, resECS;
-  auto[vma, imgui, commandBuffers, renderpass, gpipeline, chunkmanager, terraingen, ecs] = systemTaskflow->emplace(
+  auto[vma, /*imgui,*/ commandBuffers, renderpass, gpipeline, chunkmanager, terraingen, ecs] = systemTaskflow->emplace(
     [&]() { resVMA = initialiseVulkanMemoryAllocator(); },
-    [&]() { resImGui = initImGui(windowParameters.HWnd); },
+    //[&]() { resImGui = initImGui(windowParameters.HWnd); },
     [&]() { resCmdBufs = setupCommandPoolAndBuffers(); },
     [&]() { resRenderpass = setupRenderPass(); },
     [&]() { 
@@ -46,13 +49,22 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   vma.precede(gpipeline);
   vma.precede(chunkmanager);
   renderpass.precede(gpipeline);
-  renderpass.precede(imgui);
+  //renderpass.precede(imgui);
   ecs.precede(chunkmanager);
 
   // Execute and wait for completion
   systemTaskflow->dispatch().get();  
 
-  if (!resVMA || !resImGui || !resCmdBufs || !resRenderpass || !resGpipe || !resChnkMngr || !resTerGen || !resECS)
+  //resVMA = initialiseVulkanMemoryAllocator();
+  //resRenderpass = setupRenderPass();
+  //resImGui = initImGui(windowParameters.HWnd);
+  //resGpipe = setupGraphicsPipeline();
+  //resCmdBufs = setupCommandPoolAndBuffers();
+  //resECS = setupECS();
+  //resChnkMngr = setupChunkManager();
+  //resTerGen = setupTerrainGenerator();
+
+  if (!resVMA /*|| !resImGui*/ || !resCmdBufs || !resRenderpass || !resGpipe || !resChnkMngr || !resTerGen || !resECS)
   {
     return false;
   }
@@ -82,15 +94,15 @@ bool ComputeApp::Update()
 
 bool ComputeApp::Resize()
 {
-  ImGui_ImplVulkan_InvalidateDeviceObjects();
-  if (!createSwapchain(
-    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-    , true
-    , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-    )
-  {
-    return false;
-  }
+  //ImGui_ImplVulkan_InvalidateDeviceObjects();
+  //if (!createSwapchain(
+  //  VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+  //  , true
+  //  , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+  //  )
+  //{
+  //  return false;
+  //}
 
   if (!VulkanInterface::CreateFramebuffersForFrameResources(
     *vulkanDevice
@@ -101,7 +113,7 @@ bool ComputeApp::Resize()
   {
     return false;
   }
-  ImGui_ImplVulkan_CreateDeviceObjects();
+  //ImGui_ImplVulkan_CreateDeviceObjects();
   return true;
 }
 
@@ -280,7 +292,7 @@ bool ComputeApp::setupTaskflow()
   computeTaskflow = std::make_unique<tf::Taskflow>(tfExecutor);
   systemTaskflow = std::make_unique<tf::Taskflow>(tfExecutor);
 
-  return false;
+  return true;
 }
 
 bool ComputeApp::initialiseVulkanMemoryAllocator()
@@ -300,64 +312,64 @@ bool ComputeApp::initialiseVulkanMemoryAllocator()
   }
 }
 
-bool ComputeApp::initImGui(HWND hwnd)
-{
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-
-  ImGui::StyleColorsDark();
-
-  if (!ImGui_ImplWin32_Init(hwnd))
-  {
-    return false;
-  }
-  
-  std::vector<VkDescriptorPoolSize> poolSizes = 
-  {
-    { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-    { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-    { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-    { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-    { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-    { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-  };
-  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, true, 1000 * static_cast<uint32_t>(poolSizes.size()), poolSizes, imGuiDescriptorPool))
-  {
-    return false;
-  }  
-
-  ImGui_ImplVulkan_InitInfo initInfo = { 0 };
-  initInfo.Instance = *vulkanInstance;
-  initInfo.PhysicalDevice = vulkanPhysicalDevice;
-  initInfo.Device = *vulkanDevice;
-  initInfo.QueueFamily = graphicsQueueParameters.familyIndex;
-  initInfo.Queue = graphicsQueue;
-  initInfo.PipelineCache = VK_NULL_HANDLE;
-  initInfo.DescriptorPool = imGuiDescriptorPool;
-  initInfo.Allocator = VK_NULL_HANDLE;
-  initInfo.CheckVkResultFn = [](VkResult err) { 
-    if (err == VK_SUCCESS) return; 
-    else { 
-      std::cout << "ImGui Error (Non-success return value), Code: " << err << std::endl; 
-#if defined(_DEBUG)
-      if (err < 0) 
-        abort(); 
-#endif
-    }
-  };
-
-  if (!ImGui_ImplVulkan_Init(&initInfo, renderPass))
-  {
-    return false;
-  }
-
-  return true;
-}
+//bool ComputeApp::initImGui(HWND hwnd)
+//{
+//  IMGUI_CHECKVERSION();
+//  ImGui::CreateContext();
+//
+//  ImGui::StyleColorsDark();
+//
+//  if (!ImGui_ImplWin32_Init(hwnd))
+//  {
+//    return false;
+//  }
+//  
+//  std::vector<VkDescriptorPoolSize> poolSizes = 
+//  {
+//    { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+//    { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+//    { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+//    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+//    { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+//  };
+//  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, true, 1000 * static_cast<uint32_t>(poolSizes.size()), poolSizes, imGuiDescriptorPool))
+//  {
+//    return false;
+//  }  
+//
+//  ImGui_ImplVulkan_InitInfo initInfo = { 0 };
+//  initInfo.Instance = *vulkanInstance;
+//  initInfo.PhysicalDevice = vulkanPhysicalDevice;
+//  initInfo.Device = *vulkanDevice;
+//  initInfo.QueueFamily = graphicsQueueParameters.familyIndex;
+//  initInfo.Queue = graphicsQueue;
+//  initInfo.PipelineCache = VK_NULL_HANDLE;
+//  initInfo.DescriptorPool = imGuiDescriptorPool;
+//  initInfo.Allocator = VK_NULL_HANDLE;
+//  initInfo.CheckVkResultFn = [](VkResult err) { 
+//    if (err == VK_SUCCESS) return; 
+//    else { 
+//      std::cout << "ImGui Error (Non-success return value), Code: " << err << std::endl; 
+//#if defined(_DEBUG)
+//      if (err < 0) 
+//        abort(); 
+//#endif
+//    }
+//  };
+//
+//  if (!ImGui_ImplVulkan_Init(&initInfo, renderPass))
+//  {
+//    return false;
+//  }
+//
+//  return true;
+//}
 
 bool ComputeApp::setupCommandPoolAndBuffers()
 {
@@ -482,19 +494,244 @@ bool ComputeApp::setupRenderPass()
 
 bool ComputeApp::setupGraphicsPipeline()
 {
-  graphicsPipeline = std::make_unique<GraphicsPipeline>(&(*vulkanDevice), &renderPass, "Data/chunk_directionalLight.vert", "Data/chunk_directionalLight.frag");
-
-  //std::vector<VkDescriptorPoolSize> poolSizes = {};
+  //graphicsPipeline = std::make_unique<GraphicsPipeline>(&(*vulkanDevice), &renderPass, "Data/vert.spv", "Data/frag.spv");
+  //std::vector<VkDescriptorPoolSize> poolSizes = {
+  //  { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
+  //};
   //graphicsPipeline->setupDescriptorPool(poolSizes);
+  //graphicsPipeline->layoutBindings.push_back(
+  //  { 
+  //    VkDescriptorSetLayoutBinding
+  //    {
+  //      0,
+  //      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+  //      1,
+  //      VK_SHADER_STAGE_VERTEX_BIT,
+  //      nullptr
+  //    } 
+  //  }
+  //);
+  // Uniform buffer
+  if (!VulkanInterface::CreateUniformBuffer(vulkanPhysicalDevice
+    , *vulkanDevice
+    , 16 * sizeof(float)
+    , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+    , uniformBuffer
+    , uniformBufferMemory)) 
+  {
+    return false;
+  }
+  //graphicsPipeline->uniformBuffer = &uniformBuffer;
+  //graphicsPipeline->init();
 
-  graphicsPipeline->init();
+  // Descriptor set with uniform buffer
+  VkDescriptorSetLayoutBinding descriptor_set_layout_binding = {
+    0,                                          // uint32_t             binding
+    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType     descriptorType
+    1,                                          // uint32_t             descriptorCount
+    VK_SHADER_STAGE_VERTEX_BIT,                 // VkShaderStageFlags   stageFlags
+    nullptr                                     // const VkSampler    * pImmutableSamplers
+  };
 
-  return false;
+  if (!VulkanInterface::CreateDescriptorSetLayout(*vulkanDevice, { descriptor_set_layout_binding }, descriptorSetLayout)) {
+    return false;
+  }
+
+  VkDescriptorPoolSize descriptor_pool_size = {
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType     type
+      1                                           // uint32_t             descriptorCount
+  };
+
+  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, false, 1, { descriptor_pool_size }, descriptorPool))
+  {
+    return false;
+  }
+
+  if (!VulkanInterface::AllocateDescriptorSets(*vulkanDevice, descriptorPool, { descriptorSetLayout }, descriptorSets))
+  {
+    return false;
+  }
+
+  //VulkanInterface::BufferDescriptorInfo buffer_descriptor_update = {
+  //    descriptorSets[0],                          // VkDescriptorSet                      TargetDescriptorSet
+  //    0,                                          // uint32_t                             TargetDescriptorBinding
+  //    0,                                          // uint32_t                             TargetArrayElement
+  //    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType                     TargetDescriptorType
+  //    {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
+  //      {
+  //        uniformBuffer,                            // VkBuffer                             buffer
+  //        0,                                        // VkDeviceSize                         offset
+  //        VK_WHOLE_SIZE                             // VkDeviceSize                         range
+  //      }
+  //    }
+  //};
+
+  //VulkanInterface::UpdateDescriptorSets(*vulkanDevice, {}, { buffer_descriptor_update }, {}, {});
+
+  std::vector<unsigned char> vertex_shader_spirv;
+  if (!VulkanInterface::GetBinaryFileContents("Data/vert.spv", vertex_shader_spirv)) {
+    return false;
+  }
+
+  VkShaderModule vertex_shader_module;
+  if (!VulkanInterface::CreateShaderModule(*vulkanDevice, vertex_shader_spirv, vertex_shader_module)) {
+    return false;
+  }
+
+  std::vector<unsigned char> fragment_shader_spirv;
+  if (!VulkanInterface::GetBinaryFileContents("Data/frag.spv", fragment_shader_spirv)) {
+    return false;
+  }
+  VkShaderModule fragment_shader_module;
+  if (!VulkanInterface::CreateShaderModule(*vulkanDevice, fragment_shader_spirv, fragment_shader_module)) {
+    return false;
+  }
+
+  std::vector<VulkanInterface::ShaderStageParameters> shader_stage_params = {
+      {
+        VK_SHADER_STAGE_VERTEX_BIT,   // VkShaderStageFlagBits        ShaderStage
+        vertex_shader_module,        // VkShaderModule               ShaderModule
+        "main",                       // char const                 * EntryPointName;
+        nullptr                       // VkSpecializationInfo const * SpecializationInfo;
+      },
+      {
+        VK_SHADER_STAGE_FRAGMENT_BIT, // VkShaderStageFlagBits        ShaderStage
+        fragment_shader_module,      // VkShaderModule               ShaderModule
+        "main",                       // char const                 * EntryPointName
+        nullptr                       // VkSpecializationInfo const * SpecializationInfo
+      }
+  };
+
+  std::vector<VkPipelineShaderStageCreateInfo> shader_stage_create_infos;
+  SpecifyPipelineShaderStages(shader_stage_params, shader_stage_create_infos);
+
+  std::vector<VkVertexInputBindingDescription> vertex_input_binding_descriptions = {
+    {
+      0,                            // uint32_t                     binding
+      6 * sizeof(float),          // uint32_t                     stride
+      VK_VERTEX_INPUT_RATE_VERTEX   // VkVertexInputRate            inputRate
+    }
+  };
+
+  std::vector<VkVertexInputAttributeDescription> vertex_attribute_descriptions = {
+    {
+      0,                            // uint32_t                     location
+      0,                            // uint32_t                     binding
+      VK_FORMAT_R32G32B32_SFLOAT,   // VkFormat                     format
+      0                             // uint32_t                     offset
+    },
+    {
+      1,
+      0,
+      VK_FORMAT_R32G32B32_SFLOAT,
+      3 * sizeof(float)
+    }
+  };
+
+  VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info;
+  VulkanInterface::SpecifyPipelineVertexInputState(vertex_input_binding_descriptions, vertex_attribute_descriptions, vertex_input_state_create_info);
+
+  VkPipelineInputAssemblyStateCreateInfo input_assembly_state_create_info;
+  VulkanInterface::SpecifyPipelineInputAssemblyState(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, false, input_assembly_state_create_info);
+
+  VulkanInterface::ViewportInfo viewport_infos = {
+    {                     // std::vector<VkViewport>   Viewports
+      {
+        0.0f,               // float          x
+        0.0f,               // float          y
+        500.0f,             // float          width
+        500.0f,             // float          height
+        0.0f,               // float          minDepth
+        1.0f                // float          maxDepth
+      }
+    },
+    {                     // std::vector<VkRect2D>     Scissors
+      {
+        {                   // VkOffset2D     offset
+          0,                  // int32_t        x
+          0                   // int32_t        y
+        },
+        {                   // VkExtent2D     extent
+          500,                // uint32_t       width
+          500                 // uint32_t       height
+        }
+      }
+    }
+  };
+  VkPipelineViewportStateCreateInfo viewport_state_create_info;
+  VulkanInterface::SpecifyPipelineViewportAndScissorTestState(viewport_infos, viewport_state_create_info);
+
+  VkPipelineRasterizationStateCreateInfo rasterization_state_create_info;
+  VulkanInterface::SpecifyPipelineRasterisationState(false, false, VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, false, 0.0f, 0.0f, 0.0f, 1.0f, rasterization_state_create_info);
+
+  VkPipelineMultisampleStateCreateInfo multisample_state_create_info;
+  VulkanInterface::SpecifyPipelineMultisampleState(VK_SAMPLE_COUNT_1_BIT, false, 0.0f, nullptr, false, false, multisample_state_create_info);
+
+  std::vector<VkPipelineColorBlendAttachmentState> attachment_blend_states = {
+    {
+      false,                          // VkBool32                 blendEnable
+      VK_BLEND_FACTOR_ONE,            // VkBlendFactor            srcColorBlendFactor
+      VK_BLEND_FACTOR_ONE,            // VkBlendFactor            dstColorBlendFactor
+      VK_BLEND_OP_ADD,                // VkBlendOp                colorBlendOp
+      VK_BLEND_FACTOR_ONE,            // VkBlendFactor            srcAlphaBlendFactor
+      VK_BLEND_FACTOR_ONE,            // VkBlendFactor            dstAlphaBlendFactor
+      VK_BLEND_OP_ADD,                // VkBlendOp                alphaBlendOp
+      VK_COLOR_COMPONENT_R_BIT |      // VkColorComponentFlags    colorWriteMask
+      VK_COLOR_COMPONENT_G_BIT |
+      VK_COLOR_COMPONENT_B_BIT |
+      VK_COLOR_COMPONENT_A_BIT
+    }
+  };
+  VkPipelineColorBlendStateCreateInfo blend_state_create_info;
+  VulkanInterface::SpecifyPipelineBlendState(false, VK_LOGIC_OP_COPY, attachment_blend_states, { 1.0f, 1.0f, 1.0f, 1.0f }, blend_state_create_info);
+
+  std::vector<VkDynamicState> dynamic_states = {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
+  };
+  VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
+  VulkanInterface::SpecifyPipelineDynamicStates(dynamic_states, dynamic_state_create_info);
+
+  if (!VulkanInterface::CreatePipelineLayout(*vulkanDevice, { descriptorSetLayout }, {}, graphicsPipelineLayout)) {
+    return false;
+  }
+
+  VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo;
+  VulkanInterface::SpecifyPipelineDepthAndStencilState(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, false, 0.f, 1.f, false, {}, {}, depthStencilStateCreateInfo);
+
+  VkGraphicsPipelineCreateInfo graphics_pipeline_create_info;
+  VulkanInterface::SpecifyGraphicsPipelineCreationParameters(0
+    , shader_stage_create_infos
+    , vertex_input_state_create_info
+    , input_assembly_state_create_info
+    , nullptr
+    , &viewport_state_create_info
+    , rasterization_state_create_info
+    , &multisample_state_create_info
+    , &depthStencilStateCreateInfo
+    , &blend_state_create_info
+    , &dynamic_state_create_info
+    , graphicsPipelineLayout
+    , renderPass
+    , 0
+    , VK_NULL_HANDLE
+    , -1
+    , graphics_pipeline_create_info
+  );
+
+  std::vector<VkPipeline> graphics_pipeline;
+  if (!VulkanInterface::CreateGraphicsPipelines(*vulkanDevice, { graphics_pipeline_create_info }, VK_NULL_HANDLE, graphics_pipeline)) {
+    return false;
+  }
+
+  graphicsPipeline = graphics_pipeline[0];
+
+  return true;
 }
 
 bool ComputeApp::setupChunkManager()
 {
-  chunkManager = std::make_unique<ChunkManager>(registry, allocator, vulkanDevice);
+  chunkManager = std::make_unique<ChunkManager>(registry.get(), &allocator, &*vulkanDevice);
 
   return true;
 }
@@ -531,15 +768,15 @@ void ComputeApp::shutdownChunkManager()
 
 void ComputeApp::shutdownGraphicsPipeline()
 {
-  graphicsPipeline->cleanup();
+  //graphicsPipeline->cleanup();
 }
 
-void ComputeApp::shutdownImGui()
-{
-  ImGui_ImplVulkan_Shutdown();
-  ImGui_ImplWin32_Shutdown();
-  ImGui::DestroyContext();
-}
+//void ComputeApp::shutdownImGui()
+//{
+//  ImGui_ImplVulkan_Shutdown();
+//  ImGui_ImplWin32_Shutdown();
+//  ImGui::DestroyContext();
+//}
 
 void ComputeApp::cleanupVulkan()
 {
@@ -641,6 +878,7 @@ void ComputeApp::updateUser()
 
 void ComputeApp::checkForNewChunks()
 {
+  chunkManager->despawnChunks(camera.GetPosition());
   auto chunkList = chunkManager->getChunkSpawnList(camera.GetPosition());
   for (auto & chunk : chunkList)
   {
@@ -653,7 +891,16 @@ void ComputeApp::checkForNewChunks()
 
 void ComputeApp::getChunkRenderList()
 {
-  
+  chunkRenderList.reserve(343); // Revise size when frustum culling implemented
+  registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
+    [&](const uint32_t entity, auto&&...)
+    {
+      if (chunkIsWithinFrustum()) // dummy check
+      {
+        chunkRenderList.push_back(entity);
+      }
+    }
+  );
 }
 
 void ComputeApp::recordChunkDrawCalls()
@@ -671,21 +918,24 @@ bool ComputeApp::chunkIsWithinFrustum()
 
 void ComputeApp::Shutdown()
 {
-  // We can shutdown some systems in parallel since they don't depend on each other
-  auto[vulkan, vma, imgui, chnkMngr, gpipe] = systemTaskflow->emplace(
-    [&]() { cleanupVulkan(); },
-    [&]() { shutdownVulkanMemoryAllocator(); },
-    [&]() { shutdownImGui(); },
-    [&]() { shutdownChunkManager(); },
-    [&]() { shutdownGraphicsPipeline(); }
-  );
-  
-  // Task dependencies
-  vma.precede(vulkan);
-  imgui.precede(vulkan);
-  chnkMngr.precede(vulkan);
-  chnkMngr.precede(vma);
-  gpipe.precede(vulkan);
+  if (ready)
+  {
+    // We can shutdown some systems in parallel since they don't depend on each other
+    auto[vulkan, vma, /*imgui,*/ chnkMngr, gpipe] = systemTaskflow->emplace(
+      [&]() { cleanupVulkan(); },
+      [&]() { shutdownVulkanMemoryAllocator(); },
+      //[&]() { shutdownImGui(); },
+      [&]() { shutdownChunkManager(); },
+      [&]() { shutdownGraphicsPipeline(); }
+    );
 
-  systemTaskflow->dispatch().get();
+    // Task dependencies
+    vma.precede(vulkan);
+    //imgui.precede(vulkan);
+    chnkMngr.precede(vulkan);
+    chnkMngr.precede(vma);
+    gpipe.precede(vulkan);
+
+    systemTaskflow->dispatch().get();
+  }
 }

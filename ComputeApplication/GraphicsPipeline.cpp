@@ -30,7 +30,6 @@ void GraphicsPipeline::cleanup()
 
 bool GraphicsPipeline::init()
 {
-  VkShaderModule vertShader, fragShader;
   VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo;
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo;
   VkPipelineViewportStateCreateInfo viewportStateCreateInfo;
@@ -67,6 +66,7 @@ bool GraphicsPipeline::init()
   };
 
   std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
+
   VulkanInterface::SpecifyPipelineShaderStages(shaderStageParams, shaderStageCreateInfos);
 
   std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions = {
@@ -93,7 +93,7 @@ bool GraphicsPipeline::init()
   };
 
   VulkanInterface::SpecifyPipelineVertexInputState(vertexInputBindingDescriptions, vertexAttributeDescriptions, vertexInputStateCreateInfo);
-  VulkanInterface::SpecifyPipelineInputAssemblyState(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP, false, inputAssemblyStateCreateInfo);
+  VulkanInterface::SpecifyPipelineInputAssemblyState(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, false, inputAssemblyStateCreateInfo);
 
   VulkanInterface::ViewportInfo viewportInfos = {
    { // Viewports
@@ -146,6 +146,39 @@ bool GraphicsPipeline::init()
   };
 
   VulkanInterface::SpecifyPipelineDynamicStates(dynamicStates, dynamicStateCreateInfo);
+
+  for (auto & layoutBindingVec : layoutBindings)
+  {
+    VkDescriptorSetLayout layout;
+    if (!VulkanInterface::CreateDescriptorSetLayout(*logicalDevice, layoutBindingVec, layout))
+    {
+      return false;
+    }
+    else
+    {
+      layouts.push_back(layout);
+    }
+  }
+
+  if (!VulkanInterface::AllocateDescriptorSets(*logicalDevice, descriptorPool, layouts, descriptorSets))
+  {
+    return false;
+  }
+
+  VulkanInterface::BufferDescriptorInfo bufferDescriptorUpdate = {
+    descriptorSets[0],
+    0,
+    0,
+    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    {
+      {
+        *uniformBuffer,
+        0,
+        VK_WHOLE_SIZE
+      }
+    }
+  };
+  VulkanInterface::UpdateDescriptorSets(*logicalDevice, {}, { bufferDescriptorUpdate }, {}, {});
 
   if (!VulkanInterface::CreatePipelineLayout(*logicalDevice, layouts, pushConstantRanges, pipelineLayout))
   {

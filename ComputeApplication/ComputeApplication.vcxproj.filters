@@ -200,14 +200,23 @@
     <ClInclude Include="SurfaceExtractor.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DualMC.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="chunkDirectionalLight.frag.spv.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="chunkDirectionalLight.vert.spv.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="genNormals.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Vertex.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="compileshaders_debug.bat">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="compileshaders_release.bat">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="ListOfVulkanFunctions.inl">
       <Filter>Header Files</Filter>
     </None>
@@ -215,6 +224,12 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="chunk_directionalLight.frag">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="compileshaders_Debug.bat">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="compileshaders_Release.bat">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

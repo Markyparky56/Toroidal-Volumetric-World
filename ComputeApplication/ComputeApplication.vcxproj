@@ -69,7 +69,12 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
@@ -78,15 +83,27 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.92.1\Include;$(SolutionDir)/external/cpp-taskflow;$(SolutionDir)/external/dualmc/include;$(SolutionDir)/external/entt/src;$(SolutionDir)/external/VulkanMemoryAllocator/src;$(SolutionDir)/external/imgui;$(SolutionDir)/external/imgui/examples;$(SolutionDir)/external/meshoptimiser/src;$(SolutionDir)/external/glm;$(SolutionDir)/external/cpp-cache/include;$(SolutionDir)/external/FastNoise;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.101.0\Include;$(SolutionDir)/external/cpp-taskflow;$(SolutionDir)/external/dualmc/include;$(SolutionDir)/external/entt/src;$(SolutionDir)/external/VulkanMemoryAllocator/src;$(SolutionDir)/external/imgui;$(SolutionDir)/external/imgui/examples;$(SolutionDir)/external/meshoptimizer/src;$(SolutionDir)/external/glm;$(SolutionDir)/external/cpp-cache/include;$(SolutionDir)/external/FastNoise;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;VMA_STATIC_VULKAN_FUNCTIONS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/w14640 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <SubSystem>Console</SubSystem>
     </Link>
+    <PreBuildEvent>
+      <Command>compileshaders_$(Configuration).bat</Command>
+    </PreBuildEvent>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -102,11 +119,25 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.92.1\Include;$(SolutionDir)/external/cpp-taskflow;$(SolutionDir)/external/dualmc/include;$(SolutionDir)/external/entt/src;$(SolutionDir)/external/VulkanMemoryAllocator/src;$(SolutionDir)/external/imgui;$(SolutionDir)/external/imgui/examples;$(SolutionDir)/external/meshoptimiser/src;$(SolutionDir)/external/glm;$(SolutionDir)/external/cpp-cache/include;$(SolutionDir)/external/FastNoise;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.1.101.0\Include;$(SolutionDir)/external/cpp-taskflow;$(SolutionDir)/external/dualmc/include;$(SolutionDir)/external/entt/src;$(SolutionDir)/external/VulkanMemoryAllocator/src;$(SolutionDir)/external/imgui;$(SolutionDir)/external/imgui/examples;$(SolutionDir)/external/meshoptimizer/src;$(SolutionDir)/external/glm;$(SolutionDir)/external/cpp-cache/include;$(SolutionDir)/external/FastNoise;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;IMGUI_VULKAN_DEBUG_REPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;VMA_STATIC_VULKAN_FUNCTIONS;IMGUI_VULKAN_DEBUG_REPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/w14640 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
+    <PreBuildEvent>
+      <Command>compileshaders_$(Configuration).bat</Command>
+    </PreBuildEvent>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -124,12 +155,30 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\external\FastNoise\FastNoise.cpp" />
-    <ClCompile Include="..\external\imgui\examples\imgui_impl_vulkan.cpp" />
-    <ClCompile Include="..\external\imgui\examples\imgui_impl_win32.cpp" />
-    <ClCompile Include="..\external\imgui\imgui.cpp" />
-    <ClCompile Include="..\external\imgui\imgui_demo.cpp" />
-    <ClCompile Include="..\external\imgui\imgui_draw.cpp" />
-    <ClCompile Include="..\external\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\external\imgui\examples\imgui_impl_vulkan.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\external\imgui\examples\imgui_impl_win32.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\external\imgui\imgui.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\external\imgui\imgui_demo.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\external\imgui\imgui_draw.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\external\imgui\imgui_widgets.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\external\meshoptimizer\src\allocator.cpp" />
     <ClCompile Include="..\external\meshoptimizer\src\clusterizer.cpp" />
     <ClCompile Include="..\external\meshoptimizer\src\indexcodec.cpp" />
@@ -152,7 +201,10 @@
     <ClCompile Include="GraphicsPipeline.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="TerrainGenerator.cpp" />
-    <ClCompile Include="vk_mem_alloc.cpp" />
+    <ClCompile Include="vk_mem_alloc.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="VulkanInterface.cpp" />
     <ClCompile Include="VulkanInterface.Functions.cpp" />
     <ClCompile Include="VulkanInterface.OSWindow.cpp" />
@@ -161,6 +213,8 @@
     <ClInclude Include="AppBase.hpp" />
     <ClInclude Include="Camera.hpp" />
     <ClInclude Include="ChunkCache.hpp" />
+    <ClInclude Include="chunkDirectionalLight.frag.spv.h" />
+    <ClInclude Include="chunkDirectionalLight.vert.spv.h" />
     <ClInclude Include="ChunkFactory.hpp" />
     <ClInclude Include="ChunkManager.hpp" />
     <ClInclude Include="ChunkMap.hpp" />
@@ -168,6 +222,8 @@
     <ClInclude Include="components.hpp" />
     <ClInclude Include="ComputeApp.hpp" />
     <ClInclude Include="ComputePipeline.hpp" />
+    <ClInclude Include="DualMC.hpp" />
+    <ClInclude Include="genNormals.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="HybridComputePipeline.hpp" />
     <ClInclude Include="PipelineBase.hpp" />
@@ -175,6 +231,7 @@
     <ClInclude Include="SurfaceExtractor.hpp" />
     <ClInclude Include="TerrainGenerator.hpp" />
     <ClInclude Include="UniqueHandle.hpp" />
+    <ClInclude Include="Vertex.hpp" />
     <ClInclude Include="voxel.hpp" />
     <ClInclude Include="VulkanInterface.Functions.hpp" />
     <ClInclude Include="VulkanInterface.hpp" />
@@ -190,8 +247,8 @@
       <SubType>
       </SubType>
     </None>
-    <None Include="compileshaders_debug.bat" />
-    <None Include="compileshaders_release.bat" />
+    <None Include="compileshaders_Debug.bat" />
+    <None Include="compileshaders_Release.bat" />
     <None Include="ListOfVulkanFunctions.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -1,5 +1,8 @@
 #include "ChunkManager.hpp"
 #include "VulkanInterface.hpp"
+#include "VulkanInterface.Functions.hpp"
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
 
 ChunkManager::ChunkManager(entt::registry<> * const registry, VmaAllocator * const allocator, VkDevice * const logicalDevice)
   : factory(registry, allocator)
@@ -48,6 +51,8 @@ std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> ChunkManager::ge
       }
     }
   }
+
+  return chunkList;
 }
 
 bool ChunkManager::getChunkVolumeDataFromCache(KeyType const key, ChunkCacheData & data)

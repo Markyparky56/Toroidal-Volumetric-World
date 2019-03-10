@@ -59,7 +59,7 @@ private:
   // ImGui gets a dedicated descriptor pool with everything
   VkDescriptorPool imGuiDescriptorPool;
 
-  std::unique_ptr<GraphicsPipeline> graphicsPipeline; // This could feasibly be a vector if we ever want a more complex render setup
+  //std::unique_ptr<GraphicsPipeline> graphicsPipeline; // This could feasibly be a vector if we ever want a more complex render setup
                                      // But having explicitly named pipelines would probably be better
 
 
@@ -73,11 +73,20 @@ private:
   VkQueue graphicsQueue, presentQueue;
   std::vector<VkQueue> computeQueues;
 
+  VkDescriptorSetLayout descriptorSetLayout;
+  VkDescriptorPool descriptorPool;
+  std::vector<VkDescriptorSet> descriptorSets;
+  VkPipeline graphicsPipeline;
+  VkPipelineLayout graphicsPipelineLayout;
+  VkBuffer uniformBuffer;
+  VkDeviceMemory uniformBufferMemory;
+
   std::unique_ptr<ChunkManager> chunkManager;
   std::unique_ptr<entt::registry<>> registry;
   std::unique_ptr<TerrainGenerator> terrainGen;
 
-  std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkRenderList;
+  std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkSpawnList;
+  std::vector<EntityHandle> chunkRenderList;
 
   Camera camera;
   static constexpr float cameraSpeed = 1.f;

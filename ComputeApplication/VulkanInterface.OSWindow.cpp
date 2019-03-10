@@ -21,10 +21,10 @@ namespace VulkanInterface
 
   LRESULT CALLBACK WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
   {
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
-    {
-      return true;
-    }
+    //if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+    //{
+    //  return true;
+    //}
 
     switch (message)
     {
@@ -151,10 +151,11 @@ namespace VulkanInterface
             if (!app.Update())
             {
 #if defined(_DEBUG)
-              abort();
+              //abort();
+              break;
 #endif
             }
-            app.MouseReset();
+            app.MouseReset(); // Check abort above
           }
         }
       }

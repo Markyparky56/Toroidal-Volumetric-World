@@ -17,6 +17,7 @@ struct VolumeData
 
 struct ModelData
 {
+  bool hasModelData;
   VkBuffer vertexBuffer, indexBuffer;
   VmaAllocation vbufferAllocation, ibufferAllocation;
   VmaAllocator * allocator;

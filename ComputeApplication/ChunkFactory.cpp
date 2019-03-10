@@ -20,8 +20,8 @@ void ChunkFactory::DestroyAllChunks()
 {
   registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
     [&](const uint32_t entity, auto&&...)
-  {
-    registry->destroy(entity);
-  }
+    {
+      registry->destroy(entity);
+    }
   );
 }

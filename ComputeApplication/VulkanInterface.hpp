@@ -627,6 +627,10 @@ namespace VulkanInterface
                         , std::vector<unsigned char> const & sourceCode
                         , VkShaderModule & shaderModule);
 
+  bool CreateShaderModule(VkDevice logicalDevice
+                        , std::vector<uint32_t> const & sourceCode
+                        , VkShaderModule & shaderModule);
+
   void SpecifyPipelineShaderStages( std::vector<ShaderStageParameters> const & shaderStageParams
                                   , std::vector<VkPipelineShaderStageCreateInfo> & shaderStageCreateInfos);
 

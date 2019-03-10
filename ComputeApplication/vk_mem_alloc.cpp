@@ -1,4 +1,5 @@
-#define VMA_IMPLEMENTATION
+#include "VulkanInterface.Functions.hpp"
+//#define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
 // Vulkan Memory Allocator Implementation File, do not define VMA_IMPLEMENTATION anywhere else 

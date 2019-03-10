@@ -6,7 +6,7 @@
 	url = https://github.com/cpp-taskflow/cpp-taskflow.git
 [submodule "external/dualmc"]
 	path = external/dualmc
-	url = https://github.com/dominikwodniok/dualmc.git
+url=https://github.com/Markyparky56/dualmc.git
 [submodule "external/entt"]
 	path = external/entt
 	url = https://github.com/skypjack/entt.git

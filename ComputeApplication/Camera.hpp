@@ -1,8 +1,7 @@
 #pragma once
 #include <cmath>
 #include <glm/vec3.hpp>
-
-constexpr double PI = 3.1415926535897932384626433832795;
+#include "common.hpp"
 
 class Camera
 {
