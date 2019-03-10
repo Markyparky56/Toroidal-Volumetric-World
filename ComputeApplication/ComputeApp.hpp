@@ -10,6 +10,7 @@
 #include "ChunkManager.hpp"
 #include "Camera.hpp"
 #include "TerrainGenerator.hpp"
+#include "SurfaceExtractor.hpp"
 
 #include <stack>
 #include <array>
@@ -31,6 +32,7 @@ private:
   bool setupGraphicsPipeline();
   bool setupChunkManager();
   bool setupTerrainGenerator();
+  bool setupSurfaceExtractor();
   bool setupECS();
 
   void Shutdown() override;
@@ -45,9 +47,12 @@ private:
   void checkForNewChunks();
   void getChunkRenderList();
   void recordChunkDrawCalls();
-  void drawChunks();
+  bool drawChunks();
 
   bool chunkIsWithinFrustum();
+  void loadFromChunkCache(EntityHandle handle);
+  void generateChunk(EntityHandle handle);
+  VkCommandBuffer drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo);
 
   // cpp-taskflow taskflows and shared executor
   std::unique_ptr<tf::Taskflow> graphicsTaskflow, computeTaskflow, systemTaskflow;
@@ -65,10 +70,16 @@ private:
 
   VkRenderPass renderPass;
   std::vector<VulkanInterface::FrameResources> frameResources;
+  VkCommandPool transferCommandPool;
+  std::vector<VkCommandBuffer> transferCommandBuffers;
+  std::stack<VkCommandBuffer*> transferCommandBuffersStack;
+  std::mutex transferCBufStackMutex;
   VkCommandPool graphicsCommandPool;
   std::vector<VkCommandBuffer> frameCommandBuffers;
   std::vector<VkCommandBuffer> chunkCommandBuffersVec;
   std::array<std::stack<VkCommandBuffer*>, numFrames> chunkCommandBufferStacks;
+  std::mutex chunkCBufStackMutex;
+  std::vector<VkCommandBuffer> recordedChunkDrawCalls;
   //uint32_t graphicsQueueFamily, presentQueueFamily, computeQueueFamily;
   VkQueue graphicsQueue, presentQueue;
   std::vector<VkQueue> computeQueues;
@@ -84,10 +95,12 @@ private:
   std::unique_ptr<ChunkManager> chunkManager;
   std::unique_ptr<entt::registry<>> registry;
   std::unique_ptr<TerrainGenerator> terrainGen;
+  std::unique_ptr<SurfaceExtractor> surfaceExtractor;
 
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkSpawnList;
   std::vector<EntityHandle> chunkRenderList;
 
+  uint32_t nextFrameIndex;
   Camera camera;
   static constexpr float cameraSpeed = 1.f;
   glm::vec2 screenCentre;

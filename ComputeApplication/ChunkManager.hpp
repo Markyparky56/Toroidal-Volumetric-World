@@ -18,6 +18,8 @@ public:
     Loaded
   };
 
+  KeyType chunkKey(glm::vec3 const pos);
+
   // Returns a list of <EntityHandle, ChunkStatus> pairs of chunks not yet loaded into the ChunkMap
   // These chunks may be cached, if so their volume data can be retrieved via getChunkVolumeDataFromCache
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> getChunkSpawnList(glm::vec3 const playerPos);
@@ -33,6 +35,7 @@ public:
 
   void shutdown();
 
+
 private:
   entt::registry<> * const registry;
   VkDevice * const logicalDevice;
@@ -41,7 +44,6 @@ private:
   ChunkCache cache;
   ChunkMap map;  
 
-  KeyType chunkKey(glm::vec3 const pos);
   ChunkStatus chunkStatus(uint64_t const key);
   bool pointInSpawnRange(glm::vec3 const playerPos, glm::vec3 const point);
   bool pointInDespawnRange(glm::vec3 const playerPos, glm::vec3 const point);

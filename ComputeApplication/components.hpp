@@ -21,6 +21,7 @@ struct ModelData
   VkBuffer vertexBuffer, indexBuffer;
   VmaAllocation vbufferAllocation, ibufferAllocation;
   VmaAllocator * allocator;
+  uint32_t indexCount;
 
   ~ModelData()
   {

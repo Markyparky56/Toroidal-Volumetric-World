@@ -53,7 +53,11 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   generateNormals(vertices.data(), vertices.size(), indices.data(), indices.size());
 
   // Fill model data
-  modelData.hasModelData = true;
+  stackMutex->lock();
+  VkCommandBuffer * transferCommandBuffer = transferCommandBuffersStack->top();
+  transferCommandBuffersStack->pop();
+  stackMutex->unlock();
+
   // Vertex Buffer
   if (!VulkanInterface::CreateBuffer(*modelData.allocator
     , sizeof(Vertex)*vertices.size()
@@ -123,6 +127,8 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
     // TODO: "Failed to stage vertex data"
     return false;
   }
+  modelData.indexCount = indices.size();
+  modelData.hasModelData = true;
 
   return true;
 }

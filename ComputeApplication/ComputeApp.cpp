@@ -29,8 +29,8 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   }
 
   // Prepare setup tasks
-  bool resVMA, resImGui, resCmdBufs, resRenderpass, resGpipe, resChnkMngr, resTerGen, resECS;
-  auto[vma, /*imgui,*/ commandBuffers, renderpass, gpipeline, chunkmanager, terraingen, ecs] = systemTaskflow->emplace(
+  bool resVMA, resImGui, resCmdBufs, resRenderpass, resGpipe, resChnkMngr, resTerGen, resECS, resSurface;
+  auto[vma, /*imgui,*/ commandBuffers, renderpass, gpipeline, chunkmanager, terraingen, surface, ecs] = systemTaskflow->emplace(
     [&]() { resVMA = initialiseVulkanMemoryAllocator(); },
     //[&]() { resImGui = initImGui(windowParameters.HWnd); },
     [&]() { resCmdBufs = setupCommandPoolAndBuffers(); },
@@ -42,6 +42,7 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
       if (!resECS && !resVMA) { resChnkMngr = false; return; }
       resChnkMngr = setupChunkManager(); },
     [&]() { resTerGen = setupTerrainGenerator(); },
+    [&]() { resSurface = setupSurfaceExtractor(); },
     [&]() { resECS = setupECS(); }
   );
 
@@ -51,6 +52,7 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   renderpass.precede(gpipeline);
   //renderpass.precede(imgui);
   ecs.precede(chunkmanager);
+  commandBuffers.precede(surface);
 
   // Execute and wait for completion
   systemTaskflow->dispatch().get();  
@@ -64,7 +66,7 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   //resChnkMngr = setupChunkManager();
   //resTerGen = setupTerrainGenerator();
 
-  if (!resVMA /*|| !resImGui*/ || !resCmdBufs || !resRenderpass || !resGpipe || !resChnkMngr || !resTerGen || !resECS)
+  if (!resVMA /*|| !resImGui*/ || !resCmdBufs || !resRenderpass || !resGpipe || !resChnkMngr || !resTerGen || !resSurface || !resECS)
   {
     return false;
   }
@@ -392,7 +394,7 @@ bool ComputeApp::setupCommandPoolAndBuffers()
     return false;
   }
 
-  // Allocate secondary command buffers for chunk models
+  // Allocate command buffers for chunk models, note: secondary command buffers
   if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
     , graphicsCommandPool
     , VK_COMMAND_BUFFER_LEVEL_SECONDARY
@@ -409,6 +411,31 @@ bool ComputeApp::setupCommandPoolAndBuffers()
     {
       chunkCommandBufferStacks[i].push(&chunkCommandBuffersVec[buffer]);
     }
+  }
+
+  // Create command pol for transfer command buffers
+  if (!VulkanInterface::CreateCommandPool(*vulkanDevice
+    , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+    , graphicsQueueParameters.familyIndex // Ideally this should have its own dedicated transfer queue
+    , transferCommandPool))
+  {
+    return false;
+  }
+
+  // Allocate transfer command buffers
+  if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
+    , transferCommandPool
+    , VK_COMMAND_BUFFER_LEVEL_PRIMARY
+    , tfExecutor->num_workers()
+    , transferCommandBuffers))
+  {
+    return false;
+  }
+
+  // Setup transfer command buffer stack
+  for(auto & buffer : transferCommandBuffers)
+  {
+    transferCommandBuffersStack.push(&buffer);
   }
 
   // TODO: Compute command pool and buffers
@@ -726,6 +753,9 @@ bool ComputeApp::setupGraphicsPipeline()
 
   graphicsPipeline = graphics_pipeline[0];
 
+  VulkanInterface::DestroyShaderModule(*vulkanDevice, vertex_shader_module);
+  VulkanInterface::DestroyShaderModule(*vulkanDevice, fragment_shader_module);
+
   return true;
 }
 
@@ -741,6 +771,13 @@ bool ComputeApp::setupTerrainGenerator()
   terrainGen = std::make_unique<TerrainGenerator>();
 
   terrainGen->SetSeed(4422);
+
+  return true;
+}
+
+bool ComputeApp::setupSurfaceExtractor()
+{
+  surfaceExtractor = std::make_unique<SurfaceExtractor>(&*vulkanDevice, graphicsQueue, &transferCommandBuffersStack);
 
   return true;
 }
@@ -786,6 +823,18 @@ void ComputeApp::cleanupVulkan()
   // but for the final shutdown we need to be explicit
   VulkanInterface::DestroyDescriptorPool(*vulkanDevice, imGuiDescriptorPool);
   VulkanInterface::DestroyRenderPass(*vulkanDevice, renderPass);
+
+  // Cleanup command buffers
+  VulkanInterface::DestroyCommandPool(*vulkanDevice, graphicsCommandPool);
+  VulkanInterface::DestroyCommandPool(*vulkanDevice, transferCommandPool);
+
+  // Shutdown inline graphics pipeline
+  VulkanInterface::DestroyBuffer(*vulkanDevice, uniformBuffer);
+  VulkanInterface::FreeMemoryObject(*vulkanDevice, uniformBufferMemory);
+  VulkanInterface::DestroyDescriptorSetLayout(*vulkanDevice, descriptorSetLayout);
+  VulkanInterface::DestroyDescriptorPool(*vulkanDevice, descriptorPool);
+  VulkanInterface::DestroyPipeline(*vulkanDevice, graphicsPipeline);
+  VulkanInterface::DestroyPipelineLayout(*vulkanDevice, graphicsPipelineLayout);
 
   if (vulkanDevice) vkDestroyDevice(*vulkanDevice, nullptr);
 
@@ -884,9 +933,18 @@ void ComputeApp::checkForNewChunks()
   {
     if (chunk.second == ChunkManager::ChunkStatus::NotLoadedCached)
     {
-
+      computeTaskflow->emplace([&]() {
+        loadFromChunkCache(chunk.first);
+      });
+    }
+    else if (chunk.second == ChunkManager::ChunkStatus::NotLoadedNotCached)
+    {
+      computeTaskflow->emplace([&]() {
+        generateChunk(chunk.first);
+      });
     }
   }
+  computeTaskflow->dispatch();
 }
 
 void ComputeApp::getChunkRenderList()
@@ -905,15 +963,160 @@ void ComputeApp::getChunkRenderList()
 
 void ComputeApp::recordChunkDrawCalls()
 {
+  std::mutex drawCallVectorMutex;
+  VkCommandBufferInheritanceInfo info = {
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
+    nullptr,
+    renderPass,
+    0,
+    *(frameResources[nextFrameIndex].framebuffer),
+    VK_FALSE,
+    0,
+    0
+  };
+  for (auto & chunk : chunkRenderList)
+  {    
+    graphicsTaskflow->emplace([&]()
+    {
+      auto cbuf = drawChunkOp(chunk, &info);
+      drawCallVectorMutex.lock();
+      recordedChunkDrawCalls.push_back(cbuf);
+      drawCallVectorMutex.unlock();
+    });
+  }
+
+  graphicsTaskflow->dispatch().get();
 }
 
-void ComputeApp::drawChunks()
+bool ComputeApp::drawChunks()
 {
+  auto framePrep = [&](VkCommandBuffer, uint32_t imageIndex, VkFramebuffer framebuffer)
+  {
+    auto commandBuffer = frameCommandBuffers[imageIndex];
+
+    if (!VulkanInterface::BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+    {
+      return false;
+    }
+
+    if (presentQueueParameters.familyIndex != graphicsQueueParameters.familyIndex)
+    {
+      VulkanInterface::ImageTransition imageTransitionBeforeDrawing = {
+        swapchain.images[imageIndex],
+        VK_ACCESS_MEMORY_READ_BIT,
+        VK_ACCESS_MEMORY_READ_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        presentQueueParameters.familyIndex,
+        graphicsQueueParameters.familyIndex,
+        VK_IMAGE_ASPECT_COLOR_BIT
+      };
+
+      VulkanInterface::SetImageMemoryBarrier(commandBuffer
+        , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+        , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+        , { imageTransitionBeforeDrawing }
+      );
+    }
+
+    // Draw
+    VulkanInterface::BeginRenderPass(commandBuffer, renderPass, framebuffer
+      , { {0,0}, swapchain.size } // Render Area (full frame size)
+      , { {0.1f, 0.2f, 0.3f, 1.f}, {1.f, 0.f } } // Clear Color, one for our draw area, one for our depth stencil
+      , VK_SUBPASS_CONTENTS_INLINE
+    );
+
+    VulkanInterface::BindPipelineObject(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+    VkViewport viewport = {
+      0.f,
+      0.f,
+      static_cast<float>(swapchain.size.width),
+      static_cast<float>(swapchain.size.height),
+      0.f,
+      1.f
+    };
+    VulkanInterface::SetViewportStateDynamically(commandBuffer, 0, { viewport });
+
+    VkRect2D scissor = {
+      {
+        0, 0
+      },
+      {
+        swapchain.size.width,
+        swapchain.size.height
+      }
+    };
+    VulkanInterface::SetScissorStateDynamically(commandBuffer, 0, { scissor });
+
+    VulkanInterface::ExecuteSecondaryCommandBuffers(commandBuffer, recordedChunkDrawCalls);
+
+    VulkanInterface::EndRenderPass(commandBuffer);
+
+    if (presentQueueParameters.familyIndex != graphicsQueueParameters.familyIndex)
+    {
+      VulkanInterface::ImageTransition imageTransitionBeforePresent = {
+        swapchain.images[imageIndex],
+        VK_ACCESS_MEMORY_READ_BIT,
+        VK_ACCESS_MEMORY_READ_BIT,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        graphicsQueueParameters.familyIndex,
+        presentQueueParameters.familyIndex,
+        VK_IMAGE_ASPECT_COLOR_BIT
+      };
+
+      VulkanInterface::SetImageMemoryBarrier(commandBuffer
+        , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+        , VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+        , { imageTransitionBeforePresent });
+    }
+
+    if (!VulkanInterface::EndCommandBufferRecordingOp(commandBuffer))
+    {
+      return false;
+    }
+    return true;
+  };
+
+  return VulkanInterface::RenderWithFrameResources(*vulkanDevice
+                                                  , graphicsQueueParameters.handle
+                                                  , presentQueueParameters.handle
+                                                  , *swapchain.handle
+                                                  , {}
+                                                  , framePrep
+                                                  , frameResources
+                                                  , nextFrameIndex);
 }
 
 bool ComputeApp::chunkIsWithinFrustum()
 {
   return true;
+}
+
+VkCommandBuffer ComputeApp::drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo)
+{
+  WorldPosition pos = registry->get<WorldPosition>(chunk); // Should position be part of model data? Like a transform component?
+  ModelData modelData = registry->get<ModelData>(chunk);
+  VkCommandBuffer * cmdBuf = chunkCommandBufferStacks[nextFrameIndex].top();
+                             chunkCommandBufferStacks[nextFrameIndex].pop();
+
+  if (!VulkanInterface::BeginCommandBufferRecordingOp(*cmdBuf, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, inheritanceInfo))
+  {
+    return false;
+  }
+
+  VulkanInterface::BindVertexBuffers(*cmdBuf, 0, { {modelData.vertexBuffer, 0} });
+  VulkanInterface::BindIndexBuffer(*cmdBuf, modelData.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+  VulkanInterface::DrawIndexedGeometry(*cmdBuf, modelData.indexCount, 0, 0, 0, 0);
+
+  if (!VulkanInterface::EndCommandBufferRecordingOp(*cmdBuf))
+  {
+    return false;
+  }
+
+  return *cmdBuf;
 }
 
 void ComputeApp::Shutdown()

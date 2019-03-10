@@ -4,22 +4,26 @@
 #include "genNormals.hpp"
 #include "common.hpp"
 #include "components.hpp"
+#include <stack>
+#include <mutex>
 
 class SurfaceExtractor
 {
 public:
-  SurfaceExtractor(VkDevice * const logicalDevice, VkQueue * const transferQueue, VkCommandBuffer * const transferCommandBuffer)
+  SurfaceExtractor(VkDevice * const logicalDevice, VkQueue * const transferQueue, std::stack<VkCommandBuffer*> * const transferCommandBuffersStack, std::mutex * const stackMutex)
     : logicalDevice(logicalDevice)
     , transferQueue(transferQueue)
-    , transferCommandBuffer(transferCommandBuffer)
+    , transferCommandBuffersStack(transferCommandBuffersStack)
+    , stackMutex(stackMutex)
   {}
-  ~SurfaceExtractor();
+  ~SurfaceExtractor() {}
 
   bool extractSurface(VolumeData const & volume, ModelData & modelData);
 
 private:
   VkDevice * const logicalDevice;
   VkQueue * const transferQueue;
-  VkCommandBuffer * const transferCommandBuffer;
+  std::stack<VkCommandBuffer*> * const transferCommandBuffersStack;
+  std::mutex * const stackMutex;
   DualMCVoxel dmc;
 };

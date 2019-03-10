@@ -3209,7 +3209,7 @@ return true;
     }
   }
 
-  bool RecordAndsubmitCommandBuffersConcurrently( std::vector<CommandBufferRecordingParameters> const & recordingOperations
+  bool RecordAndSubmitCommandBuffersConcurrently( std::vector<CommandBufferRecordingParameters> const & recordingOperations
                                                 , VkQueue queue
                                                 , std::vector<WaitSemaphoreInfo> waitSemaphoreInfos
                                                 , std::vector<VkSemaphore> signalSemaphores
