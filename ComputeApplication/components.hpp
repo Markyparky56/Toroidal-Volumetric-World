@@ -17,11 +17,19 @@ struct VolumeData
 
 struct ModelData
 {
-  bool hasModelData;
   VkBuffer vertexBuffer, indexBuffer;
   VmaAllocation vbufferAllocation, ibufferAllocation;
   VmaAllocator * allocator;
   uint32_t indexCount;
+
+  ModelData(VkBuffer vbuf, VkBuffer ibuf, VmaAllocation vbufAlloc, VmaAllocation ibufAlloc, VmaAllocator * allocator, uint32_t idc)
+    : vertexBuffer(vbuf)
+    , indexBuffer(ibuf)
+    , vbufferAllocation(vbufAlloc)
+    , ibufferAllocation(ibufAlloc)
+    , allocator(allocator)
+    , indexCount(idc)
+  {}
 
   ~ModelData()
   {

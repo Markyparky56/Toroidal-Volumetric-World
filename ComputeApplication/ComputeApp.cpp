@@ -1,4 +1,5 @@
 #include "ComputeApp.hpp"
+#include <glm/gtc/matrix_transform.hpp>
 
 //#include "chunkDirectionalLight.vert.spv.h"
 //#include "chunkDirectionalLight.frag.spv.h"
@@ -91,7 +92,7 @@ bool ComputeApp::Update()
   renderList.precede(recordDrawCalls);
   recordDrawCalls.precede(draw);
 
-  return false;
+  return true;
 }
 
 bool ComputeApp::Resize()
@@ -538,46 +539,47 @@ bool ComputeApp::setupGraphicsPipeline()
   //    } 
   //  }
   //);
+
   // Uniform buffer
-  if (!VulkanInterface::CreateUniformBuffer(vulkanPhysicalDevice
-    , *vulkanDevice
-    , 16 * sizeof(float)
-    , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-    , uniformBuffer
-    , uniformBufferMemory)) 
-  {
-    return false;
-  }
+  //if (!VulkanInterface::CreateUniformBuffer(vulkanPhysicalDevice
+  //  , *vulkanDevice
+  //  , 16 * sizeof(float)
+  //  , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+  //  , uniformBuffer
+  //  , uniformBufferMemory)) 
+  //{
+  //  return false;
+  //}
   //graphicsPipeline->uniformBuffer = &uniformBuffer;
   //graphicsPipeline->init();
 
   // Descriptor set with uniform buffer
-  VkDescriptorSetLayoutBinding descriptor_set_layout_binding = {
-    0,                                          // uint32_t             binding
-    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType     descriptorType
-    1,                                          // uint32_t             descriptorCount
-    VK_SHADER_STAGE_VERTEX_BIT,                 // VkShaderStageFlags   stageFlags
-    nullptr                                     // const VkSampler    * pImmutableSamplers
-  };
+  //VkDescriptorSetLayoutBinding descriptor_set_layout_binding = {
+  //  0,                                          // uint32_t             binding
+  //  VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType     descriptorType
+  //  1,                                          // uint32_t             descriptorCount
+  //  VK_SHADER_STAGE_VERTEX_BIT,                 // VkShaderStageFlags   stageFlags
+  //  nullptr                                     // const VkSampler    * pImmutableSamplers
+  //};
 
-  if (!VulkanInterface::CreateDescriptorSetLayout(*vulkanDevice, { descriptor_set_layout_binding }, descriptorSetLayout)) {
-    return false;
-  }
+  //if (!VulkanInterface::CreateDescriptorSetLayout(*vulkanDevice, { descriptor_set_layout_binding }, descriptorSetLayout)) {
+  //  return false;
+  //}
 
-  VkDescriptorPoolSize descriptor_pool_size = {
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType     type
-      1                                           // uint32_t             descriptorCount
-  };
+  //VkDescriptorPoolSize descriptor_pool_size = {
+  //    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType     type
+  //    1                                           // uint32_t             descriptorCount
+  //};
 
-  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, false, 1, { descriptor_pool_size }, descriptorPool))
-  {
-    return false;
-  }
+  //if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, false, 1, { descriptor_pool_size }, descriptorPool))
+  //{
+  //  return false;
+  //}
 
-  if (!VulkanInterface::AllocateDescriptorSets(*vulkanDevice, descriptorPool, { descriptorSetLayout }, descriptorSets))
-  {
-    return false;
-  }
+  //if (!VulkanInterface::AllocateDescriptorSets(*vulkanDevice, descriptorPool, { descriptorSetLayout }, descriptorSets))
+  //{
+  //  return false;
+  //}
 
   //VulkanInterface::BufferDescriptorInfo buffer_descriptor_update = {
   //    descriptorSets[0],                          // VkDescriptorSet                      TargetDescriptorSet
@@ -719,7 +721,12 @@ bool ComputeApp::setupGraphicsPipeline()
   VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
   VulkanInterface::SpecifyPipelineDynamicStates(dynamic_states, dynamic_state_create_info);
 
-  if (!VulkanInterface::CreatePipelineLayout(*vulkanDevice, { descriptorSetLayout }, {}, graphicsPipelineLayout)) {
+  VkPushConstantRange pushConstantRange;
+  pushConstantRange.offset = 0;
+  pushConstantRange.size = sizeof(PushConstantObject);
+  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  if (!VulkanInterface::CreatePipelineLayout(*vulkanDevice, {}, {pushConstantRange}, graphicsPipelineLayout)) {
     return false;
   }
 
@@ -777,7 +784,7 @@ bool ComputeApp::setupTerrainGenerator()
 
 bool ComputeApp::setupSurfaceExtractor()
 {
-  surfaceExtractor = std::make_unique<SurfaceExtractor>(&*vulkanDevice, graphicsQueue, &transferCommandBuffersStack);
+  surfaceExtractor = std::make_unique<SurfaceExtractor>(&*vulkanDevice, &graphicsQueue, &transferCommandBuffersStack, &transferCBufStackMutex);
 
   return true;
 }
@@ -953,7 +960,7 @@ void ComputeApp::getChunkRenderList()
   registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
     [&](const uint32_t entity, auto&&...)
     {
-      if (chunkIsWithinFrustum()) // dummy check
+      if (chunkIsWithinFrustum() && registry->get<ModelData>(entity).indexCount > 0) // dummy check
       {
         chunkRenderList.push_back(entity);
       }
@@ -974,11 +981,15 @@ void ComputeApp::recordChunkDrawCalls()
     0,
     0
   };
+  glm::mat4 view = glm::lookAt(camera.GetPosition(), camera.GetLookAt(), camera.GetUp());
+  glm::mat4 proj = glm::perspective(glm::radians(90.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.01f, static_cast<float>(TechnicalChunkDim * chunkViewDistance));
+  proj[1][1] *= -1; // Correct projection for vulkan
+  glm::mat4 vp = proj * view;
   for (auto & chunk : chunkRenderList)
-  {    
+  {  
     graphicsTaskflow->emplace([&]()
     {
-      auto cbuf = drawChunkOp(chunk, &info);
+      auto cbuf = drawChunkOp(chunk, &info, vp);
       drawCallVectorMutex.lock();
       recordedChunkDrawCalls.push_back(cbuf);
       drawCallVectorMutex.unlock();
@@ -1094,7 +1105,46 @@ bool ComputeApp::chunkIsWithinFrustum()
   return true;
 }
 
-VkCommandBuffer ComputeApp::drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo)
+void ComputeApp::loadFromChunkCache(EntityHandle handle)
+{
+  auto pos = registry->get<WorldPosition>(handle).pos;
+  ChunkCacheData data;
+  if (chunkManager->getChunkVolumeDataFromCache(chunkManager->chunkKey(pos), data)) // Retrieve data from cache
+  {
+    auto[volume, model] = registry->get<VolumeData, ModelData>(handle);
+    void * ptr;
+    vmaMapMemory(*volume.allocator, volume.volumeAllocation, &ptr);
+    memcpy(ptr, data.data(), data.size());
+    VmaAllocationInfo info;
+    vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
+    vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, info.size);
+    vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
+
+    surfaceExtractor->extractSurface(volume, model);
+  }
+  else // Chunk has fallen out of the cache
+  {
+    generateChunk(handle);
+  }
+}
+
+void ComputeApp::generateChunk(EntityHandle handle)
+{
+  auto[volume, pos, model] = registry->get<VolumeData, WorldPosition, ModelData>(handle);
+
+  auto chunkData = terrainGen->getChunkVolume(pos.pos);
+  void * ptr;
+  vmaMapMemory(*volume.allocator, volume.volumeAllocation, &ptr);
+  memcpy(ptr, chunkData.data(), chunkData.size());
+  VmaAllocationInfo info;
+  vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
+  vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, info.size);
+  vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
+
+  surfaceExtractor->extractSurface(volume, model);
+}
+
+VkCommandBuffer ComputeApp::drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo, glm::mat4 vp)
 {
   WorldPosition pos = registry->get<WorldPosition>(chunk); // Should position be part of model data? Like a transform component?
   ModelData modelData = registry->get<ModelData>(chunk);
@@ -1106,8 +1156,20 @@ VkCommandBuffer ComputeApp::drawChunkOp(EntityHandle chunk, VkCommandBufferInher
     return false;
   }
 
+  PushConstantObject push;
+
+  glm::mat4 model = glm::translate(glm::mat4(1.f), pos.pos);
+  push.mvp = vp * model;
+
   VulkanInterface::BindVertexBuffers(*cmdBuf, 0, { {modelData.vertexBuffer, 0} });
   VulkanInterface::BindIndexBuffer(*cmdBuf, modelData.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+  VulkanInterface::ProvideDataToShadersThroughPushConstants(
+     *cmdBuf
+    , graphicsPipelineLayout
+    , VK_SHADER_STAGE_VERTEX_BIT
+    , 0
+    , sizeof(PushConstantObject)
+    , &push);
 
   VulkanInterface::DrawIndexedGeometry(*cmdBuf, modelData.indexCount, 0, 0, 0, 0);
 

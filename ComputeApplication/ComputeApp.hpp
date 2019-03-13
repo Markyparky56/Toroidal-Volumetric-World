@@ -52,7 +52,7 @@ private:
   bool chunkIsWithinFrustum();
   void loadFromChunkCache(EntityHandle handle);
   void generateChunk(EntityHandle handle);
-  VkCommandBuffer drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo);
+  VkCommandBuffer drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo, glm::mat4 vp);
 
   // cpp-taskflow taskflows and shared executor
   std::unique_ptr<tf::Taskflow> graphicsTaskflow, computeTaskflow, systemTaskflow;
@@ -114,4 +114,7 @@ private:
   struct CamRot {
     float roll, yaw, pitch;
   } camRot;
+  struct PushConstantObject {
+    glm::mat4 mvp;
+  };
 };

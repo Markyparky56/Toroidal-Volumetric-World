@@ -1,7 +1,6 @@
 #include "ChunkManager.hpp"
 #include "VulkanInterface.hpp"
 #include "VulkanInterface.Functions.hpp"
-#define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
 ChunkManager::ChunkManager(entt::registry<> * const registry, VmaAllocator * const allocator, VkDevice * const logicalDevice)
@@ -47,6 +46,7 @@ std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> ChunkManager::ge
             map.loadChunk(key, handle);
             chunkList.push_back(std::make_pair(handle, status));
           }
+          // else status == ChunkStatus::Loaded, requires no action
         }
       }
     }
@@ -102,12 +102,14 @@ void ChunkManager::unloadChunk(KeyType const key)
 {
   EntityHandle handle = map.unloadChunk(key);
   ChunkCacheData data;
-  VolumeData volume = registry->get<VolumeData>(handle);
+  VolumeData & volume = registry->get<VolumeData>(handle);
   void * ptr;
   VkResult result = vmaMapMemory(*allocator, volume.volumeAllocation, &ptr);
   if (result == VK_SUCCESS)
   {
-    vmaInvalidateAllocation(*allocator, volume.volumeAllocation, volume.volumeAllocation->GetOffset(), volume.volumeAllocation->GetSize());
+    VmaAllocationInfo info;
+    vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
+    vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, 0, info.size);
     memcpy(data.data(), ptr, sizeof(ChunkCacheData));
     vmaUnmapMemory(*allocator, volume.volumeAllocation);
     cache.add(key, data);

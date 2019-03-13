@@ -87,6 +87,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;VMA_STATIC_VULKAN_FUNCTIONS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/w14640 %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4201;4127;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -123,6 +124,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>VK_NO_PROTOTYPES;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;WIN32_LEAN_AND_MEAN;VMA_STATIC_VULKAN_FUNCTIONS;IMGUI_VULKAN_DEBUG_REPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/w14640 %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4201;4127;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <PreBuildEvent>
       <Command>compileshaders_$(Configuration).bat</Command>
@@ -203,8 +205,10 @@
     <ClCompile Include="SurfaceExtractor.cpp" />
     <ClCompile Include="TerrainGenerator.cpp" />
     <ClCompile Include="vk_mem_alloc.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="VulkanInterface.cpp" />
     <ClCompile Include="VulkanInterface.Functions.cpp" />
@@ -233,6 +237,7 @@
     <ClInclude Include="TerrainGenerator.hpp" />
     <ClInclude Include="UniqueHandle.hpp" />
     <ClInclude Include="Vertex.hpp" />
+    <ClInclude Include="VmaUsage.hpp" />
     <ClInclude Include="voxel.hpp" />
     <ClInclude Include="VulkanInterface.Functions.hpp" />
     <ClInclude Include="VulkanInterface.hpp" />

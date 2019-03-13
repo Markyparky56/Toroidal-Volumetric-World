@@ -173,9 +173,6 @@
     <ClInclude Include="components.hpp">
       <Filter>Header Files\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="ChunkFactory.hpp">
-      <Filter>Header Files\ecs</Filter>
-    </ClInclude>
     <ClInclude Include="ChunkMap.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -216,6 +213,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Vertex.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ChunkFactory.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VmaUsage.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

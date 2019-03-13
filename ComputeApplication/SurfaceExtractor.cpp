@@ -1,5 +1,6 @@
 #include "SurfaceExtractor.hpp"
 #include "VulkanInterface.hpp"
+#include "vk_mem_alloc.h"
 
 bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & modelData)
 {
@@ -13,7 +14,9 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   {
     return false;
   }
-  vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, volume.volumeAllocation->GetOffset(), volume.volumeAllocation->GetSize());
+  VmaAllocationInfo info;
+  vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
+  vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, 0, info.size);
   dmc.buildTris(reinterpret_cast<Voxel*>(volumeDataPtr), TrueChunkDim, TrueChunkDim, TrueChunkDim, iso, true, false, generatedVerts, generatedIndices);
 
   size_t indexCount = generatedIndices.size(), vertexCount;
@@ -21,7 +24,7 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   std::vector<uint32_t> indices;
   if (indexCount == 0)
   {
-    modelData.hasModelData = false;
+    modelData.indexCount = 0;
     return false;
   }
   else
@@ -128,7 +131,6 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
     return false;
   }
   modelData.indexCount = indices.size();
-  modelData.hasModelData = true;
 
   return true;
 }
