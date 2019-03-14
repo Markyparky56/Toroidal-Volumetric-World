@@ -29,11 +29,11 @@ std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> ChunkManager::ge
   uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkSpawnRadius * invTechnicalChunkDim);
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
 
-  for (float z = offsetPlayerPos.z - chunkRadius; z <= offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
+  for (float z = offsetPlayerPos.z - chunkRadius; z < offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
   {
-    for (float y = offsetPlayerPos.y - chunkRadius; y <= offsetPlayerPos.y + chunkRadius; y += TechnicalChunkDim)
+    for (float y = offsetPlayerPos.y - chunkRadius; y < offsetPlayerPos.y + chunkRadius; y += TechnicalChunkDim)
     {
-      for (float x = offsetPlayerPos.x - chunkRadius; x <= offsetPlayerPos.x + chunkRadius; x += TechnicalChunkDim)
+      for (float x = offsetPlayerPos.x - chunkRadius; x < offsetPlayerPos.x + chunkRadius; x += TechnicalChunkDim)
       {
         glm::vec3 chunkPos = { x,y,z };
         KeyType key = chunkKey(chunkPos);
@@ -72,11 +72,11 @@ void ChunkManager::despawnChunks(glm::vec3 const playerPos)
   uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkSpawnRadius * invTechnicalChunkDim);
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
 
-  for (float z = offsetPlayerPos.z - chunkRadius; z <= offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
+  for (float z = offsetPlayerPos.z - chunkRadius; z < offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
   {
-    for (float y = offsetPlayerPos.y - chunkRadius; y <= offsetPlayerPos.y + chunkRadius; y += TechnicalChunkDim)
+    for (float y = offsetPlayerPos.y - chunkRadius; y < offsetPlayerPos.y + chunkRadius; y += TechnicalChunkDim)
     {
-      for (float x = offsetPlayerPos.x - chunkRadius; x <= offsetPlayerPos.x + chunkRadius; x += TechnicalChunkDim)
+      for (float x = offsetPlayerPos.x - chunkRadius; x < offsetPlayerPos.x + chunkRadius; x += TechnicalChunkDim)
       {
         glm::vec3 chunkPos = { x,y,z };
         KeyType key = chunkKey(chunkPos);

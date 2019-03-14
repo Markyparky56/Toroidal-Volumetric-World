@@ -3465,7 +3465,8 @@ return true;
       nullptr
     };
 
-    if (!vmaCreateBuffer(allocator, &bufferCreateInfo, &allocInfo, &buffer, &allocation, nullptr))
+    VkResult res = vmaCreateBuffer(allocator, &bufferCreateInfo, &allocInfo, &buffer, &allocation, nullptr);
+    if(res != VK_SUCCESS)
     {
       return false;
     }
@@ -3518,7 +3519,8 @@ return true;
       nullptr
     };
 
-    if (!vmaCreateImage(allocator, &imageCreateInfo, &allocInfo, &image, &allocation, nullptr))
+    VkResult res = vmaCreateImage(allocator, &imageCreateInfo, &allocInfo, &image, &allocation, nullptr);
+    if(res != VK_SUCCESS)
     {
       return false;
     }
@@ -3958,7 +3960,7 @@ return true;
     }
 
     if (!CreateBuffer(allocator, size, usage | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, uniformTexelBuffer
-      , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, allocation))
+      , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, memUsage, 0, VK_NULL_HANDLE, allocation))
     {
       return false;
     }

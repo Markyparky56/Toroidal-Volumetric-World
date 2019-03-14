@@ -25,5 +25,4 @@ private:
   VkQueue * const transferQueue;
   std::stack<VkCommandBuffer*> * const transferCommandBuffersStack;
   std::mutex * const stackMutex;
-  DualMCVoxel dmc;
 };

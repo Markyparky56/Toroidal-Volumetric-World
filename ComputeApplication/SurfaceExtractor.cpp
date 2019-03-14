@@ -4,6 +4,7 @@
 
 bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & modelData)
 {
+  DualMCVoxel dmc;
   std::vector<Vertex> generatedVerts;
   std::vector<dualmc::TriIndexType> generatedIndices;
 
@@ -31,7 +32,7 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   {
     // Mesh Optimiser Remap Stage
     std::vector<uint32_t> remap(indexCount);
-    vertexCount = meshopt_generateVertexRemap(&remap[0], &generatedIndices[0], indexCount, &vertices[0], generatedVerts.size(), sizeof(Vertex));
+    vertexCount = meshopt_generateVertexRemap(&remap[0], &generatedIndices[0], indexCount, &generatedVerts[0], generatedVerts.size(), sizeof(Vertex));
 
     indices.resize(indexCount);
     meshopt_remapIndexBuffer(&indices[0], &generatedIndices[0], indexCount, &remap[0]);

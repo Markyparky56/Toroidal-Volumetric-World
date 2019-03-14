@@ -31,7 +31,7 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
 
   // Prepare setup tasks
   bool resVMA, resImGui, resCmdBufs, resRenderpass, resGpipe, resChnkMngr, resTerGen, resECS, resSurface;
-  auto[vma, /*imgui,*/ commandBuffers, renderpass, gpipeline, chunkmanager, terraingen, surface, ecs] = systemTaskflow->emplace(
+  auto[vma, /*imgui,*/ commandBuffers, renderpass, gpipeline, frameres, chunkmanager, terraingen, surface, ecs] = systemTaskflow->emplace(
     [&]() { resVMA = initialiseVulkanMemoryAllocator(); },
     //[&]() { resImGui = initImGui(windowParameters.HWnd); },
     [&]() { resCmdBufs = setupCommandPoolAndBuffers(); },
@@ -39,6 +39,7 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
     [&]() { 
       if (!resRenderpass) { resGpipe = false; return; }
       resGpipe = setupGraphicsPipeline(); },
+    [&]() { setupFrameResources(); },
     [&]() { 
       if (!resECS && !resVMA) { resChnkMngr = false; return; }
       resChnkMngr = setupChunkManager(); },
@@ -50,6 +51,7 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   // Task dependencies
   vma.precede(gpipeline);
   vma.precede(chunkmanager);
+  vma.precede(frameres);
   renderpass.precede(gpipeline);
   //renderpass.precede(imgui);
   ecs.precede(chunkmanager);
@@ -79,18 +81,22 @@ bool ComputeApp::Update()
 {
   gameTime += TimerState.GetDeltaTime();
 
-  auto[userUpdate, spawnChunks, renderList, recordDrawCalls, draw] = systemTaskflow->emplace(
+  auto[userUpdate, spawnChunks, renderList, recordDrawCalls] = systemTaskflow->emplace(
     [&]() { updateUser(); },
     [&]() { checkForNewChunks(); },
     [&]() { getChunkRenderList(); },
-    [&]() { recordChunkDrawCalls(); },
-    [&]() { drawChunks(); }
+    [&]() { recordChunkDrawCalls(); } 
   );
 
   userUpdate.precede(spawnChunks);
   userUpdate.precede(renderList);
   renderList.precede(recordDrawCalls);
-  recordDrawCalls.precede(draw);
+  //recordDrawCalls.precede(draw);
+
+  systemTaskflow->dispatch().get();
+
+  drawChunks();
+  std::cout << "Draw" << std::endl;
 
   return true;
 }
@@ -376,18 +382,35 @@ bool ComputeApp::initialiseVulkanMemoryAllocator()
 
 bool ComputeApp::setupCommandPoolAndBuffers()
 {
+  size_t numWorkers = graphicsTaskflow->num_workers();
+
+  commandPools = std::make_unique<TaskflowCommandPools>(&*vulkanDevice, graphicsQueueParameters.familyIndex, graphicsQueueParameters.familyIndex, numWorkers);
+  /*
   // Create Graphics Command Pool
+  for (int i = 0; i < numWorkers; i++)
+  {
+    graphicsCommandPools.push_back(VkCommandPool());
+    if (!VulkanInterface::CreateCommandPool(*vulkanDevice
+      , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+      , graphicsQueueParameters.familyIndex
+      , graphicsCommandPools[i]))
+    {
+      return false;
+    }
+  }
+  // Allocate an extra one for frameResources
+  graphicsCommandPools.push_back(VkCommandPool());
   if (!VulkanInterface::CreateCommandPool(*vulkanDevice
     , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
     , graphicsQueueParameters.familyIndex
-    , graphicsCommandPool))
+    , graphicsCommandPools[numWorkers]))
   {
     return false;
   }
 
   // Allocate primary command buffers for frame resources
   if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
-    , graphicsCommandPool
+    , graphicsCommandPools[numWorkers]
     , VK_COMMAND_BUFFER_LEVEL_PRIMARY
     , numFrames
     , frameCommandBuffers))
@@ -395,14 +418,18 @@ bool ComputeApp::setupCommandPoolAndBuffers()
     return false;
   }
 
-  // Allocate command buffers for chunk models, note: secondary command buffers
-  if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
-    , graphicsCommandPool
-    , VK_COMMAND_BUFFER_LEVEL_SECONDARY
-    , maxChunks*numFrames
-    , chunkCommandBuffersVec))
+  for (int i = 0; i < graphicsCommandPools.size(); i++)
   {
-    return false;
+    chunkCommandBuffersVecs.push_back(std::vector<VkCommandBuffer>());
+    // Allocate command buffers for chunk models, note: secondary command buffers
+    if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
+      , graphicsCommandPools[i]
+      , VK_COMMAND_BUFFER_LEVEL_SECONDARY
+      , maxChunks*numFrames // Excessive amount
+      , chunkCommandBuffersVecs[i]))
+    {
+      return false;
+    }
   }
 
   // Setup command buffer stacks
@@ -414,23 +441,29 @@ bool ComputeApp::setupCommandPoolAndBuffers()
     }
   }
 
-  // Create command pol for transfer command buffers
-  if (!VulkanInterface::CreateCommandPool(*vulkanDevice
-    , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-    , graphicsQueueParameters.familyIndex // Ideally this should have its own dedicated transfer queue
-    , transferCommandPool))
+  // Create command pools for transfer command buffers
+  for (int i = 0; i < graphicsTaskflow->num_workers(); i++)
   {
-    return false;
+    if (!VulkanInterface::CreateCommandPool(*vulkanDevice
+      , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+      , graphicsQueueParameters.familyIndex // Ideally this should have its own dedicated transfer queue
+      , transferCommandPools[i]))
+    {
+      return false;
+    }
   }
 
-  // Allocate transfer command buffers
-  if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
-    , transferCommandPool
-    , VK_COMMAND_BUFFER_LEVEL_PRIMARY
-    , tfExecutor->num_workers()
-    , transferCommandBuffers))
-  {
-    return false;
+  for (int i = 0; i < transferCommandPools.size(); i++)
+  {  
+    // Allocate transfer command buffers
+    if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
+      , transferCommandPools[i]
+      , VK_COMMAND_BUFFER_LEVEL_PRIMARY
+      , tfExecutor->num_workers()
+      , transferCommandBuffers))
+    {
+      return false;
+    }
   }
 
   // Setup transfer command buffer stack
@@ -440,7 +473,7 @@ bool ComputeApp::setupCommandPoolAndBuffers()
   }
 
   // TODO: Compute command pool and buffers
-
+  */
   return true;
 }
 
@@ -766,6 +799,78 @@ bool ComputeApp::setupGraphicsPipeline()
   return true;
 }
 
+bool ComputeApp::setupFrameResources()
+{  
+  for (uint32_t i = 0; i < numFrames; i++)
+  {
+    VulkanHandle(VkSemaphore) imageAcquiredSemaphore;
+    VulkanInterface::InitVulkanHandle(vulkanDevice, imageAcquiredSemaphore);
+    VulkanHandle(VkSemaphore) readyToPresentSemaphore;
+    VulkanInterface::InitVulkanHandle(vulkanDevice, readyToPresentSemaphore);
+    VulkanHandle(VkFence) drawingFinishedFence;
+    VulkanInterface::InitVulkanHandle(vulkanDevice, drawingFinishedFence);
+    VulkanHandle(VkImageView) depthAttachment;
+    VulkanInterface::InitVulkanHandle(vulkanDevice, depthAttachment);
+
+    depthImages.emplace_back(VulkanHandle(VkImage)());
+    VulkanInterface::InitVulkanHandle(vulkanDevice, depthImages.back());
+
+    if (!VulkanInterface::CreateSemaphore(*vulkanDevice, *imageAcquiredSemaphore))
+    {
+      return false;
+    }
+    if (!VulkanInterface::CreateSemaphore(*vulkanDevice, *readyToPresentSemaphore))
+    {
+      return false;
+    }
+    if (!VulkanInterface::CreateFence(*vulkanDevice, true, *drawingFinishedFence))
+    {
+      return false;
+    }
+
+    frameResources.push_back(
+      {
+        frameCommandBuffers[i],
+        std::move(imageAcquiredSemaphore),
+        std::move(readyToPresentSemaphore),
+        std::move(drawingFinishedFence),
+        std::move(depthAttachment),
+        VulkanHandle(VkFramebuffer)()
+      }
+    );
+
+    VmaAllocation depthAllocation;
+
+    if (!VulkanInterface::Create2DImageAndView(*vulkanDevice
+      , allocator
+      , VK_FORMAT_D16_UNORM
+      , swapchain.size
+      , 1, 1
+      , VK_SAMPLE_COUNT_1_BIT
+      , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+      , VK_IMAGE_ASPECT_DEPTH_BIT
+      , *depthImages.back()
+      , *frameResources[i].depthAttachment
+      , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
+      , VMA_MEMORY_USAGE_GPU_ONLY
+      , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+      , VK_NULL_HANDLE
+      , depthAllocation))
+    {
+      return false;
+    }
+
+    depthImagesAllocations.push_back(depthAllocation);
+  }
+
+  if (!VulkanInterface::CreateFramebuffersForFrameResources(*vulkanDevice, renderPass, swapchain, frameResources))
+  {
+    return false;
+  }
+
+  return true;
+}
+
 bool ComputeApp::setupChunkManager()
 {
   chunkManager = std::make_unique<ChunkManager>(registry.get(), &allocator, &*vulkanDevice);
@@ -828,6 +933,24 @@ void ComputeApp::cleanupVulkan()
 
   // VulkanHandle is useful for catching forgotten objects and ones with scoped/short-lifetimes, 
   // but for the final shutdown we need to be explicit
+  for (auto & frameRes : frameResources)
+  {
+    VulkanInterface::DestroySemaphore(*vulkanDevice, *frameRes.imageAcquiredSemaphore);
+    VulkanInterface::DestroySemaphore(*vulkanDevice, *frameRes.readyToPresentSemaphore);
+    VulkanInterface::DestroyFence(*vulkanDevice, *frameRes.drawingFinishedFence);
+    VulkanInterface::DestroyImageView(*vulkanDevice, *frameRes.depthAttachment);
+    VulkanInterface::DestroyFramebuffer(*vulkanDevice, *frameRes.framebuffer);
+  }
+  VulkanInterface::DestroySwapchain(*vulkanDevice, *swapchain.handle);
+  for (auto & imageView : swapchain.imageViews)
+  {
+    VulkanInterface::DestroyImageView(*vulkanDevice, *imageView);
+  }
+  for (int i = 0; i < depthImages.size(); i++)
+  {
+    vmaDestroyImage(allocator, *depthImages[i], depthImagesAllocations[i]);
+  }
+
   VulkanInterface::DestroyDescriptorPool(*vulkanDevice, imGuiDescriptorPool);
   VulkanInterface::DestroyRenderPass(*vulkanDevice, renderPass);
 
@@ -938,6 +1061,7 @@ void ComputeApp::checkForNewChunks()
   auto chunkList = chunkManager->getChunkSpawnList(camera.GetPosition());
   for (auto & chunk : chunkList)
   {
+    std::cout << chunk.first << std::endl;
     if (chunk.second == ChunkManager::ChunkStatus::NotLoadedCached)
     {
       computeTaskflow->emplace([&]() {
@@ -945,7 +1069,7 @@ void ComputeApp::checkForNewChunks()
       });
     }
     else if (chunk.second == ChunkManager::ChunkStatus::NotLoadedNotCached)
-    {
+    {      
       computeTaskflow->emplace([&]() {
         generateChunk(chunk.first);
       });
@@ -1034,7 +1158,7 @@ bool ComputeApp::drawChunks()
     VulkanInterface::BeginRenderPass(commandBuffer, renderPass, framebuffer
       , { {0,0}, swapchain.size } // Render Area (full frame size)
       , { {0.1f, 0.2f, 0.3f, 1.f}, {1.f, 0.f } } // Clear Color, one for our draw area, one for our depth stencil
-      , VK_SUBPASS_CONTENTS_INLINE
+      , VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
     );
 
     VulkanInterface::BindPipelineObject(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
@@ -1091,8 +1215,8 @@ bool ComputeApp::drawChunks()
   };
 
   return VulkanInterface::RenderWithFrameResources(*vulkanDevice
-                                                  , graphicsQueueParameters.handle
-                                                  , presentQueueParameters.handle
+                                                  , graphicsQueue
+                                                  , presentQueue
                                                   , *swapchain.handle
                                                   , {}
                                                   , framePrep
@@ -1133,6 +1257,9 @@ void ComputeApp::generateChunk(EntityHandle handle)
   auto[volume, pos, model] = registry->get<VolumeData, WorldPosition, ModelData>(handle);
 
   auto chunkData = terrainGen->getChunkVolume(pos.pos);
+
+  volume.init(&allocator, &vulkanPhysicalDevice, &*vulkanDevice);
+
   void * ptr;
   vmaMapMemory(*volume.allocator, volume.volumeAllocation, &ptr);
   memcpy(ptr, chunkData.data(), chunkData.size());

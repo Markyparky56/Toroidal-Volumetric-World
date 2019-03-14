@@ -2,12 +2,34 @@
 #include <glm\glm.hpp>
 #include "vk_mem_alloc.h"
 #include <array>
+#include "common.hpp"
+#include "voxel.hpp"
+#include "VulkanInterface.hpp"
 
 struct VolumeData
 {
   VkBuffer volumeBuffer;
+  VkBufferView volumeBufferView;
   VmaAllocation volumeAllocation;
   VmaAllocator * allocator;
+
+  bool init(VmaAllocator * allocatorPtr, VkPhysicalDevice * physicalDevice, VkDevice * logicalDevice)
+  {
+    allocator = allocatorPtr;
+    volumeBufferView = VkBufferView();
+    return VulkanInterface::CreateUniformTexelBuffer(
+        *physicalDevice
+      , *logicalDevice
+      , *allocator
+      , VK_FORMAT_R32_SFLOAT
+      , sizeof(std::array<Voxel, ChunkSize>)
+      , VK_IMAGE_USAGE_STORAGE_BIT
+      , volumeBuffer
+      , VMA_MEMORY_USAGE_CPU_TO_GPU
+      , volumeAllocation
+      , volumeBufferView
+    );
+  }
 
   ~VolumeData()
   {

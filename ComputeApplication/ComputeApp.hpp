@@ -11,6 +11,7 @@
 #include "Camera.hpp"
 #include "TerrainGenerator.hpp"
 #include "SurfaceExtractor.hpp"
+#include "TaskflowCommandPools.hpp"
 
 #include <stack>
 #include <array>
@@ -30,6 +31,7 @@ private:
   bool setupCommandPoolAndBuffers();
   bool setupRenderPass();
   bool setupGraphicsPipeline();
+  bool setupFrameResources();
   bool setupChunkManager();
   bool setupTerrainGenerator();
   bool setupSurfaceExtractor();
@@ -70,19 +72,29 @@ private:
 
   VkRenderPass renderPass;
   std::vector<VulkanInterface::FrameResources> frameResources;
-  VkCommandPool transferCommandPool;
-  std::vector<VkCommandBuffer> transferCommandBuffers;
-  std::stack<VkCommandBuffer*> transferCommandBuffersStack;
-  std::mutex transferCBufStackMutex;
-  VkCommandPool graphicsCommandPool;
-  std::vector<VkCommandBuffer> frameCommandBuffers;
-  std::vector<VkCommandBuffer> chunkCommandBuffersVec;
-  std::array<std::stack<VkCommandBuffer*>, numFrames> chunkCommandBufferStacks;
-  std::mutex chunkCBufStackMutex;
+
+  //std::vector<VkCommandPool> transferCommandPools;
+  //std::vector<std::mutex> transferCommmandPoolMutexes;
+  //std::vector<VkCommandBuffer> transferCommandBuffers;
+  //std::mutex transferCBufVecMutex;
+
+  //std::vector<VkCommandPool> graphicsCommandPools;
+  //std::vector<std::mutex> graphicsCommandPoolMutexes;
+  //std::vector<VkCommandBuffer> frameCommandBuffers;
+  //std::vector<std::vector<VkCommandBuffer>> chunkCommandBuffersVecs;
+  //std::vector<std::array<std::stack<VkCommandBuffer*>, numFrames>> chunkCommandBufferStacks;
+  //std::vector<std::vector<VkCommandBuffer
+  //std::mutex chunkCBufStackMutex;
+
   std::vector<VkCommandBuffer> recordedChunkDrawCalls;
+
   //uint32_t graphicsQueueFamily, presentQueueFamily, computeQueueFamily;
   VkQueue graphicsQueue, presentQueue;
   std::vector<VkQueue> computeQueues;
+
+
+  std::vector<VulkanHandle(VkImage)> depthImages;
+  std::vector<VmaAllocation> depthImagesAllocations;
 
   VkDescriptorSetLayout descriptorSetLayout;
   VkDescriptorPool descriptorPool;
@@ -92,6 +104,7 @@ private:
   VkBuffer uniformBuffer;
   VkDeviceMemory uniformBufferMemory;
 
+  std::unique_ptr<TaskflowCommandPools> commandPools;
   std::unique_ptr<ChunkManager> chunkManager;
   std::unique_ptr<entt::registry<>> registry;
   std::unique_ptr<TerrainGenerator> terrainGen;
