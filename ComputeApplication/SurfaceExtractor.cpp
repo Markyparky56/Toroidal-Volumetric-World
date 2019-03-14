@@ -2,7 +2,7 @@
 #include "VulkanInterface.hpp"
 #include "vk_mem_alloc.h"
 
-bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & modelData)
+bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & modelData, uint32_t frame)
 {
   DualMCVoxel dmc;
   std::vector<Vertex> generatedVerts;
@@ -57,10 +57,7 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   generateNormals(vertices.data(), vertices.size(), indices.data(), indices.size());
 
   // Fill model data
-  stackMutex->lock();
-  VkCommandBuffer * transferCommandBuffer = transferCommandBuffersStack->top();
-  transferCommandBuffersStack->pop();
-  stackMutex->unlock();
+  auto[mutex, transferCommandBuffer] = commandPools->transferPools.getBuffer(frame);
 
   // Vertex Buffer
   if (!VulkanInterface::CreateBuffer(*modelData.allocator
@@ -74,6 +71,7 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
     , modelData.vbufferAllocation))
   {
     // TODO: "Failed to create vertex buffer for model data"
+    mutex->unlock();
     return false;
   }
   // Fill Vertex Buffer
@@ -89,11 +87,13 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
     , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
     , VK_PIPELINE_STAGE_VERTEX_INPUT_BIT
     , *transferQueue
+    , transferQMutex
     , *transferCommandBuffer
     , {}
     ))
   {
     // TODO: "Failed to stage vertex data"
+    mutex->unlock();
     return false;
   }
 
@@ -109,6 +109,7 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
     , modelData.ibufferAllocation))
   {
     // TODO: "Failed to create vertex buffer for model data"
+    mutex->unlock();
     return false;
   }
   // Fill Index Buffer
@@ -124,14 +125,17 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
     , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
     , VK_PIPELINE_STAGE_VERTEX_INPUT_BIT
     , *transferQueue
+    , transferQMutex
     , *transferCommandBuffer
     , {}
   ))
   {
     // TODO: "Failed to stage vertex data"
+    mutex->unlock();
     return false;
   }
   modelData.indexCount = indices.size();
+  mutex->unlock();
 
   return true;
 }

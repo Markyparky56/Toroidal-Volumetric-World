@@ -234,6 +234,7 @@
     <ClInclude Include="PipelineBase.hpp" />
     <ClInclude Include="ReservedMap.hpp" />
     <ClInclude Include="SurfaceExtractor.hpp" />
+    <ClInclude Include="TaskflowCommandPools.hpp" />
     <ClInclude Include="TerrainGenerator.hpp" />
     <ClInclude Include="UniqueHandle.hpp" />
     <ClInclude Include="Vertex.hpp" />

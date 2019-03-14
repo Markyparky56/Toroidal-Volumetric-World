@@ -4,25 +4,27 @@
 #include "genNormals.hpp"
 #include "common.hpp"
 #include "components.hpp"
+#include "TaskflowCommandPools.hpp"
 #include <stack>
 #include <mutex>
 
 class SurfaceExtractor
 {
 public:
-  SurfaceExtractor(VkDevice * const logicalDevice, VkQueue * const transferQueue, std::stack<VkCommandBuffer*> * const transferCommandBuffersStack, std::mutex * const stackMutex)
+  SurfaceExtractor(VkDevice * const logicalDevice, VkQueue * const transferQueue, std::mutex * const transferQMutex, TaskflowCommandPools * const commandPools)
     : logicalDevice(logicalDevice)
     , transferQueue(transferQueue)
-    , transferCommandBuffersStack(transferCommandBuffersStack)
-    , stackMutex(stackMutex)
+    , transferQMutex(transferQMutex)
+    , commandPools(commandPools)
   {}
   ~SurfaceExtractor() {}
 
-  bool extractSurface(VolumeData const & volume, ModelData & modelData);
+  // TODO: consider whether frame is required, compute should be frame independent
+  bool extractSurface(VolumeData const & volume, ModelData & modelData, uint32_t frame);
 
 private:
   VkDevice * const logicalDevice;
   VkQueue * const transferQueue;
-  std::stack<VkCommandBuffer*> * const transferCommandBuffersStack;
-  std::mutex * const stackMutex;
+  std::mutex * const transferQMutex;
+  TaskflowCommandPools * const commandPools;
 };

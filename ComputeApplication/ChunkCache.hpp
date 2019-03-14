@@ -30,7 +30,6 @@ public:
     {
       return false;
     }
-    cache.erase(key);
   }
 
   void clear()

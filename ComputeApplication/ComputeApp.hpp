@@ -72,6 +72,8 @@ private:
 
   VkRenderPass renderPass;
   std::vector<VulkanInterface::FrameResources> frameResources;
+  VkCommandPool frameResourcesCmdPool;
+  std::vector<VkCommandBuffer> frameResourcesCmdBuffers;
 
   //std::vector<VkCommandPool> transferCommandPools;
   //std::vector<std::mutex> transferCommmandPoolMutexes;
@@ -89,9 +91,9 @@ private:
   std::vector<VkCommandBuffer> recordedChunkDrawCalls;
 
   //uint32_t graphicsQueueFamily, presentQueueFamily, computeQueueFamily;
-  VkQueue graphicsQueue, presentQueue;
+  VkQueue graphicsQueue, presentQueue, transferQueue;
   std::vector<VkQueue> computeQueues;
-
+  std::mutex graphicsQMutex, transferQMutex;
 
   std::vector<VulkanHandle(VkImage)> depthImages;
   std::vector<VmaAllocation> depthImagesAllocations;
@@ -113,7 +115,7 @@ private:
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkSpawnList;
   std::vector<EntityHandle> chunkRenderList;
 
-  uint32_t nextFrameIndex;
+  uint32_t nextFrameIndex=0;
   Camera camera;
   static constexpr float cameraSpeed = 1.f;
   glm::vec2 screenCentre;

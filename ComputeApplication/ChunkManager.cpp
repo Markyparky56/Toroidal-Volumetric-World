@@ -26,14 +26,16 @@ std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> ChunkManager::ge
         static_cast<float>(static_cast<double>(playerPos.z) - std::fmod(static_cast<double>(playerPos.z), static_cast<double>(TechnicalChunkDim)))
   };
 
-  uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkSpawnRadius * invTechnicalChunkDim);
+  //uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkSpawnRadius * invTechnicalChunkDim);
+  constexpr uint32_t chunkRadius = TechnicalChunkDim * chunkSpawnDistance;
+  constexpr float chunkRadiusf = static_cast<float>(chunkRadius);
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
 
-  for (float z = offsetPlayerPos.z - chunkRadius; z < offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
+  for (float z = offsetPlayerPos.z - chunkRadiusf; z < offsetPlayerPos.z + chunkRadiusf; z += static_cast<float>(TechnicalChunkDim))
   {
-    for (float y = offsetPlayerPos.y - chunkRadius; y < offsetPlayerPos.y + chunkRadius; y += TechnicalChunkDim)
+    for (float y = offsetPlayerPos.y - chunkRadiusf; y < offsetPlayerPos.y + chunkRadiusf; y += static_cast<float>(TechnicalChunkDim))
     {
-      for (float x = offsetPlayerPos.x - chunkRadius; x < offsetPlayerPos.x + chunkRadius; x += TechnicalChunkDim)
+      for (float x = offsetPlayerPos.x - chunkRadiusf; x < offsetPlayerPos.x + chunkRadiusf; x += static_cast<float>(TechnicalChunkDim))
       {
         glm::vec3 chunkPos = { x,y,z };
         KeyType key = chunkKey(chunkPos);
@@ -69,7 +71,7 @@ void ChunkManager::despawnChunks(glm::vec3 const playerPos)
         static_cast<float>(static_cast<double>(playerPos.z) - std::fmod(static_cast<double>(playerPos.z), static_cast<double>(TechnicalChunkDim)))
   };
 
-  uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkSpawnRadius * invTechnicalChunkDim);
+  uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkDespawnRadius * invTechnicalChunkDim);
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
 
   for (float z = offsetPlayerPos.z - chunkRadius; z < offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)

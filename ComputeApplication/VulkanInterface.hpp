@@ -281,6 +281,12 @@ namespace VulkanInterface
                                   , std::vector<VkCommandBuffer> commandBuffers
                                   , std::vector<VkSemaphore> signalSemaphores
                                   , VkFence fence);
+  bool SubmitCommandBuffersToQueue(VkQueue queue
+    , std::vector<WaitSemaphoreInfo> waitSemaphoreInfos
+    , std::vector<VkCommandBuffer> commandBuffers
+    , std::vector<VkSemaphore> signalSemaphores
+    , VkFence fence
+    , std::mutex * const queueMutex);
   bool SynchroniseTwoCommandBuffers(VkQueue firstQueue
                                   , std::vector<WaitSemaphoreInfo> firstWaitSemaphoreInfos
                                   , std::vector<VkCommandBuffer> firstCommandBuffers
@@ -421,6 +427,41 @@ namespace VulkanInterface
                                 , VkQueue queue
                                 , VkCommandBuffer commandBuffer
                                 , std::vector<VkSemaphore> signalSemaphores);
+  bool UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
+    VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VkDeviceSize dataSize
+    , void * data
+    , VkBuffer destinationBuffer
+    , VkDeviceSize destinationOffset
+    , VkAccessFlags destinationBufferCurrentAccess
+    , VkAccessFlags destinationBufferNewAccess
+    , VkPipelineStageFlags destinationBufferGeneratingStages
+    , VkPipelineStageFlags destinationBufferConsumingStages
+    , VkQueue queue
+    , std::mutex * const queueMutex
+    , VkCommandBuffer commandBuffer
+    , std::vector<VkSemaphore> signalSemaphores);
+  bool UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(
+    VkPhysicalDevice physicalDevice
+    , VkDevice logicalDevice
+    , VkDeviceSize dataSize
+    , void * data
+    , VkImage destinationImage
+    , VkImageSubresourceLayers destinationImageSubresource
+    , VkOffset3D destinationImageOffset
+    , VkExtent3D destinationImageSize
+    , VkImageLayout destinationImageCurrentLayout
+    , VkImageLayout destinationImageNewLayout
+    , VkAccessFlags destinationImageCurrentAccess
+    , VkAccessFlags destinationImageNewAccess
+    , VkImageAspectFlags destinationImageAspect
+    , VkPipelineStageFlags destinationImageGeneratingStages
+    , VkPipelineStageFlags destinationImageConsumingStages
+    , VkQueue queue
+    , std::mutex * const queueMutex
+    , VkCommandBuffer commandBuffer
+    , std::vector<VkSemaphore> signalSemaphores);
 
   bool CreateSampler( VkDevice logicalDevice
                     , VkFilter magFilter
@@ -838,6 +879,30 @@ namespace VulkanInterface
                                , std::vector<FrameResources> & frameResources
                                , uint32_t & nextFrameIndex);
 
+  bool PrepareSingleFrameOfAnimation(VkDevice logicalDevice
+    , VkQueue graphicsQueue
+    , VkQueue presentQueue
+    , VkSwapchainKHR swapchain
+    , std::vector<WaitSemaphoreInfo> const & waitInfos
+    , VkSemaphore imageAcquiredSemaphore
+    , VkSemaphore readyToPresentSemaphore
+    , VkFence finishedDrawingFence
+    , std::function<bool(std::mutex * const, VkCommandBuffer * const, uint32_t, VkFramebuffer)> recordCommandBuffer
+    , std::mutex * const mutex
+    , VkCommandBuffer * const commandBuffer
+    , VulkanHandle(VkFramebuffer) & framebuffer);
+
+  bool RenderWithFrameResources(VkDevice logicalDevice
+    , VkQueue graphicsQueue
+    , VkQueue presentQueue
+    , VkSwapchainKHR swapchain
+    , std::vector<WaitSemaphoreInfo> const & waitInfos
+    , std::function<bool(std::mutex * const, VkCommandBuffer * const, uint32_t, VkFramebuffer)> recordCommandBuffer
+    , std::mutex * const mutex
+    , VkCommandBuffer * const commandBuffer
+    , std::vector<FrameResources> & frameResources
+    , uint32_t & nextFrameIndex);
+
   void ExecuteSecondaryCommandBuffers( VkCommandBuffer commandBuffer
                                      , std::vector<VkCommandBuffer> const & secondaryCommandBuffers);
 
@@ -1008,6 +1073,43 @@ namespace VulkanInterface
     , VkPipelineStageFlags destinationImageGeneratingStages
     , VkPipelineStageFlags destinationImageConsumingStages
     , VkQueue queue
+    , VkCommandBuffer commandBuffer
+    , std::vector<VkSemaphore> signalSemaphores);
+
+  bool UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
+    VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize dataSize
+    , void * data
+    , VkBuffer destinationBuffer
+    , VkDeviceSize destinationOffset
+    , VkAccessFlags destinationBufferCurrentAccess
+    , VkAccessFlags destinationBufferNewAccess
+    , VkPipelineStageFlags destinationBufferGeneratingStages
+    , VkPipelineStageFlags destinationBufferConsumingStages
+    , VkQueue queue
+    , std::mutex * const queueMutex
+    , VkCommandBuffer commandBuffer
+    , std::vector<VkSemaphore> signalSemaphores);
+
+  bool UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(
+    VkDevice logicalDevice
+    , VmaAllocator allocator
+    , VkDeviceSize dataSize
+    , void * data
+    , VkImage destinationImage
+    , VkImageSubresourceLayers destinationImageSubresource
+    , VkOffset3D destinationImageOffset
+    , VkExtent3D destinationImageSize
+    , VkImageLayout destinationImageCurrentLayout
+    , VkImageLayout destinationImageNewLayout
+    , VkAccessFlags destinationImageCurrentAccess
+    , VkAccessFlags destinationImageNewAccess
+    , VkImageAspectFlags destinationImageAspect
+    , VkPipelineStageFlags destinationImageGeneratingStages
+    , VkPipelineStageFlags destinationImageConsumingStages
+    , VkQueue queue
+    , std::mutex * const queueMutex
     , VkCommandBuffer commandBuffer
     , std::vector<VkSemaphore> signalSemaphores);
 

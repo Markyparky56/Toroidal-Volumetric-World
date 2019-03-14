@@ -56,6 +56,7 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   //renderpass.precede(imgui);
   ecs.precede(chunkmanager);
   commandBuffers.precede(surface);
+  commandBuffers.precede(frameres);
 
   // Execute and wait for completion
   systemTaskflow->dispatch().get();  
@@ -81,6 +82,11 @@ bool ComputeApp::Update()
 {
   gameTime += TimerState.GetDeltaTime();
 
+  if (!commandPools->graphicsPools.resetFramePools(nextFrameIndex))
+  {
+    return false;
+  }
+
   auto[userUpdate, spawnChunks, renderList, recordDrawCalls] = systemTaskflow->emplace(
     [&]() { updateUser(); },
     [&]() { checkForNewChunks(); },
@@ -90,13 +96,14 @@ bool ComputeApp::Update()
 
   userUpdate.precede(spawnChunks);
   userUpdate.precede(renderList);
+  spawnChunks.precede(renderList);
   renderList.precede(recordDrawCalls);
   //recordDrawCalls.precede(draw);
 
   systemTaskflow->dispatch().get();
 
   drawChunks();
-  std::cout << "Draw" << std::endl;
+  std::cout << "Draw\t" << nextFrameIndex << std::endl;
 
   return true;
 }
@@ -217,7 +224,7 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
       // Will use the same queue family for all commands for now.
     {
       const float computeQueuePriority = 1.f; // Unsure what priority compute queues should have versus the graphics queue, stick with 1.f for now
-      std::vector<float> queuePriorities = { 1.f }; // One for the graphics queue
+      std::vector<float> queuePriorities = { 1.f, 1.f }; // One for the graphics queue, one for transfer
 
       // Check how many compute queues we can have
       std::vector<VkQueueFamilyProperties> queueFamilies;
@@ -228,7 +235,7 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
 
       if (queueFamilies[graphicsQueueParameters.familyIndex].queueCount < numComputeThreads)
       {
-        numComputeThreads = queueFamilies[graphicsQueueParameters.familyIndex].queueCount - 1; // again, save one for dedicated graphics work
+        numComputeThreads = queueFamilies[graphicsQueueParameters.familyIndex].queueCount - 2; // again, save one for dedicated graphics work
         if (numComputeThreads < 1)
         {
           return false; // Nope. Nope. Nope.
@@ -257,6 +264,9 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
         VulkanInterface::LoadDeviceLevelVulkanFunctions(*vulkanDevice, desiredDeviceExtensions);
         // Retrieve graphics queue handle
         vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 0, &graphicsQueue);
+        // Retrieve the transfer queue handle
+        // TODO: Find optimal transfer queue
+        vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 0, &transferQueue);
         // Retrieve "present queue" handle
         vkGetDeviceQueue(*vulkanDevice, presentQueueParameters.familyIndex, 0, &presentQueue);
         // Retrieve compute queue handles
@@ -297,9 +307,9 @@ bool ComputeApp::setupTaskflow()
 {
   tfExecutor = std::make_shared<tf::Taskflow::Executor>(std::thread::hardware_concurrency()); // maybe -1?
 
-  graphicsTaskflow = std::make_unique<tf::Taskflow>(tfExecutor);
-  computeTaskflow = std::make_unique<tf::Taskflow>(tfExecutor);
-  systemTaskflow = std::make_unique<tf::Taskflow>(tfExecutor);
+  graphicsTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency());
+  computeTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency());
+  systemTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency());
 
   return true;
 }
@@ -384,7 +394,11 @@ bool ComputeApp::setupCommandPoolAndBuffers()
 {
   size_t numWorkers = graphicsTaskflow->num_workers();
 
-  commandPools = std::make_unique<TaskflowCommandPools>(&*vulkanDevice, graphicsQueueParameters.familyIndex, graphicsQueueParameters.familyIndex, numWorkers);
+  commandPools = std::make_unique<TaskflowCommandPools>(
+    &*vulkanDevice
+    , graphicsQueueParameters.familyIndex
+    , graphicsQueueParameters.familyIndex
+    , numWorkers);
   /*
   // Create Graphics Command Pool
   for (int i = 0; i < numWorkers; i++)
@@ -801,6 +815,16 @@ bool ComputeApp::setupGraphicsPipeline()
 
 bool ComputeApp::setupFrameResources()
 {  
+  if (!VulkanInterface::CreateCommandPool(*vulkanDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, graphicsQueueParameters.familyIndex, frameResourcesCmdPool))
+  {
+    return false;
+  }
+
+  if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice, frameResourcesCmdPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, numFrames, frameResourcesCmdBuffers))
+  {
+    return false;
+  }
+
   for (uint32_t i = 0; i < numFrames; i++)
   {
     VulkanHandle(VkSemaphore) imageAcquiredSemaphore;
@@ -828,9 +852,12 @@ bool ComputeApp::setupFrameResources()
       return false;
     }
 
+    //auto cbuf = commandPools->framePools.getBuffer(i);
+    
+
     frameResources.push_back(
       {
-        frameCommandBuffers[i],
+        frameResourcesCmdBuffers[i],
         std::move(imageAcquiredSemaphore),
         std::move(readyToPresentSemaphore),
         std::move(drawingFinishedFence),
@@ -838,6 +865,8 @@ bool ComputeApp::setupFrameResources()
         VulkanHandle(VkFramebuffer)()
       }
     );
+
+    //cbuf.first->unlock();
 
     VmaAllocation depthAllocation;
 
@@ -889,7 +918,7 @@ bool ComputeApp::setupTerrainGenerator()
 
 bool ComputeApp::setupSurfaceExtractor()
 {
-  surfaceExtractor = std::make_unique<SurfaceExtractor>(&*vulkanDevice, &graphicsQueue, &transferCommandBuffersStack, &transferCBufStackMutex);
+  surfaceExtractor = std::make_unique<SurfaceExtractor>(&*vulkanDevice, &transferQueue, &transferQMutex, commandPools.get());
 
   return true;
 }
@@ -951,12 +980,13 @@ void ComputeApp::cleanupVulkan()
     vmaDestroyImage(allocator, *depthImages[i], depthImagesAllocations[i]);
   }
 
+  VulkanInterface::DestroyCommandPool(*vulkanDevice, frameResourcesCmdPool);
+
   VulkanInterface::DestroyDescriptorPool(*vulkanDevice, imGuiDescriptorPool);
   VulkanInterface::DestroyRenderPass(*vulkanDevice, renderPass);
 
   // Cleanup command buffers
-  VulkanInterface::DestroyCommandPool(*vulkanDevice, graphicsCommandPool);
-  VulkanInterface::DestroyCommandPool(*vulkanDevice, transferCommandPool);
+  commandPools->cleanup();
 
   // Shutdown inline graphics pipeline
   VulkanInterface::DestroyBuffer(*vulkanDevice, uniformBuffer);
@@ -1061,16 +1091,17 @@ void ComputeApp::checkForNewChunks()
   auto chunkList = chunkManager->getChunkSpawnList(camera.GetPosition());
   for (auto & chunk : chunkList)
   {
-    std::cout << chunk.first << std::endl;
+    //std::cout << chunk.first << std::endl;
     if (chunk.second == ChunkManager::ChunkStatus::NotLoadedCached)
     {
-      computeTaskflow->emplace([&]() {
+      computeTaskflow->emplace([=]() {
         loadFromChunkCache(chunk.first);
       });
     }
     else if (chunk.second == ChunkManager::ChunkStatus::NotLoadedNotCached)
     {      
-      computeTaskflow->emplace([&]() {
+      computeTaskflow->emplace([=]() {
+        //std::cout << chunk.first << std::endl;
         generateChunk(chunk.first);
       });
     }
@@ -1125,103 +1156,101 @@ void ComputeApp::recordChunkDrawCalls()
 
 bool ComputeApp::drawChunks()
 {
-  auto framePrep = [&](VkCommandBuffer, uint32_t imageIndex, VkFramebuffer framebuffer)
+  auto framePrep = [&](VkCommandBuffer commandBuffer, uint32_t imageIndex, VkFramebuffer framebuffer)
   {
-    auto commandBuffer = frameCommandBuffers[imageIndex];
+    assert(imageIndex == nextFrameIndex);
 
-    if (!VulkanInterface::BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+    if (recordedChunkDrawCalls.size() > 0)
     {
-      return false;
-    }
-
-    if (presentQueueParameters.familyIndex != graphicsQueueParameters.familyIndex)
-    {
-      VulkanInterface::ImageTransition imageTransitionBeforeDrawing = {
-        swapchain.images[imageIndex],
-        VK_ACCESS_MEMORY_READ_BIT,
-        VK_ACCESS_MEMORY_READ_BIT,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        presentQueueParameters.familyIndex,
-        graphicsQueueParameters.familyIndex,
-        VK_IMAGE_ASPECT_COLOR_BIT
-      };
-
-      VulkanInterface::SetImageMemoryBarrier(commandBuffer
-        , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-        , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-        , { imageTransitionBeforeDrawing }
-      );
-    }
-
-    // Draw
-    VulkanInterface::BeginRenderPass(commandBuffer, renderPass, framebuffer
-      , { {0,0}, swapchain.size } // Render Area (full frame size)
-      , { {0.1f, 0.2f, 0.3f, 1.f}, {1.f, 0.f } } // Clear Color, one for our draw area, one for our depth stencil
-      , VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
-    );
-
-    VulkanInterface::BindPipelineObject(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-    VkViewport viewport = {
-      0.f,
-      0.f,
-      static_cast<float>(swapchain.size.width),
-      static_cast<float>(swapchain.size.height),
-      0.f,
-      1.f
-    };
-    VulkanInterface::SetViewportStateDynamically(commandBuffer, 0, { viewport });
-
-    VkRect2D scissor = {
+      if (!VulkanInterface::BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
       {
-        0, 0
-      },
-      {
-        swapchain.size.width,
-        swapchain.size.height
+        //mutex->unlock();
+        return false;
       }
-    };
-    VulkanInterface::SetScissorStateDynamically(commandBuffer, 0, { scissor });
 
-    VulkanInterface::ExecuteSecondaryCommandBuffers(commandBuffer, recordedChunkDrawCalls);
+      if (presentQueueParameters.familyIndex != graphicsQueueParameters.familyIndex)
+      {
+        VulkanInterface::ImageTransition imageTransitionBeforeDrawing = {
+          swapchain.images[imageIndex],
+          VK_ACCESS_MEMORY_READ_BIT,
+          VK_ACCESS_MEMORY_READ_BIT,
+          VK_IMAGE_LAYOUT_UNDEFINED,
+          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+          presentQueueParameters.familyIndex,
+          graphicsQueueParameters.familyIndex,
+          VK_IMAGE_ASPECT_COLOR_BIT
+        };
 
-    VulkanInterface::EndRenderPass(commandBuffer);
+        VulkanInterface::SetImageMemoryBarrier(commandBuffer
+          , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+          , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+          , { imageTransitionBeforeDrawing }
+        );
+      }
 
-    if (presentQueueParameters.familyIndex != graphicsQueueParameters.familyIndex)
-    {
-      VulkanInterface::ImageTransition imageTransitionBeforePresent = {
-        swapchain.images[imageIndex],
-        VK_ACCESS_MEMORY_READ_BIT,
-        VK_ACCESS_MEMORY_READ_BIT,
-        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        graphicsQueueParameters.familyIndex,
-        presentQueueParameters.familyIndex,
-        VK_IMAGE_ASPECT_COLOR_BIT
-      };
+      // Draw
+      VulkanInterface::BeginRenderPass(commandBuffer, renderPass, framebuffer
+        , { {0,0}, swapchain.size } // Render Area (full frame size)
+        , { {0.1f, 0.2f, 0.3f, 1.f}, {1.f, 0.f } } // Clear Color, one for our draw area, one for our depth stencil
+        , VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
+      );
 
-      VulkanInterface::SetImageMemoryBarrier(commandBuffer
-        , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-        , VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
-        , { imageTransitionBeforePresent });
+      VulkanInterface::ExecuteSecondaryCommandBuffers(commandBuffer, recordedChunkDrawCalls);
+
+      VulkanInterface::EndRenderPass(commandBuffer);
+
+      if (presentQueueParameters.familyIndex != graphicsQueueParameters.familyIndex)
+      {
+        VulkanInterface::ImageTransition imageTransitionBeforePresent = {
+          swapchain.images[imageIndex],
+          VK_ACCESS_MEMORY_READ_BIT,
+          VK_ACCESS_MEMORY_READ_BIT,
+          VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+          VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+          graphicsQueueParameters.familyIndex,
+          presentQueueParameters.familyIndex,
+          VK_IMAGE_ASPECT_COLOR_BIT
+        };
+
+        VulkanInterface::SetImageMemoryBarrier(commandBuffer
+          , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+          , VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+          , { imageTransitionBeforePresent });
+      }
+
+      if (!VulkanInterface::EndCommandBufferRecordingOp(commandBuffer))
+      {
+        //mutex->unlock();
+        return false;
+      }
     }
 
-    if (!VulkanInterface::EndCommandBufferRecordingOp(commandBuffer))
-    {
-      return false;
-    }
+    //mutex->unlock();
     return true;
   };
 
-  return VulkanInterface::RenderWithFrameResources(*vulkanDevice
-                                                  , graphicsQueue
-                                                  , presentQueue
-                                                  , *swapchain.handle
-                                                  , {}
-                                                  , framePrep
-                                                  , frameResources
-                                                  , nextFrameIndex);
+  //auto ret = commandPools->framePools.getBuffer(nextFrameIndex);
+  //std::mutex * const mutex = ret.first;
+  //VkCommandBuffer * const commandBuffer = frameResources[;
+
+  if (recordedChunkDrawCalls.size() > 0)
+  {
+    return VulkanInterface::RenderWithFrameResources(*vulkanDevice
+      , graphicsQueue
+      , presentQueue
+      , *swapchain.handle
+      , {}
+      , framePrep
+      //, mutex
+      //, commandBuffer
+      , frameResources
+      , nextFrameIndex);
+  }
+  else
+  {
+    //mutex->unlock();
+    return true;
+  }
 }
 
 bool ComputeApp::chunkIsWithinFrustum()
@@ -1244,7 +1273,7 @@ void ComputeApp::loadFromChunkCache(EntityHandle handle)
     vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, info.size);
     vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
 
-    surfaceExtractor->extractSurface(volume, model);
+    surfaceExtractor->extractSurface(volume, model, nextFrameIndex);
   }
   else // Chunk has fallen out of the cache
   {
@@ -1254,6 +1283,7 @@ void ComputeApp::loadFromChunkCache(EntityHandle handle)
 
 void ComputeApp::generateChunk(EntityHandle handle)
 {
+  //std::cout << handle << std::endl;
   auto[volume, pos, model] = registry->get<VolumeData, WorldPosition, ModelData>(handle);
 
   auto chunkData = terrainGen->getChunkVolume(pos.pos);
@@ -1268,20 +1298,47 @@ void ComputeApp::generateChunk(EntityHandle handle)
   vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, info.size);
   vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
 
-  surfaceExtractor->extractSurface(volume, model);
+  surfaceExtractor->extractSurface(volume, model, nextFrameIndex);
 }
 
 VkCommandBuffer ComputeApp::drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo, glm::mat4 vp)
 {
   WorldPosition pos = registry->get<WorldPosition>(chunk); // Should position be part of model data? Like a transform component?
   ModelData modelData = registry->get<ModelData>(chunk);
-  VkCommandBuffer * cmdBuf = chunkCommandBufferStacks[nextFrameIndex].top();
-                             chunkCommandBufferStacks[nextFrameIndex].pop();
 
-  if (!VulkanInterface::BeginCommandBufferRecordingOp(*cmdBuf, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, inheritanceInfo))
+  auto[mutex, cmdBuf] = commandPools->graphicsPools.getBuffer(nextFrameIndex);
+
+  //VkCommandBuffer * cmdBuf = chunkCommandBufferStacks[nextFrameIndex].top();
+  //                           chunkCommandBufferStacks[nextFrameIndex].pop();
+
+  if (!VulkanInterface::BeginCommandBufferRecordingOp(*cmdBuf, VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT, inheritanceInfo))
   {
+    mutex->unlock();
     return false;
   }
+
+  VulkanInterface::BindPipelineObject(*cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+  VkViewport viewport = {
+  0.f,
+  0.f,
+  static_cast<float>(swapchain.size.width),
+  static_cast<float>(swapchain.size.height),
+  0.f,
+  1.f
+  };
+  VulkanInterface::SetViewportStateDynamically(*cmdBuf, 0, { viewport });
+
+  VkRect2D scissor = {
+    {
+      0, 0
+    },
+    {
+      swapchain.size.width,
+      swapchain.size.height
+    }
+  };
+  VulkanInterface::SetScissorStateDynamically(*cmdBuf, 0, { scissor });
 
   PushConstantObject push;
 
@@ -1302,9 +1359,11 @@ VkCommandBuffer ComputeApp::drawChunkOp(EntityHandle chunk, VkCommandBufferInher
 
   if (!VulkanInterface::EndCommandBufferRecordingOp(*cmdBuf))
   {
+    mutex->unlock();
     return false;
   }
 
+  mutex->unlock();
   return *cmdBuf;
 }
 

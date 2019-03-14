@@ -31,9 +31,13 @@ struct VolumeData
     );
   }
 
-  ~VolumeData()
+  void destroy()
   {
     vmaDestroyBuffer(*allocator, volumeBuffer, volumeAllocation);
+  }
+
+  ~VolumeData()
+  {
   }
 };
 
@@ -53,10 +57,14 @@ struct ModelData
     , indexCount(idc)
   {}
 
-  ~ModelData()
+  void destroy()
   {
     vmaDestroyBuffer(*allocator, vertexBuffer, vbufferAllocation);
     vmaDestroyBuffer(*allocator, indexBuffer, ibufferAllocation);
+  }
+
+  ~ModelData()
+  {
   }
 };
 

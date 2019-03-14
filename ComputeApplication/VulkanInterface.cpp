@@ -1054,6 +1054,47 @@ return true;
     };
 
     VkResult result = vkQueueSubmit(queue, 1, &submitInfo, fence);
+
+    if (result != VK_SUCCESS)
+    {
+      // TODO: error, "Error occurred during command buffer submission"
+      return false;
+    }
+    return true;
+  }
+
+  bool SubmitCommandBuffersToQueue(VkQueue queue
+    , std::vector<WaitSemaphoreInfo> waitSemaphoreInfos
+    , std::vector<VkCommandBuffer> commandBuffers
+    , std::vector<VkSemaphore> signalSemaphores
+    , VkFence fence
+    , std::mutex * const queueMutex)
+  {
+    std::vector<VkSemaphore> waitSemaphoreHandles;
+    std::vector<VkPipelineStageFlags> waitSemaphoreStages;
+
+    for (auto & waitSemaphoreInfo : waitSemaphoreInfos)
+    {
+      waitSemaphoreHandles.emplace_back(waitSemaphoreInfo.Semaphore);
+      waitSemaphoreStages.emplace_back(waitSemaphoreInfo.WaitingStage);
+    }
+
+    VkSubmitInfo submitInfo = {
+      VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      nullptr,
+      static_cast<uint32_t>(waitSemaphoreInfos.size()),
+      waitSemaphoreHandles.data(),
+      waitSemaphoreStages.data(),
+      static_cast<uint32_t>(commandBuffers.size()),
+      commandBuffers.data(),
+      static_cast<uint32_t>(signalSemaphores.size()),
+      signalSemaphores.data()
+    };
+    VkResult result;
+    {
+      std::unique_lock<std::mutex> lock(*queueMutex);
+      result = vkQueueSubmit(queue, 1, &submitInfo, fence);
+    }
     if (result != VK_SUCCESS)
     {
       // TODO: error, "Error occurred during command buffer submission"
@@ -1746,6 +1787,190 @@ return true;
 
     return true;
   }
+
+    bool UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
+      VkPhysicalDevice physicalDevice
+      , VkDevice logicalDevice
+      , VkDeviceSize dataSize
+      , void * data
+      , VkBuffer destinationBuffer
+      , VkDeviceSize destinationOffset
+      , VkAccessFlags destinationBufferCurrentAccess
+      , VkAccessFlags destinationBufferNewAccess
+      , VkPipelineStageFlags destinationBufferGeneratingStages
+      , VkPipelineStageFlags destinationBufferConsumingStages
+      , VkQueue queue
+      , std::mutex * const queueMutex
+      , VkCommandBuffer commandBuffer
+      , std::vector<VkSemaphore> signalSemaphores)
+    {
+      VulkanHandle(VkBuffer) stagingBuffer;
+      InitVulkanHandle(logicalDevice, stagingBuffer);
+      if (!CreateBuffer(logicalDevice, dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, *stagingBuffer))
+      {
+        return false;
+      }
+
+      VulkanHandle(VkDeviceMemory) memoryObject;
+      InitVulkanHandle(logicalDevice, memoryObject);
+      if (!AllocateAndBindMemoryObjectToBuffer(physicalDevice, logicalDevice, *stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, *memoryObject))
+      {
+        return false;
+      }
+
+      if (!MapUpdateAndUnmapHostVisibleMemory(logicalDevice, *memoryObject, 0, dataSize, data, true, nullptr))
+      {
+        return false;
+      }
+
+      if (!BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+      {
+        return false;
+      }
+
+      SetBufferMemoryBarrier(commandBuffer, destinationBufferGeneratingStages, VK_PIPELINE_STAGE_TRANSFER_BIT, { {destinationBuffer, destinationBufferCurrentAccess, VK_ACCESS_TRANSFER_WRITE_BIT, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED} });
+
+      CopyDataBetweenBuffers(commandBuffer, *stagingBuffer, destinationBuffer, { {0, destinationOffset, dataSize} });
+
+      SetBufferMemoryBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, destinationBufferConsumingStages, { {destinationBuffer, VK_ACCESS_TRANSFER_WRITE_BIT, destinationBufferNewAccess, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED} });
+
+      if (!EndCommandBufferRecordingOp(commandBuffer))
+      {
+        return false;
+      }
+
+      VulkanHandle(VkFence) fence;
+      InitVulkanHandle(logicalDevice, fence);
+      if (!CreateFence(logicalDevice, false, *fence))
+      {
+        return false;
+      }
+
+      if (!SubmitCommandBuffersToQueue(queue, {}, { commandBuffer }, signalSemaphores, *fence, queueMutex))
+      {
+        return false;
+      }
+
+      if (!WaitForFences(logicalDevice, { *fence }, VK_FALSE, 500000000))
+      {
+        return false;
+      }
+
+      return true;
+    }
+
+    bool UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(
+      VkPhysicalDevice physicalDevice
+      , VkDevice logicalDevice
+      , VkDeviceSize dataSize
+      , void * data
+      , VkImage destinationImage
+      , VkImageSubresourceLayers destinationImageSubresource
+      , VkOffset3D destinationImageOffset
+      , VkExtent3D destinationImageSize
+      , VkImageLayout destinationImageCurrentLayout
+      , VkImageLayout destinationImageNewLayout
+      , VkAccessFlags destinationImageCurrentAccess
+      , VkAccessFlags destinationImageNewAccess
+      , VkImageAspectFlags destinationImageAspect
+      , VkPipelineStageFlags destinationImageGeneratingStages
+      , VkPipelineStageFlags destinationImageConsumingStages
+      , VkQueue queue
+      , std::mutex * const queueMutex
+      , VkCommandBuffer commandBuffer
+      , std::vector<VkSemaphore> signalSemaphores)
+    {
+      VulkanHandle(VkBuffer) stagingBuffer;
+      InitVulkanHandle(logicalDevice, stagingBuffer);
+      if (!CreateBuffer(logicalDevice, dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, *stagingBuffer))
+      {
+        return false;
+      }
+
+      VulkanHandle(VkDeviceMemory) memoryObject;
+      InitVulkanHandle(logicalDevice, memoryObject);
+      if (!AllocateAndBindMemoryObjectToBuffer(physicalDevice, logicalDevice, *stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, *memoryObject))
+      {
+        return false;
+      }
+
+      if (!MapUpdateAndUnmapHostVisibleMemory(logicalDevice, *memoryObject, 0, dataSize, data, true, nullptr))
+      {
+        return false;
+      }
+
+      if (!BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+      {
+        return false;
+      }
+
+      SetImageMemoryBarrier(commandBuffer, destinationImageGeneratingStages, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        {
+          {
+            destinationImage,
+            destinationImageCurrentAccess,
+            VK_ACCESS_TRANSFER_WRITE_BIT,
+            destinationImageCurrentLayout,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_QUEUE_FAMILY_IGNORED,
+            VK_QUEUE_FAMILY_IGNORED,
+            destinationImageAspect
+          }
+        }
+      );
+
+      CopyDataFromBufferToImage(commandBuffer, *stagingBuffer, destinationImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        {
+          {
+            0,
+            0,
+            0,
+            destinationImageSubresource,
+            destinationImageOffset,
+            destinationImageSize
+          }
+        }
+      );
+
+      SetImageMemoryBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, destinationImageConsumingStages,
+        {
+          {
+            destinationImage,
+            VK_ACCESS_TRANSFER_WRITE_BIT,
+            destinationImageNewAccess,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            destinationImageNewLayout,
+            VK_QUEUE_FAMILY_IGNORED,
+            VK_QUEUE_FAMILY_IGNORED,
+            destinationImageAspect
+          }
+        }
+      );
+
+      if (!EndCommandBufferRecordingOp(commandBuffer))
+      {
+        return false;
+      }
+
+      VulkanHandle(VkFence) fence;
+      InitVulkanHandle(logicalDevice, fence);
+      if (!CreateFence(logicalDevice, false, *fence))
+      {
+        return false;
+      }
+
+      if (!SubmitCommandBuffersToQueue(queue, {}, { commandBuffer }, signalSemaphores, *fence, queueMutex))
+      {
+        return false;
+      }
+
+      if (!WaitForFences(logicalDevice, { *fence }, VK_FALSE, 500000000))
+      {
+        return false;
+      }
+
+      return true;
+    }
 
   bool CreateSampler(VkDevice logicalDevice
     , VkFilter magFilter
@@ -3200,6 +3425,109 @@ return true;
     return true;
   }
 
+  bool PrepareSingleFrameOfAnimation(VkDevice logicalDevice
+    , VkQueue graphicsQueue
+    , VkQueue presentQueue
+    , VkSwapchainKHR swapchain
+    , std::vector<WaitSemaphoreInfo> const & waitInfos
+    , VkSemaphore imageAcquiredSemaphore
+    , VkSemaphore readyToPresentSemaphore
+    , VkFence finishedDrawingFence
+    , std::function<bool(std::mutex * const, VkCommandBuffer * const, uint32_t, VkFramebuffer)> recordCommandBuffer
+    , std::mutex * const mutex
+    , VkCommandBuffer * const commandBuffer
+    , VulkanHandle(VkFramebuffer) & framebuffer)
+  {
+    uint32_t imageIndex;
+    if (!AcquireSwapchainImage(logicalDevice, swapchain, imageAcquiredSemaphore, VK_NULL_HANDLE, imageIndex))
+    {
+      return false;
+    }
+
+    if (!framebuffer) return false; // Yo, create your framebuffers first, we ain't doing that per-frame leak stuff anymore
+
+    if (!recordCommandBuffer(mutex, commandBuffer, imageIndex, *framebuffer))
+    {
+      return false;
+    }
+
+    std::vector<WaitSemaphoreInfo> waitSemaphoreInfos = waitInfos;
+    waitSemaphoreInfos.push_back(
+      {
+        imageAcquiredSemaphore,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+      }
+    );
+    if (!SubmitCommandBuffersToQueue(graphicsQueue
+      , waitSemaphoreInfos
+      , { *commandBuffer }
+      , { readyToPresentSemaphore }
+      , finishedDrawingFence)
+      )
+    {
+      return false;
+    }
+
+    PresentInfo presentInfo = {
+      swapchain,
+      imageIndex
+    };
+
+    if (!PresentImage(presentQueue, { readyToPresentSemaphore }, { presentInfo }))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool RenderWithFrameResources(VkDevice logicalDevice
+    , VkQueue graphicsQueue
+    , VkQueue presentQueue
+    , VkSwapchainKHR swapchain
+    , std::vector<WaitSemaphoreInfo> const & waitInfos
+    , std::function<bool(std::mutex * const, VkCommandBuffer * const, uint32_t, VkFramebuffer)> recordCommandBuffer
+    , std::mutex * const mutex
+    , VkCommandBuffer * const commandBuffer
+    , std::vector<FrameResources>& frameResources
+    , uint32_t & nextFrameIndex)
+  {
+    static uint32_t frameIndex = 0;
+    FrameResources & currentFrame = frameResources[frameIndex];
+
+    if (!WaitForFences(logicalDevice, { *currentFrame.drawingFinishedFence }, false, std::numeric_limits<uint64_t>::max()))
+    {
+      return false;
+    }
+
+    if (!ResetFences(logicalDevice, { *currentFrame.drawingFinishedFence }))
+    {
+      return false;
+    }
+
+    if (!PrepareSingleFrameOfAnimation(logicalDevice
+      , graphicsQueue
+      , presentQueue
+      , swapchain
+      , waitInfos
+      , *currentFrame.imageAcquiredSemaphore
+      , *currentFrame.readyToPresentSemaphore
+      , *currentFrame.drawingFinishedFence
+      , recordCommandBuffer
+      , mutex
+      , commandBuffer
+      , currentFrame.framebuffer)
+      )
+    {
+      return false;
+    }
+
+    frameIndex = (frameIndex + 1) % frameResources.size();
+    nextFrameIndex = frameIndex;
+
+    return true;
+  }
+
   void ExecuteSecondaryCommandBuffers(VkCommandBuffer commandBuffer
                                     , std::vector<VkCommandBuffer> const & secondaryCommandBuffers)
   {
@@ -3796,6 +4124,193 @@ return true;
 
     return true;
   }
+
+    bool UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
+      VkDevice logicalDevice
+      , VmaAllocator allocator
+      , VkDeviceSize dataSize
+      , void * data
+      , VkBuffer destinationBuffer
+      , VkDeviceSize destinationOffset
+      , VkAccessFlags destinationBufferCurrentAccess
+      , VkAccessFlags destinationBufferNewAccess
+      , VkPipelineStageFlags destinationBufferGeneratingStages
+      , VkPipelineStageFlags destinationBufferConsumingStages
+      , VkQueue queue
+      , std::mutex * const queueMutex
+      , VkCommandBuffer commandBuffer
+      , std::vector<VkSemaphore> signalSemaphores)
+    {
+      VkBuffer stagingBuffer;
+      VmaAllocation allocation;
+      if (!CreateBuffer(
+        allocator, dataSize
+        , VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingBuffer
+        , VMA_ALLOCATION_CREATE_STRATEGY_FIRST_FIT_BIT
+        , VMA_MEMORY_USAGE_CPU_TO_GPU
+        , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        , VK_NULL_HANDLE, allocation))
+      {
+        return false;
+      }
+
+      if (!MapUpdateAndUnmapHostVisibleMemory(allocator, allocation, dataSize, data, true, nullptr))
+      {
+        return false;
+      }
+
+      if (!BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+      {
+        return false;
+      }
+
+      SetBufferMemoryBarrier(commandBuffer, destinationBufferGeneratingStages, VK_PIPELINE_STAGE_TRANSFER_BIT, { {destinationBuffer, destinationBufferCurrentAccess, VK_ACCESS_TRANSFER_WRITE_BIT, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED} });
+
+      CopyDataBetweenBuffers(commandBuffer, stagingBuffer, destinationBuffer, { {0, destinationOffset, dataSize} });
+
+      SetBufferMemoryBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, destinationBufferConsumingStages, { {destinationBuffer, VK_ACCESS_TRANSFER_WRITE_BIT, destinationBufferNewAccess, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED} });
+
+      if (!EndCommandBufferRecordingOp(commandBuffer))
+      {
+        return false;
+      }
+
+      VulkanHandle(VkFence) fence;
+      InitVulkanHandle(logicalDevice, fence);
+      if (!CreateFence(logicalDevice, false, *fence))
+      {
+        return false;
+      }
+
+      if (!SubmitCommandBuffersToQueue(queue, {}, { commandBuffer }, signalSemaphores, *fence, queueMutex))
+      {
+        return false;
+      }
+
+      if (!WaitForFences(logicalDevice, { *fence }, VK_FALSE, 500000000))
+      {
+        return false;
+      }
+
+      vmaDestroyBuffer(allocator, stagingBuffer, allocation);
+
+      return true;
+    }
+
+    bool UseStagingBufferToUpdateImageWithDeviceLocalMemoryBound(
+      VkDevice logicalDevice
+      , VmaAllocator allocator
+      , VkDeviceSize dataSize
+      , void * data
+      , VkImage destinationImage
+      , VkImageSubresourceLayers destinationImageSubresource
+      , VkOffset3D destinationImageOffset
+      , VkExtent3D destinationImageSize
+      , VkImageLayout destinationImageCurrentLayout
+      , VkImageLayout destinationImageNewLayout
+      , VkAccessFlags destinationImageCurrentAccess
+      , VkAccessFlags destinationImageNewAccess
+      , VkImageAspectFlags destinationImageAspect
+      , VkPipelineStageFlags destinationImageGeneratingStages
+      , VkPipelineStageFlags destinationImageConsumingStages
+      , VkQueue queue
+      , std::mutex * const queueMutex
+      , VkCommandBuffer commandBuffer
+      , std::vector<VkSemaphore> signalSemaphores)
+    {
+      //VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+      VkBuffer stagingBuffer;
+      VmaAllocation allocation;
+      if (!CreateBuffer(
+        allocator, dataSize
+        , VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingBuffer
+        , VMA_ALLOCATION_CREATE_STRATEGY_FIRST_FIT_BIT
+        , VMA_MEMORY_USAGE_CPU_TO_GPU
+        , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        , VK_NULL_HANDLE, allocation))
+      {
+        return false;
+      }
+
+      if (!MapUpdateAndUnmapHostVisibleMemory(allocator, allocation, dataSize, data, true, nullptr))
+      {
+        return false;
+      }
+
+      if (!BeginCommandBufferRecordingOp(commandBuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+      {
+        return false;
+      }
+
+      SetImageMemoryBarrier(commandBuffer, destinationImageGeneratingStages, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        {
+          {
+            destinationImage,
+            destinationImageCurrentAccess,
+            VK_ACCESS_TRANSFER_WRITE_BIT,
+            destinationImageCurrentLayout,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_QUEUE_FAMILY_IGNORED,
+            VK_QUEUE_FAMILY_IGNORED,
+            destinationImageAspect
+          }
+        }
+      );
+
+      CopyDataFromBufferToImage(commandBuffer, stagingBuffer, destinationImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        {
+          {
+            0,
+            0,
+            0,
+            destinationImageSubresource,
+            destinationImageOffset,
+            destinationImageSize
+          }
+        }
+      );
+
+      SetImageMemoryBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, destinationImageConsumingStages,
+        {
+          {
+            destinationImage,
+            VK_ACCESS_TRANSFER_WRITE_BIT,
+            destinationImageNewAccess,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            destinationImageNewLayout,
+            VK_QUEUE_FAMILY_IGNORED,
+            VK_QUEUE_FAMILY_IGNORED,
+            destinationImageAspect
+          }
+        }
+      );
+
+      if (!EndCommandBufferRecordingOp(commandBuffer))
+      {
+        return false;
+      }
+
+      VulkanHandle(VkFence) fence;
+      InitVulkanHandle(logicalDevice, fence);
+      if (!CreateFence(logicalDevice, false, *fence))
+      {
+        return false;
+      }
+
+      if (!SubmitCommandBuffersToQueue(queue, {}, { commandBuffer }, signalSemaphores, *fence, queueMutex))
+      {
+        return false;
+      }
+
+      if (!WaitForFences(logicalDevice, { *fence }, VK_FALSE, 500000000))
+      {
+        return false;
+      }
+
+      vmaDestroyBuffer(allocator, stagingBuffer, allocation);
+
+      return true;
+    }
 
   bool CreateSampledImage(VkPhysicalDevice physicalDevice
     , VkDevice logicalDevice
