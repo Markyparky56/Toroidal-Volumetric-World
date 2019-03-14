@@ -27,7 +27,7 @@ std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> ChunkManager::ge
   };
 
   //uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkSpawnRadius * invTechnicalChunkDim);
-  constexpr uint32_t chunkRadius = TechnicalChunkDim * chunkSpawnDistance;
+  constexpr uint32_t chunkRadius = (TechnicalChunkDim * chunkSpawnDistance)/2;
   constexpr float chunkRadiusf = static_cast<float>(chunkRadius);
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
 
@@ -72,7 +72,7 @@ void ChunkManager::despawnChunks(glm::vec3 const playerPos)
   };
 
   uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkDespawnRadius * invTechnicalChunkDim);
-  std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
+ // std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
 
   for (float z = offsetPlayerPos.z - chunkRadius; z < offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
   {

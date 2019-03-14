@@ -83,7 +83,7 @@ public:
         {
           if (mutex.try_lock())
           {
-            std::cout << thread << "\t" << frame << "\t" << ((bufferLevel == VK_COMMAND_BUFFER_LEVEL_PRIMARY) ? "framePool" : "graphicsPool")<< std::endl;
+            //std::cout << thread << "\t" << frame << "\t" << ((bufferLevel == VK_COMMAND_BUFFER_LEVEL_PRIMARY) ? "framePool" : "graphicsPool")<< std::endl;
             VkCommandBuffer * cbuf = stacks[thread][frame].top();
             stacks[thread][frame].pop();
             return std::make_pair(&mutex, cbuf);
@@ -246,7 +246,7 @@ public:
   )
     : logicalDevice(logicalDevice)
     //, framePools(numWorkers, graphicsQueueFamily, logicalDevice, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 3)
-    , graphicsPools(numWorkers, graphicsQueueFamily, logicalDevice, VK_COMMAND_BUFFER_LEVEL_SECONDARY, 300)
+    , graphicsPools(numWorkers, graphicsQueueFamily, logicalDevice, VK_COMMAND_BUFFER_LEVEL_SECONDARY, 3000)
     , transferPools(numWorkers, transferQueueFamily, logicalDevice)
   {
     

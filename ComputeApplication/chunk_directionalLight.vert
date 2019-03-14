@@ -1,7 +1,7 @@
 #version 450
 
 layout(push_constant) uniform PushConstant {
-  vec4 mvp;
+  mat4 mvp;
 };
 
 layout(location = 0) in vec3 position;
