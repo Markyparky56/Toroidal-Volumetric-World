@@ -1373,7 +1373,7 @@ bool ComputeApp::drawChunks()
       vmaMapMemory(allocator, viewprojAlloc, &viewprojPtr);      
       memcpy(viewprojPtr, &vp, sizeof(vp));
       vmaUnmapMemory(allocator, viewprojAlloc);
-      vmaFlushAllocation(allocator, viewprojAlloc, 0, viewprojInfo.size);
+      vmaFlushAllocation(allocator, viewprojAlloc, 0, VK_WHOLE_SIZE);
 
       LightData lightData;
       lightData.lightDir = glm::vec3(-0.2f, -1.0f, -0.3f);
@@ -1386,7 +1386,7 @@ bool ComputeApp::drawChunks()
       vmaMapMemory(allocator, lightAlloc, &lightPtr);
       memcpy(lightPtr, &lightData, sizeof(lightData));
       vmaUnmapMemory(allocator, lightAlloc);
-      vmaFlushAllocation(allocator, lightAlloc, 0, lightInfo.size);
+      vmaFlushAllocation(allocator, lightAlloc, 0, VK_WHOLE_SIZE);
 
       VulkanInterface::BindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineLayout, 0, descriptorSets, {});
 
@@ -1497,7 +1497,7 @@ void ComputeApp::loadFromChunkCache(EntityHandle handle)
     memcpy(ptr, data.data(), data.size());
     VmaAllocationInfo info;
     vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
-    vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, info.size);
+    vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
     vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
 
     surfaceExtractor->extractSurface(volume, model, nextFrameIndex);
@@ -1522,7 +1522,7 @@ void ComputeApp::generateChunk(EntityHandle handle)
   memcpy(ptr, chunkData.data(), chunkData.size());
   VmaAllocationInfo info;
   vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
-  vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, info.size);
+  vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
   vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
 
   surfaceExtractor->extractSurface(volume, model, nextFrameIndex);

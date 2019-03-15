@@ -17,7 +17,7 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   }
   VmaAllocationInfo info;
   vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
-  vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, 0, info.size);
+  vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
   dmc.buildTris(reinterpret_cast<Voxel*>(volumeDataPtr), TrueChunkDim, TrueChunkDim, TrueChunkDim, iso, true, false, generatedVerts, generatedIndices);
 
   size_t indexCount = generatedIndices.size(), vertexCount;
