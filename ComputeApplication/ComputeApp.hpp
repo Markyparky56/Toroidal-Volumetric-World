@@ -101,10 +101,13 @@ private:
   VkDescriptorSetLayout descriptorSetLayout;
   VkDescriptorPool descriptorPool;
   std::vector<VkDescriptorSet> descriptorSets;
+  VkBuffer viewprojUBuffer, modelUBuffer, lightUBuffer;
+  VmaAllocation viewprojAlloc, modelAlloc, lightAlloc;
+
   VkPipeline graphicsPipeline;
   VkPipelineLayout graphicsPipelineLayout;
-  VkBuffer uniformBuffer;
-  VkDeviceMemory uniformBufferMemory;
+  //VkBuffer uniformBuffer;
+  //VkDeviceMemory uniformBufferMemory;
 
   std::unique_ptr<TaskflowCommandPools> commandPools;
   std::unique_ptr<ChunkManager> chunkManager;
@@ -129,7 +132,16 @@ private:
   struct CamRot {
     float roll, yaw, pitch;
   } camRot;
-  struct PushConstantObject {
-    glm::mat4 mvp;
+  struct PushConstantVertexShaderObject {
+    glm::mat4 m;
+    glm::mat4 vp;
+  };
+  struct LightData {
+    glm::vec3 lightDir;
+    glm::vec3 viewPos;
+    glm::vec3 lightAmbientColour;
+    glm::vec3 lightDiffuseColour;
+    glm::vec3 lightSpecularColour;
+    glm::vec3 objectColour;
   };
 };

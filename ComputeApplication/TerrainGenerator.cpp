@@ -99,12 +99,12 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
         float t_r = 64.f;
         
         // Encourage ground plane around 0, shift groundplane by heightmap
-        float terrain = -y + (heightmap[iZ * TrueChunkDim + iX] * heightMapHeightInVoxels);
+        float terrain = -y + (heightmap[iZ * TrueChunkDim + iX]/* * heightMapHeightInVoxels*/);
 
         for (int i = 0; i < 6; i++)
         {
           glm::vec4 p = glm::vec4(
-            123.456
+              123.456
             , -432.912
             , -198.023
             , 543.298) + glm::vec4(

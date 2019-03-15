@@ -1092,8 +1092,9 @@ return true;
     };
     VkResult result;
     {
-      std::unique_lock<std::mutex> lock(*queueMutex);
+      queueMutex->lock();
       result = vkQueueSubmit(queue, 1, &submitInfo, fence);
+      queueMutex->unlock();
     }
     if (result != VK_SUCCESS)
     {
