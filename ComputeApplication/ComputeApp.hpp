@@ -12,6 +12,7 @@
 #include "TerrainGenerator.hpp"
 #include "SurfaceExtractor.hpp"
 #include "TaskflowCommandPools.hpp"
+#include "FrustumClass.hpp"
 
 #include <stack>
 #include <array>
@@ -114,6 +115,7 @@ private:
   std::unique_ptr<entt::registry<>> registry;
   std::unique_ptr<TerrainGenerator> terrainGen;
   std::unique_ptr<SurfaceExtractor> surfaceExtractor;
+  Frustum frustum;
 
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkSpawnList;
   std::vector<EntityHandle> chunkRenderList;

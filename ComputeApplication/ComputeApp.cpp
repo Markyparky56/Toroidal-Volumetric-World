@@ -128,9 +128,9 @@ bool ComputeApp::Update()
 
   drawChunks();
   std::cout << "Draw\t" << nextFrameIndex << std::endl;
-  std::cout << systemTaskflow->num_topologies() << std::endl;
-  std::cout << graphicsTaskflow->num_topologies() << std::endl;
-  std::cout << computeTaskflow->num_topologies() << std::endl;
+  //std::cout << systemTaskflow->num_topologies() << std::endl;
+  //std::cout << graphicsTaskflow->num_topologies() << std::endl;
+  //std::cout << computeTaskflow->num_topologies() << std::endl;
 
   return true;
 }
@@ -293,12 +293,12 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
         vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 0, &graphicsQueue);
         // Retrieve the transfer queue handle
         // TODO: Find optimal transfer queue
-        vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 0, &transferQueue);
+        vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 1, &transferQueue);
         // Retrieve "present queue" handle
         vkGetDeviceQueue(*vulkanDevice, presentQueueParameters.familyIndex, 0, &presentQueue);
         // Retrieve compute queue handles
         computeQueues.resize(numComputeThreads, VK_NULL_HANDLE);
-        for (uint32_t i = 1; i < numComputeThreads; i++)
+        for (uint32_t i = 2; i < numComputeThreads; i++)
         {
           vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, i, &computeQueues[i - 1]);
         }
@@ -670,7 +670,19 @@ bool ComputeApp::setupGraphicsPipeline()
   //);
 
   // Create buffers
-  if (!VulkanInterface::CreateUniformBuffer(allocator, sizeof(glm::mat4), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, viewprojUBuffer, VMA_MEMORY_USAGE_UNKNOWN, viewprojAlloc))
+  //if (!VulkanInterface::CreateUniformBuffer(allocator, sizeof(glm::mat4), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, viewprojUBuffer, VMA_MEMORY, viewprojAlloc))
+  //{
+  //  return false;
+  //}
+
+  if (!VulkanInterface::CreateBuffer(allocator
+    , sizeof(glm::mat4)
+    , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+    , viewprojUBuffer
+    , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
+    , VMA_MEMORY_USAGE_UNKNOWN
+    , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+    , VK_NULL_HANDLE, viewprojAlloc))
   {
     return false;
   }
@@ -681,12 +693,31 @@ bool ComputeApp::setupGraphicsPipeline()
   //}
 
   // Always mapped model buffer for easy copy
-  if (!VulkanInterface::CreateBuffer(allocator, sizeof(glm::mat4), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, modelUBuffer, VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT, VMA_MEMORY_USAGE_UNKNOWN, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_NULL_HANDLE, modelAlloc))
+  if (!VulkanInterface::CreateBuffer(allocator
+    , sizeof(glm::mat4)
+    , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+    , modelUBuffer
+    , VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
+    , VMA_MEMORY_USAGE_UNKNOWN
+    , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+    , VK_NULL_HANDLE, modelAlloc))
   {
     return false;
   }
 
-  if (!VulkanInterface::CreateUniformBuffer(allocator, sizeof(LightData), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, lightUBuffer, VMA_MEMORY_USAGE_UNKNOWN, lightAlloc))
+  //if (!VulkanInterface::CreateUniformBuffer(allocator, sizeof(LightData), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, lightUBuffer, VMA_MEMORY_USAGE_UNKNOWN, lightAlloc))
+  //{
+  //  return false;
+  //}
+
+  if (!VulkanInterface::CreateBuffer(allocator
+    , sizeof(LightData)
+    , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+    , lightUBuffer
+    , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
+    , VMA_MEMORY_USAGE_UNKNOWN
+    , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+    , VK_NULL_HANDLE, lightAlloc))
   {
     return false;
   }
@@ -762,8 +793,21 @@ bool ComputeApp::setupGraphicsPipeline()
         }
       }
   };
+  VulkanInterface::BufferDescriptorInfo lightDescriptorUpdate = {
+      descriptorSets[0],                          // VkDescriptorSet                      TargetDescriptorSet
+      2,                                          // uint32_t                             TargetDescriptorBinding
+      0,                                          // uint32_t                             TargetArrayElement
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType                     TargetDescriptorType
+      {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
+        {
+          lightUBuffer,                           // VkBuffer                             buffer
+          0,                                      // VkDeviceSize                         offset
+          VK_WHOLE_SIZE                           // VkDeviceSize                         range
+        }
+      }
+  };
 
-  VulkanInterface::UpdateDescriptorSets(*vulkanDevice, {}, { viewProjDescriptorUpdate, modelDescriptorUpdate }, {}, {});
+  VulkanInterface::UpdateDescriptorSets(*vulkanDevice, {}, { viewProjDescriptorUpdate, modelDescriptorUpdate, lightDescriptorUpdate }, {}, {});
 
   std::vector<unsigned char> vertex_shader_spirv;
   if (!VulkanInterface::GetBinaryFileContents("Data/vert.spv", vertex_shader_spirv)) {
@@ -1245,6 +1289,11 @@ void ComputeApp::checkForNewChunks()
 
 void ComputeApp::getChunkRenderList()
 {
+  glm::mat4 view = glm::lookAt(camera.GetPosition(), camera.GetLookAt(), camera.GetUp());
+  glm::mat4 proj = glm::perspective(glm::radians(45.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.01f, static_cast<float>(TechnicalChunkDim * chunkViewDistance));
+  proj[1][1] *= -1; // Correct projection for vulkan
+  glm::mat4 vp = proj * view;
+
   chunkRenderList.reserve(343); // Revise size when frustum culling implemented
   registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
     [&](const uint32_t entity, auto&&...)
@@ -1252,7 +1301,7 @@ void ComputeApp::getChunkRenderList()
       if (chunkIsWithinFrustum() && registry->get<ModelData>(entity).indexCount > 0) // dummy check
       {
         chunkRenderList.push_back(entity);
-      }
+      }      
     }
   );
 }
@@ -1354,12 +1403,7 @@ bool ComputeApp::drawChunks()
           swapchain.size.height
         }
       };
-      VulkanInterface::SetScissorStateDynamically(commandBuffer, 0, { scissor });
-
-      glm::mat4 view = glm::lookAt(camera.GetPosition(), camera.GetLookAt(), camera.GetUp());
-      glm::mat4 proj = glm::perspective(glm::radians(45.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.01f, static_cast<float>(TechnicalChunkDim * chunkViewDistance));
-      proj[1][1] *= -1; // Correct projection for vulkan
-      glm::mat4 vp = proj * view;
+      VulkanInterface::SetScissorStateDynamically(commandBuffer, 0, { scissor });      
 
       VmaAllocationInfo viewprojInfo;
       vmaGetAllocationInfo(allocator, viewprojAlloc, &viewprojInfo);
@@ -1526,7 +1570,7 @@ void ComputeApp::generateChunk(EntityHandle handle)
   vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
 
   surfaceExtractor->extractSurface(volume, model, nextFrameIndex);
-  std::cout << handle << " generated\n";
+  std::cout << handle << " generated, " << model.indexCount/3 << " triangles\n";
 }
 
 VkCommandBuffer ComputeApp::drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo, glm::mat4 vp)

@@ -200,6 +200,7 @@
     <ClCompile Include="ChunkManager.cpp" />
     <ClCompile Include="ComputeApp.cpp" />
     <ClCompile Include="ComputePipeline.cpp" />
+    <ClCompile Include="FrustumClass.cpp" />
     <ClCompile Include="GraphicsPipeline.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SurfaceExtractor.cpp" />
@@ -228,6 +229,7 @@
     <ClInclude Include="ComputeApp.hpp" />
     <ClInclude Include="ComputePipeline.hpp" />
     <ClInclude Include="DualMC.hpp" />
+    <ClInclude Include="FrustumClass.hpp" />
     <ClInclude Include="genNormals.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="HybridComputePipeline.hpp" />
