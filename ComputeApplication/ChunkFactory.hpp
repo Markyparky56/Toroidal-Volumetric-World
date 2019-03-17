@@ -13,7 +13,7 @@ public:
 
   ~ChunkFactory()
   {
-    DestroyAllChunks();
+    assert(registry->size() == 0);
   }
 
   uint32_t CreateChunkEntity(glm::vec3 pos, float dimX, float dimY, float dimZ);

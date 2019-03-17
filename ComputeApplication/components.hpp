@@ -8,37 +8,39 @@
 
 struct VolumeData
 {
-  VkBuffer volumeBuffer;
-  VkBufferView volumeBufferView;
-  VmaAllocation volumeAllocation;
-  VmaAllocator * allocator;
+  //VkBuffer volumeBuffer;
+  //VkBufferView volumeBufferView;
+  //VmaAllocation volumeAllocation;
+  //VmaAllocator * allocator;
 
-  bool init(VmaAllocator * allocatorPtr, VkPhysicalDevice * physicalDevice, VkDevice * logicalDevice)
-  {
-    allocator = allocatorPtr;
-    volumeBufferView = VkBufferView();
-    return VulkanInterface::CreateUniformTexelBuffer(
-        *physicalDevice
-      , *logicalDevice
-      , *allocator
-      , VK_FORMAT_R32_SFLOAT
-      , sizeof(std::array<Voxel, ChunkSize>)
-      , VK_IMAGE_USAGE_STORAGE_BIT
-      , volumeBuffer
-      , VMA_MEMORY_USAGE_CPU_TO_GPU
-      , volumeAllocation
-      , volumeBufferView
-    );
-  }
+  //bool init(VmaAllocator * allocatorPtr, VkPhysicalDevice * physicalDevice, VkDevice * logicalDevice)
+  //{
+  //  allocator = allocatorPtr;
+  //  volumeBufferView = VkBufferView();
+  //  return VulkanInterface::CreateUniformTexelBuffer(
+  //      *physicalDevice
+  //    , *logicalDevice
+  //    , *allocator
+  //    , VK_FORMAT_R32_SFLOAT
+  //    , sizeof(std::array<Voxel, ChunkSize>)
+  //    , VK_IMAGE_USAGE_STORAGE_BIT
+  //    , volumeBuffer
+  //    , VMA_MEMORY_USAGE_CPU_TO_GPU
+  //    , volumeAllocation
+  //    , volumeBufferView
+  //  );
+  //}
 
-  void destroy()
-  {
-    vmaDestroyBuffer(*allocator, volumeBuffer, volumeAllocation);
-  }
+  std::array<Voxel, ChunkSize> volume;
 
-  ~VolumeData()
-  {
-  }
+  //void destroy()
+  //{
+  //  //vmaDestroyBuffer(*allocator, volumeBuffer, volumeAllocation);
+  //}
+
+  //~VolumeData()
+  //{
+  //}
 };
 
 struct ModelData

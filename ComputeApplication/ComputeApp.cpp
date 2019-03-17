@@ -19,9 +19,16 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   settingsLastChangeTimes = { 0.f };
   lockMouse = true;
   //ShowCursor(!lockMouse);
-  camera.SetPosition({ 0.f, 0.f, 0.f });
-  camera.SetUp({ 0.f, 1.f, 0.f });
-  camRot = { 0.f, 0.f, 0.f };
+  camera.SetPosition({ 0.f, 32.f, 0.f });
+  camera.LookAt({ 0.f, 0.f, 0.f }, { 0.f, 0.f, 1.f }, { 0.f, 1.f, 0.f });  
+
+  POINT pt;
+  pt.x = static_cast<LONG>(screenCentre.x);
+  pt.y = static_cast<LONG>(screenCentre.y);
+  ClientToScreen(static_cast<HWND>(hWnd), &pt);
+  SetCursorPos(pt.x, pt.y);
+  MouseState.Position.X = pt.x;
+  MouseState.Position.Y = pt.y;
 
   hWnd = windowParameters.HWnd;
 
@@ -97,7 +104,7 @@ bool ComputeApp::Update()
     return false;
   }*/
 
-  tf::Taskflow tf(std::thread::hardware_concurrency()/2);
+  tf::Taskflow tf(std::thread::hardware_concurrency());
 
   auto[userUpdate, spawnChunks, renderList/*, recordDrawCalls*/] = tf.emplace(
     [&]() { updateUser(); },
@@ -109,6 +116,7 @@ bool ComputeApp::Update()
   userUpdate.precede(spawnChunks);
   userUpdate.precede(renderList);
   spawnChunks.precede(renderList);
+  //spawnChunks.precede(renderList);
   //renderList.precede(recordDrawCalls);
   //recordDrawCalls.precede(draw);
 
@@ -127,7 +135,7 @@ bool ComputeApp::Update()
   //ImGui_ImplVulkan_NewFrame();
 
   drawChunks();
-  std::cout << "Draw\t" << nextFrameIndex << std::endl;
+  //std::cout << "Draw\t" << nextFrameIndex << std::endl;
   //std::cout << systemTaskflow->num_topologies() << std::endl;
   //std::cout << graphicsTaskflow->num_topologies() << std::endl;
   //std::cout << computeTaskflow->num_topologies() << std::endl;
@@ -334,8 +342,8 @@ bool ComputeApp::setupTaskflow()
 {
   tfExecutor = std::make_shared<tf::Taskflow::Executor>(std::thread::hardware_concurrency()); // maybe -1?
 
-  graphicsTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()/2);
-  computeTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()/2);
+  graphicsTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency());
+  computeTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency());
   systemTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()-1);
 
   return true;
@@ -676,7 +684,7 @@ bool ComputeApp::setupGraphicsPipeline()
   //}
 
   if (!VulkanInterface::CreateBuffer(allocator
-    , sizeof(glm::mat4)
+    , sizeof(ViewProj)
     , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
     , viewprojUBuffer
     , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
@@ -692,9 +700,14 @@ bool ComputeApp::setupGraphicsPipeline()
   //  return false;
   //}
 
+  VkPhysicalDeviceProperties props;
+  vkGetPhysicalDeviceProperties(vulkanPhysicalDevice, &props);
+  size_t deviceAlignment = props.limits.minUniformBufferOffsetAlignment;
+  dynamicAlignment = (sizeof(PerChunkData) / deviceAlignment) * deviceAlignment + ((sizeof(PerChunkData) % deviceAlignment) > 0 ? deviceAlignment : 0);
+
   // Always mapped model buffer for easy copy
   if (!VulkanInterface::CreateBuffer(allocator
-    , sizeof(glm::mat4)
+    , dynamicAlignment*256
     , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
     , modelUBuffer
     , VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
@@ -733,7 +746,7 @@ bool ComputeApp::setupGraphicsPipeline()
     },
     { // Model
       1,
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
       1,
       VK_SHADER_STAGE_VERTEX_BIT,
       nullptr
@@ -752,12 +765,16 @@ bool ComputeApp::setupGraphicsPipeline()
     return false;
   }
 
-  VkDescriptorPoolSize descriptorPoolSize = {
+  VkDescriptorPoolSize descriptorPoolSizeUB = {
       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType     type
-      3                                           // uint32_t             descriptorCount
+      2                                           // uint32_t             descriptorCount
+  };
+  VkDescriptorPoolSize descriptorPoolSizeUBD = {
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,          // VkDescriptorType     type
+      1                                           // uint32_t             descriptorCount
   };
 
-  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, false, 1, { descriptorPoolSize }, descriptorPool))
+  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, false, 1, { descriptorPoolSizeUB, descriptorPoolSizeUBD }, descriptorPool))
   {
     return false;
   }
@@ -784,7 +801,7 @@ bool ComputeApp::setupGraphicsPipeline()
       descriptorSets[0],                          // VkDescriptorSet                      TargetDescriptorSet
       1,                                          // uint32_t                             TargetDescriptorBinding
       0,                                          // uint32_t                             TargetArrayElement
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType                     TargetDescriptorType
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,          // VkDescriptorType                     TargetDescriptorType
       {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
         {
           modelUBuffer,                           // VkBuffer                             buffer
@@ -1011,8 +1028,7 @@ bool ComputeApp::setupFrameResources()
     VulkanHandle(VkImageView) depthAttachment;
     VulkanInterface::InitVulkanHandle(vulkanDevice, depthAttachment);
 
-    depthImages.emplace_back(VulkanHandle(VkImage)());
-    VulkanInterface::InitVulkanHandle(vulkanDevice, depthImages.back());
+    depthImages.emplace_back(VkImage());
 
     if (!VulkanInterface::CreateSemaphore(*vulkanDevice, *imageAcquiredSemaphore))
     {
@@ -1053,7 +1069,7 @@ bool ComputeApp::setupFrameResources()
       , VK_SAMPLE_COUNT_1_BIT
       , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
       , VK_IMAGE_ASPECT_DEPTH_BIT
-      , *depthImages.back()
+      , depthImages.back()
       , *frameResources[i].depthAttachment
       , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
       , VMA_MEMORY_USAGE_GPU_ONLY
@@ -1109,6 +1125,11 @@ void ComputeApp::shutdownVulkanMemoryAllocator()
 {
   if (allocator)
   {
+    for (int i = 0; i < depthImages.size(); i++)
+    {
+      vmaDestroyImage(allocator, depthImages[i], depthImagesAllocations[i]);
+    }
+
     vmaDestroyAllocator(allocator);
     allocator = VK_NULL_HANDLE;
   }
@@ -1121,6 +1142,9 @@ void ComputeApp::shutdownChunkManager()
 
 void ComputeApp::shutdownGraphicsPipeline()
 {
+  vmaDestroyBuffer(allocator, viewprojUBuffer, viewprojAlloc);
+  vmaDestroyBuffer(allocator, modelUBuffer, modelAlloc);
+  vmaDestroyBuffer(allocator, lightUBuffer, lightAlloc);
   //graphicsPipeline->cleanup();
 }
 
@@ -1133,8 +1157,6 @@ void ComputeApp::shutdownImGui()
 
 void ComputeApp::cleanupVulkan()
 {
-  if (vulkanDevice) VulkanInterface::WaitForAllSubmittedCommandsToBeFinished(*vulkanDevice);
-
   // VulkanHandle is useful for catching forgotten objects and ones with scoped/short-lifetimes, 
   // but for the final shutdown we need to be explicit
   for (auto & frameRes : frameResources)
@@ -1149,11 +1171,7 @@ void ComputeApp::cleanupVulkan()
   for (auto & imageView : swapchain.imageViews)
   {
     VulkanInterface::DestroyImageView(*vulkanDevice, *imageView);
-  }
-  for (int i = 0; i < depthImages.size(); i++)
-  {
-    vmaDestroyImage(allocator, *depthImages[i], depthImagesAllocations[i]);
-  }
+  }  
 
   VulkanInterface::DestroyCommandPool(*vulkanDevice, frameResourcesCmdPool);
 
@@ -1163,23 +1181,26 @@ void ComputeApp::cleanupVulkan()
   // Cleanup command buffers
   commandPools->cleanup();
 
-  // Shutdown inline graphics pipeline
-  vmaDestroyBuffer(allocator, viewprojUBuffer, viewprojAlloc);
-  vmaDestroyBuffer(allocator, modelUBuffer, modelAlloc);
+  // Shutdown inline graphics pipeline  
   VulkanInterface::DestroyDescriptorSetLayout(*vulkanDevice, descriptorSetLayout);
   VulkanInterface::DestroyDescriptorPool(*vulkanDevice, descriptorPool);
   VulkanInterface::DestroyPipeline(*vulkanDevice, graphicsPipeline);
   VulkanInterface::DestroyPipelineLayout(*vulkanDevice, graphicsPipelineLayout);
 
-  if (vulkanDevice) vkDestroyDevice(*vulkanDevice, nullptr);
+  vkDestroyDevice(*vulkanDevice, nullptr); *vulkanDevice = VK_NULL_HANDLE;
 
 #if defined(_DEBUG)
-  if (callback) vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr);
+  vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr); callback = VK_NULL_HANDLE;
 #endif
 
-  if (presentationSurface) vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr);
-  if (vulkanInstance) vkDestroyInstance(*vulkanInstance, nullptr);
-  if (vulkanLibrary) VulkanInterface::ReleaseVulkanLoaderLibrary(vulkanLibrary);
+  vkDestroySurfaceKHR(*vulkanInstance, *presentationSurface, nullptr); *presentationSurface = VK_NULL_HANDLE;
+  vkDestroyInstance(*vulkanInstance, nullptr); *vulkanInstance = VK_NULL_HANDLE;
+  VulkanInterface::ReleaseVulkanLoaderLibrary(vulkanLibrary);
+}
+
+void ComputeApp::OnMouseEvent()
+{
+
 }
 
 void ComputeApp::updateUser()
@@ -1188,8 +1209,8 @@ void ComputeApp::updateUser()
   bool moveRight = (KeyboardState.Keys['D'].IsDown || KeyboardState.Keys[VK_RIGHT].IsDown);
   bool moveForward = (KeyboardState.Keys['W'].IsDown || KeyboardState.Keys[VK_UP].IsDown);
   bool moveBackwards = (KeyboardState.Keys['S'].IsDown || KeyboardState.Keys[VK_DOWN].IsDown);
-  bool moveUp = (KeyboardState.Keys[VK_SPACE].IsDown);
-  bool moveDown = (KeyboardState.Keys[VK_CONTROL].IsDown);
+  bool moveUp = (KeyboardState.Keys['Q'].IsDown);
+  bool moveDown = (KeyboardState.Keys['E'].IsDown);
   bool toggleMouseLock = (KeyboardState.Keys[VK_F1].IsDown);
 
   if (toggleMouseLock)
@@ -1202,55 +1223,53 @@ void ComputeApp::updateUser()
   }
 
   float dt = TimerState.GetDeltaTime();
+  camera.SetFrameTime(dt);
   // Handle movement controls
   auto camPos = camera.GetPosition();
   if (moveLeft || moveRight)
   {
     if (moveLeft && !moveRight)
     {
-      camPos -= (camera.GetRight() * dt * cameraSpeed);
+      camera.StrafeLeft();
     }
     else if (moveRight && !moveLeft)
     {
-      camPos += (camera.GetRight() * dt * cameraSpeed);
+      camera.StrafeRight();
     }
   }
   if (moveForward || moveBackwards)
   {
     if (moveForward && !moveBackwards)
     {
-      camPos += (camera.GetForward() * dt * cameraSpeed);
+      camera.MoveForward();
     }
     else if (moveBackwards && !moveForward)
     {
-      camPos -= (camera.GetForward() * dt * cameraSpeed);
+      camera.MoveBackward();
     }
   }
   if (moveUp || moveDown)
   {
     if (moveUp && !moveDown)
     {
-      camPos += (camera.GetUp() * dt * cameraSpeed);
+      camera.MoveUpward();
     }
     else if (moveDown && !moveUp)
     {
-      camPos -= (camera.GetUp() * dt * cameraSpeed);
+      camera.MoveDownward();
     }
   }
 
   // Handle look controls
-  if (MouseState.Position.Delta.X != 0 || MouseState.Position.Delta.Y != 0)
+  if (lockMouse)
   {  
-    glm::vec2 dir = screenCentre - glm::vec2(MouseState.Position.Delta.X, MouseState.Position.Delta.Y);
-    dir = glm::normalize(dir);
-    camRot.pitch += dir.y * (90.f*dt);
-    camRot.yaw += dir.x * (90.f*dt);
+    mouseDelta = { MouseState.Position.X - swapchain.size.width / 2, MouseState.Position.Y - swapchain.size.height / 2 };
+    //std::cout << mouseDelta.x << ", " << mouseDelta.y << std::endl;
+    camera.Turn(-mouseDelta.x, mouseDelta.y);
   }
 
-  camera.SetPosition(camPos);
-  camera.SetPitch(camRot.pitch);
-  camera.SetYaw(camRot.yaw);
-  camera.SetRoll(camRot.roll);
+  //camera.SetPosition(camPos);
+
   camera.Update();
 
   if (lockMouse)
@@ -1289,53 +1308,77 @@ void ComputeApp::checkForNewChunks()
 
 void ComputeApp::getChunkRenderList()
 {
-  glm::mat4 view = glm::lookAt(camera.GetPosition(), camera.GetLookAt(), camera.GetUp());
-  glm::mat4 proj = glm::perspective(glm::radians(45.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.01f, static_cast<float>(TechnicalChunkDim * chunkViewDistance));
+  constexpr float screenDepth = static_cast<float>(TechnicalChunkDim * chunkViewDistance);
+  camera.GetViewMatrix(view);
+  proj = glm::perspective(glm::radians(80.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.001f, screenDepth);
   proj[1][1] *= -1; // Correct projection for vulkan
-  glm::mat4 vp = proj * view;
 
+  frustum.Construct(screenDepth, proj, view);
+
+  chunkRenderList.clear();
   chunkRenderList.reserve(343); // Revise size when frustum culling implemented
+  int i = 0;
   registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
-    [&](const uint32_t entity, auto&&...)
+    [=, &i=i, &registry=registry, &chunkRenderList=chunkRenderList](const uint32_t entity, auto&&...)
     {
-      if (chunkIsWithinFrustum() && registry->get<ModelData>(entity).indexCount > 0) // dummy check
+      //if (chunkIsWithinFrustum(entity) && registry->get<ModelData>(entity).indexCount > 0) // dummy check
+      auto[pos, modelData] = registry->get<WorldPosition, ModelData>(entity);
+
+      if (modelData.indexCount > 0 && chunkIsWithinFrustum(entity))
       {
         chunkRenderList.push_back(entity);
+
+        // Calculate model matrix for chunk
+        VmaAllocationInfo modelInfo;
+        vmaGetAllocationInfo(allocator, modelAlloc, &modelInfo);
+        char * chunkDataPtr = static_cast<char*>(modelInfo.pMappedData);
+
+        glm::mat4 model = glm::translate(glm::mat4(1.f), pos.pos);
+
+        PerChunkData data = {
+          model
+        };
+        memcpy(&chunkDataPtr[i*dynamicAlignment], &data, sizeof(PerChunkData));
+        i++; // Move to next aligned position
       }      
     }
   );
+
+  vmaFlushAllocation(allocator, modelAlloc, 0, VK_WHOLE_SIZE);
+
+  //std::cout << chunkRenderList.size() << std::endl;
 }
 
 void ComputeApp::recordChunkDrawCalls()
 {
-  std::mutex drawCallVectorMutex;
-  VkCommandBufferInheritanceInfo info = {
-    VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
-    nullptr,
-    renderPass,
-    0,
-    *(frameResources[nextFrameIndex].framebuffer),
-    VK_FALSE,
-    0,
-    0
-  };
-  glm::mat4 view = glm::lookAt(camera.GetPosition(), camera.GetLookAt(), camera.GetUp());
-  glm::mat4 proj = glm::perspective(glm::radians(90.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.01f, static_cast<float>(TechnicalChunkDim * chunkViewDistance));
-  proj[1][1] *= -1; // Correct projection for vulkan
-  glm::mat4 vp = proj * view;
-  recordedChunkDrawCalls.clear();
-  for (auto & chunk : chunkRenderList)
-  {  
-    graphicsTaskflow->emplace([&]()
-    {
-      auto cbuf = drawChunkOp(chunk, &info, vp);
-      drawCallVectorMutex.lock();
-      recordedChunkDrawCalls.push_back(cbuf);
-      drawCallVectorMutex.unlock();
-    });
-  }
+  //std::mutex drawCallVectorMutex;
+  //VkCommandBufferInheritanceInfo info = {
+  //  VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
+  //  nullptr,
+  //  renderPass,
+  //  0,
+  //  *(frameResources[nextFrameIndex].framebuffer),
+  //  VK_FALSE,
+  //  0,
+  //  0
+  //};
+  //glm::mat4 view = glm::lookAt(camera.GetPosition(), camera.GetLookAt(), camera.GetUp());
+  //glm::mat4 proj = glm::perspective(glm::radians(90.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.01f, static_cast<float>(TechnicalChunkDim * chunkViewDistance));
+  //proj[1][1] *= -1; // Correct projection for vulkan
+  //glm::mat4 vp = proj * view;
+  //recordedChunkDrawCalls.clear();
+  //for (auto & chunk : chunkRenderList)
+  //{  
+  //  graphicsTaskflow->emplace([&]()
+  //  {
+  //    auto cbuf = drawChunkOp(chunk, &info, vp);
+  //    drawCallVectorMutex.lock();
+  //    recordedChunkDrawCalls.push_back(cbuf);
+  //    drawCallVectorMutex.unlock();
+  //  });
+  //}
 
-  graphicsTaskflow->dispatch().get();
+  //graphicsTaskflow->dispatch().get();
 }
 
 bool ComputeApp::drawChunks()
@@ -1406,61 +1449,31 @@ bool ComputeApp::drawChunks()
       VulkanInterface::SetScissorStateDynamically(commandBuffer, 0, { scissor });      
 
       VmaAllocationInfo viewprojInfo;
-      vmaGetAllocationInfo(allocator, viewprojAlloc, &viewprojInfo);
-      VmaAllocationInfo modelInfo;
-      vmaGetAllocationInfo(allocator, modelAlloc, &modelInfo);
+      vmaGetAllocationInfo(allocator, viewprojAlloc, &viewprojInfo);      
       VmaAllocationInfo lightInfo;
-      vmaGetAllocationInfo(allocator, lightAlloc, &lightInfo);
+      vmaGetAllocationInfo(allocator, lightAlloc, &lightInfo);      
 
       void * viewprojPtr, *modelPtr, *lightPtr;
 
+      ViewProj viewProj = {
+        view,
+        proj
+      };
+
       vmaMapMemory(allocator, viewprojAlloc, &viewprojPtr);      
-      memcpy(viewprojPtr, &vp, sizeof(vp));
+      memcpy(viewprojPtr, &viewProj, sizeof(ViewProj));
       vmaUnmapMemory(allocator, viewprojAlloc);
       vmaFlushAllocation(allocator, viewprojAlloc, 0, VK_WHOLE_SIZE);
 
-      LightData lightData;
-      lightData.lightDir = glm::vec3(-0.2f, -1.0f, -0.3f);
-      lightData.viewPos = camera.GetPosition();
-      lightData.lightAmbientColour = glm::vec3(0.2f, 0.2f, 0.2f);
-      lightData.lightDiffuseColour = glm::vec3(0.5f, 0.5f, 0.5f);
-      lightData.lightSpecularColour = glm::vec3(1.f, 1.f, 1.f);
-      lightData.objectColour = glm::vec3(0.5f, 0.5f, 0.5f);
-      
-      vmaMapMemory(allocator, lightAlloc, &lightPtr);
-      memcpy(lightPtr, &lightData, sizeof(lightData));
-      vmaUnmapMemory(allocator, lightAlloc);
-      vmaFlushAllocation(allocator, lightAlloc, 0, VK_WHOLE_SIZE);
-
-      VulkanInterface::BindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineLayout, 0, descriptorSets, {});
-
       for (int i = 0; i < chunkRenderList.size(); i++)
-      {
-        WorldPosition pos = registry->get<WorldPosition>(chunkRenderList[i]); // Should position be part of model data? Like a transform component?
-        ModelData modelData = registry->get<ModelData>(chunkRenderList[i]);
-        //PushConstantFragmentShaderObject pushFragment;
+      {        
+        ModelData modelData = registry->get<ModelData>(chunkRenderList[i]);           
 
-        glm::mat4 model = glm::translate(glm::mat4(1.f), pos.pos);
-
-        memcpy(modelInfo.pMappedData, &model, sizeof(model));        
+        uint32_t dynamicOffset = i * static_cast<uint32_t>(dynamicAlignment);
+        VulkanInterface::BindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineLayout, 0, descriptorSets, { dynamicOffset });
 
         VulkanInterface::BindVertexBuffers(commandBuffer, 0, { {modelData.vertexBuffer, 0} });
         VulkanInterface::BindIndexBuffer(commandBuffer, modelData.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //VulkanInterface::ProvideDataToShadersThroughPushConstants(
-        //    commandBuffer
-        //  , graphicsPipelineLayout
-        //  , VK_SHADER_STAGE_VERTEX_BIT
-        //  , 0
-        //  , sizeof(PushConstantVertexShaderObject)
-        //  , &pushVertex);
-
-/*        VulkanInterface::ProvideDataToShadersThroughPushConstants(
-          commandBuffer
-          , graphicsPipelineLayout
-          , VK_SHADER_STAGE_FRAGMENT_BIT
-          , 0
-          , sizeof(PushConstantFragmentShaderObject)
-          , &pushFragment); */       
 
         VulkanInterface::DrawIndexedGeometry(commandBuffer, modelData.indexCount, 1, 0, 0, 0);
       }
@@ -1506,6 +1519,37 @@ bool ComputeApp::drawChunks()
 
   if (chunkRenderList.size() > 0)
   {
+    LightData lightData;
+    lightData.lightDir = glm::vec3(-0.2f, -1.0f, -0.3f);
+    lightData.viewPos = camera.GetPosition();
+    lightData.lightAmbientColour = glm::vec3(0.2f, 0.2f, 0.2f);
+    lightData.lightDiffuseColour = glm::vec3(0.5f, 0.5f, 0.5f);
+    lightData.lightSpecularColour = glm::vec3(1.f, 1.f, 1.f);
+    lightData.objectColour = glm::vec3(1.f, 0.0f, 1.0f);
+
+    auto[mutex, transferCmdBuf] = commandPools->transferPools.getBuffer(nextFrameIndex);
+
+    if (!VulkanInterface::UseStagingBufferToUpdateBufferWithDeviceLocalMemoryBound(
+       *vulkanDevice
+      , allocator
+      , sizeof(LightData)
+      , &lightData
+      , lightUBuffer
+      , 0
+      , 0
+      , VK_ACCESS_UNIFORM_READ_BIT
+      , VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+      , VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+      , transferQueue
+      , &transferQMutex
+      , *transferCmdBuf
+      , {}))
+    {
+      mutex->unlock();
+      return false;
+    }
+    mutex->unlock();
+   
     return VulkanInterface::RenderWithFrameResources(*vulkanDevice
       , graphicsQueue
       , presentQueue
@@ -1524,9 +1568,11 @@ bool ComputeApp::drawChunks()
   }
 }
 
-bool ComputeApp::chunkIsWithinFrustum()
+bool ComputeApp::chunkIsWithinFrustum(uint32_t const entity)
 {
-  return true;
+  auto[pos, aabb] = registry->get<WorldPosition, AABB>(entity);
+  return frustum.CheckRectangle(pos.pos, { aabb.wdith, aabb.height, aabb.depth });
+  //return frustum.CheckSphere(pos.pos, aabb.wdith);
 }
 
 void ComputeApp::loadFromChunkCache(EntityHandle handle)
@@ -1536,13 +1582,15 @@ void ComputeApp::loadFromChunkCache(EntityHandle handle)
   if (chunkManager->getChunkVolumeDataFromCache(chunkManager->chunkKey(pos), data)) // Retrieve data from cache
   {
     auto[volume, model] = registry->get<VolumeData, ModelData>(handle);
-    void * ptr;
-    vmaMapMemory(*volume.allocator, volume.volumeAllocation, &ptr);
-    memcpy(ptr, data.data(), data.size());
-    VmaAllocationInfo info;
-    vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
-    vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
-    vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
+    //void * ptr;
+    //vmaMapMemory(*volume.allocator, volume.volumeAllocation, &ptr);
+    //memcpy(ptr, data.data(), data.size());
+    //VmaAllocationInfo info;
+    //vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
+    //vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
+    //vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
+
+    volume.volume = data;
 
     surfaceExtractor->extractSurface(volume, model, nextFrameIndex);
   }
@@ -1554,20 +1602,25 @@ void ComputeApp::loadFromChunkCache(EntityHandle handle)
 
 void ComputeApp::generateChunk(EntityHandle handle)
 {
+  if (!ready) return; // Catch if we're about to shutdown
+
   //std::cout << handle << std::endl;
   auto[volume, pos, model] = registry->get<VolumeData, WorldPosition, ModelData>(handle);
 
   auto chunkData = terrainGen->getChunkVolume(pos.pos);
+  volume.volume = chunkData;
+  /*if (!volume.init(&allocator, &vulkanPhysicalDevice, &*vulkanDevice))
+  {
+    abort();
+  }*/
 
-  volume.init(&allocator, &vulkanPhysicalDevice, &*vulkanDevice);
-
-  void * ptr;
+  /*void * ptr;
   vmaMapMemory(*volume.allocator, volume.volumeAllocation, &ptr);
   memcpy(ptr, chunkData.data(), chunkData.size());
   VmaAllocationInfo info;
   vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
   vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
-  vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
+  vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);*/
 
   surfaceExtractor->extractSurface(volume, model, nextFrameIndex);
   std::cout << handle << " generated, " << model.indexCount/3 << " triangles\n";
@@ -1644,6 +1697,9 @@ void ComputeApp::Shutdown()
 {
   if (ready)
   {
+    computeTaskflow->wait_for_all();
+    VulkanInterface::WaitForAllSubmittedCommandsToBeFinished(*vulkanDevice);
+
     // We can shutdown some systems in parallel since they don't depend on each other
     auto[vulkan, vma, imgui, chnkMngr, gpipe] = systemTaskflow->emplace(
       [&]() { cleanupVulkan(); },
@@ -1659,6 +1715,7 @@ void ComputeApp::Shutdown()
     chnkMngr.precede(vulkan);
     chnkMngr.precede(vma);
     gpipe.precede(vulkan);
+    gpipe.precede(vma);
 
     systemTaskflow->dispatch().get();
   }

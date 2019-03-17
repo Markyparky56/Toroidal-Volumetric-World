@@ -4,6 +4,7 @@
 #include <array> // For each frame
 #include <stack> // Pile of available command buffers
 #include <mutex>
+#include <tuple>
 
 class TaskflowCommandPools
 {
@@ -73,7 +74,7 @@ public:
     // then unlock the mutex. Failing to unlock the mutex will mean that set of pools won't be usable again.
     // DONT FORGET TO UNLOCK THE MUTEX
     // TODO: consider std::tuple over std::pair
-    std::pair<std::mutex * const, VkCommandBuffer * const> getBuffer(uint32_t frame)
+    std::tuple<std::mutex * const, VkCommandBuffer * const> getBuffer(uint32_t frame)
     {
       // Find an unlocked thread
       uint32_t thread = 0;
@@ -86,7 +87,7 @@ public:
             //std::cout << thread << "\t" << frame << "\t" << ((bufferLevel == VK_COMMAND_BUFFER_LEVEL_PRIMARY) ? "framePool" : "graphicsPool")<< std::endl;
             VkCommandBuffer * cbuf = stacks[thread][frame].top();
             stacks[thread][frame].pop();
-            return std::make_pair(&mutex, cbuf);
+            return std::tuple<std::mutex * const, VkCommandBuffer * const>{&mutex, cbuf};
           }
           else
           {
@@ -200,7 +201,7 @@ public:
 
     // DONT FORGET TO UNLOCK THE MUTEX
     // TODO: consider std::tuple over std::pair
-    std::pair<std::mutex * const, VkCommandBuffer * const> getBuffer(uint32_t frame)
+    std::tuple<std::mutex * const, VkCommandBuffer * const> getBuffer(uint32_t frame)
     {
       // Find an unlocked thread
       uint32_t thread = 0;
@@ -211,7 +212,7 @@ public:
           if (mutex.try_lock())
           {
             VkCommandBuffer * cbuf = &buffers[thread][frame];
-            return std::make_pair(&mutex, cbuf);
+            return std::make_tuple(&mutex, cbuf);
           }
           else
           {

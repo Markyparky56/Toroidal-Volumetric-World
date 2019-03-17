@@ -223,6 +223,7 @@ void AppBase::MouseClick(size_t buttonIndex, bool state)
 
 void AppBase::MouseMove(int x, int y)
 {
+  //std::cout << x << ", " << y << std::endl;
   MouseState.Position.Delta = { x - MouseState.Position.X, y - MouseState.Position.Y };
   MouseState.Position = { x, y };
   OnMouseEvent();

@@ -25,6 +25,8 @@ public:
   bool Resize() override;
 
 private:
+  void OnMouseEvent() override;
+
   bool setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters windowParameters);
   bool setupTaskflow();
   bool initialiseVulkanMemoryAllocator();
@@ -52,7 +54,7 @@ private:
   void recordChunkDrawCalls();
   bool drawChunks();
 
-  bool chunkIsWithinFrustum();
+  bool chunkIsWithinFrustum(uint32_t const entity);
   void loadFromChunkCache(EntityHandle handle);
   void generateChunk(EntityHandle handle);
   VkCommandBuffer drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo, glm::mat4 vp);
@@ -96,7 +98,7 @@ private:
   std::vector<VkQueue> computeQueues;
   std::mutex graphicsQMutex, transferQMutex;
 
-  std::vector<VulkanHandle(VkImage)> depthImages;
+  std::vector<VkImage> depthImages;
   std::vector<VmaAllocation> depthImagesAllocations;
 
   VkDescriptorSetLayout descriptorSetLayout;
@@ -122,9 +124,11 @@ private:
 
   uint32_t nextFrameIndex=0;
   Camera camera;
+  glm::mat4 view, proj, vp;
   static constexpr float cameraSpeed = 1.f;
   glm::vec2 screenCentre;
   bool lockMouse = true;
+  glm::ivec2 mouseDelta;
   double gameTime;
   float buttonPressGracePeriod = 0.2f;
   struct SettingsLastChangeTimes
@@ -138,12 +142,21 @@ private:
     glm::mat4 m;
     glm::mat4 vp;
   };
+  struct ViewProj
+  {
+    glm::mat4 view;
+    glm::mat4 proj;
+  };
+  struct PerChunkData {
+    glm::mat4 model;
+  };
+  size_t dynamicAlignment;
   struct LightData {
-    glm::vec3 lightDir;
-    glm::vec3 viewPos;
-    glm::vec3 lightAmbientColour;
-    glm::vec3 lightDiffuseColour;
-    glm::vec3 lightSpecularColour;
-    glm::vec3 objectColour;
+    alignas(16) glm::vec3 lightDir;
+    alignas(16) glm::vec3 viewPos;
+    alignas(16) glm::vec3 lightAmbientColour;
+    alignas(16) glm::vec3 lightDiffuseColour;
+    alignas(16) glm::vec3 lightSpecularColour;
+    alignas(16) glm::vec3 objectColour;
   };
 };

@@ -10,15 +10,18 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
 
   constexpr uint16_t iso = static_cast<uint16_t>(0.5f * std::numeric_limits<uint16_t>::max());
 
-  void * volumeDataPtr;
-  if (vmaMapMemory(*volume.allocator, volume.volumeAllocation, &volumeDataPtr) != VK_SUCCESS)
-  {
-    return false;
-  }
-  VmaAllocationInfo info;
-  vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
-  vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
-  dmc.buildTris(reinterpret_cast<Voxel*>(volumeDataPtr), TrueChunkDim, TrueChunkDim, TrueChunkDim, iso, true, false, generatedVerts, generatedIndices);
+  //void * volumeDataPtr;
+  //if (vmaMapMemory(*volume.allocator, volume.volumeAllocation, &volumeDataPtr) != VK_SUCCESS)
+  //{
+  //  return false;
+  //}
+  //VmaAllocationInfo info;
+  //vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
+  //vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
+  //std::array<Voxel, ChunkSize> volumeData;
+  //memcpy(volumeData.data(), volumeDataPtr, ChunkSize * sizeof(Voxel));
+  //vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
+  dmc.buildTris(volume.volume.data(), TrueChunkDim, TrueChunkDim, TrueChunkDim, iso, true, false, generatedVerts, generatedIndices);
 
   size_t indexCount = generatedIndices.size(), vertexCount;
   std::vector<Vertex> vertices;
@@ -43,6 +46,9 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
 
   // Optional multi-level LOD generation can happen here,
   // See: https://github.com/zeux/meshoptimizer/blob/master/demo/main.cpp#L403 
+  size_t targetIndexCount = static_cast<size_t>(indices.size() * 0.7f) / 3 * 3;
+  float targetError = 1e-3f;
+  //indices.resize(meshopt_simplify(&indices[0], &indices[0], indices.size(), &vertices[0].pos.x, vertices.size(), sizeof(Vertex), targetIndexCount, targetError));
 
   // Optimise vertex cache
   meshopt_optimizeVertexCache(&indices[0], &indices[0], indices.size(), vertices.size());

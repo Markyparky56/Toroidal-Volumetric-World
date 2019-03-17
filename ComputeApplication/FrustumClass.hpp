@@ -11,7 +11,7 @@ public:
   void Construct(float screenDepth, glm::mat4 proj, glm::mat4 view);
 
   bool CheckPoint(glm::vec3 p);
-  bool CheckCbue(glm::vec3 p, float halfDim);
+  bool CheckCube(glm::vec3 p, float halfDim);
   bool CheckSphere(glm::vec3 p, float r);
   bool CheckRectangle(glm::vec3 p, glm::vec3 halfDims);
 

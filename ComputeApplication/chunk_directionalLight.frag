@@ -18,8 +18,7 @@ layout(set = 0, binding = 2) uniform lightData {
 void main()
 {
   // ambient
-  float ambientStrength = 0.1;
-  vec3 ambient = lightAmbientColour;
+  vec3 ambient = lightAmbientColour * objectColour;
 
   // diffuse
   vec3 norm = normalize(vertexNormal);
@@ -32,7 +31,14 @@ void main()
   vec3 reflectDir = reflect(-lightDir, norm);
   float spec = pow(max(dot(viewDir, reflectDir), 0.0), 0.2); // Hard code shininess until you implement tri-planar texturing
   vec3 specular = lightSpecularColour * spec * objectColour;
+
+//  vec3 ambient = vec3(0.1,0.1,0.1) * vec3(1.0,1.0,1.0);
+//  vec3 lightdir = -normalize(vec3(-0.5,-0.5,-0.5));
+//  // diffuse
+//  vec3 norm = normalize(vertexNormal);
+//  float diff = max(dot(norm, lightdir), 0.0);
+//  vec3 diffuse = diff * vec3(1.0,1.0,1.0)* vec3(1.0,1.0,1.0);
   
-  vec3 result = ambient + diffuse + specular;
+  vec3 result = ambient + diffuse/* + specular*/;
   fragColour = vec4(result, 1.0);
 }

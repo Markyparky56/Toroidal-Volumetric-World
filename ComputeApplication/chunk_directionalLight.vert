@@ -6,7 +6,8 @@
 //} push;
 
 layout(set = 0, binding = 0) uniform ViewProj {
-  mat4 viewproj;
+  mat4 view;
+  mat4 proj;
 };
 
 layout(set = 0, binding = 1) uniform Model {
@@ -21,8 +22,9 @@ layout(location = 1) out vec3 fragPos;
 
 void main()
 {
-  vertexNormal = vec3(1.0);
+  vertexNormal = mat3(transpose(inverse(model))) * normal;
+  //vertexNormal = normal;
   fragPos = vec3(model * vec4(position, 1.0));
 
-  gl_Position = viewproj * vec4(fragPos, 1);
+  gl_Position = proj * view * vec4(fragPos, 1);
 }

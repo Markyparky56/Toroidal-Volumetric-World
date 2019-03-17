@@ -27,7 +27,7 @@ std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> ChunkManager::ge
   };
 
   //uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkSpawnRadius * invTechnicalChunkDim);
-  constexpr uint32_t chunkRadius = (TechnicalChunkDim * chunkSpawnDistance)/2;
+  constexpr uint32_t chunkRadius = chunkSpawnRadius;// (TechnicalChunkDim * chunkSpawnDistance) / 2;
   constexpr float chunkRadiusf = static_cast<float>(chunkRadius);
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
 
@@ -71,7 +71,7 @@ void ChunkManager::despawnChunks(glm::vec3 const playerPos)
         static_cast<float>(static_cast<double>(playerPos.z) - std::fmod(static_cast<double>(playerPos.z), static_cast<double>(TechnicalChunkDim)))
   };
 
-  uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkDespawnRadius * invTechnicalChunkDim);
+  uint32_t chunkRadius = chunkDespawnRadius;// TechnicalChunkDim * std::ceilf(chunkDespawnRadius * invTechnicalChunkDim);
  // std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
 
   for (float z = offsetPlayerPos.z - chunkRadius; z < offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
@@ -88,6 +88,7 @@ void ChunkManager::despawnChunks(glm::vec3 const playerPos)
           if (status == ChunkStatus::Loaded)
           {
             unloadChunk(key);
+            std::cout << "Unloading " << key << std::endl;
           }
         }
       }
@@ -103,24 +104,26 @@ void ChunkManager::loadChunk(KeyType const key, EntityHandle const handle)
 void ChunkManager::unloadChunk(KeyType const key)
 {
   EntityHandle handle = map.unloadChunk(key);
+  std::cout << "Unload " << handle << "\n";
   ChunkCacheData data;
   VolumeData & volume = registry->get<VolumeData>(handle);
-  void * ptr;
-  VkResult result = vmaMapMemory(*allocator, volume.volumeAllocation, &ptr);
-  if (result == VK_SUCCESS)
-  {
-    VmaAllocationInfo info;
-    vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
-    vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, 0, info.size);
-    memcpy(data.data(), ptr, sizeof(ChunkCacheData));
-    vmaUnmapMemory(*allocator, volume.volumeAllocation);
+  //void * ptr;
+  //VkResult result = vmaMapMemory(*allocator, volume.volumeAllocation, &ptr);
+  //if (result == VK_SUCCESS)
+  //{
+    //VmaAllocationInfo info;
+    //vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
+    //vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
+    //memcpy(data.data(), ptr, sizeof(ChunkCacheData));
+    //vmaUnmapMemory(*allocator, volume.volumeAllocation);
+    data = volume.volume;
     cache.add(key, data);
     factory.DestroyChunk(handle);
-  }
-  else
-  {
-    // PANIC
-  }
+  //}
+  //else
+  //{
+  //  // PANIC
+  //}
 }
 
 void ChunkManager::shutdown()
