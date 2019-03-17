@@ -340,10 +340,10 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
 
 bool ComputeApp::setupTaskflow()
 {
-  tfExecutor = std::make_shared<tf::Taskflow::Executor>(std::thread::hardware_concurrency()); // maybe -1?
+  tfExecutor = std::make_shared<tf::Taskflow::Executor>(std::thread::hardware_concurrency()-1); // maybe -1?
 
-  graphicsTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency());
-  computeTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency());
+  graphicsTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()-1);
+  computeTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()-1);
   systemTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()-1);
 
   return true;
@@ -1523,7 +1523,7 @@ bool ComputeApp::drawChunks()
     lightData.lightDir = glm::vec3(-0.2f, -1.0f, -0.3f);
     lightData.viewPos = camera.GetPosition();
     lightData.lightAmbientColour = glm::vec3(0.2f, 0.2f, 0.2f);
-    lightData.lightDiffuseColour = glm::vec3(0.5f, 0.5f, 0.5f);
+    lightData.lightDiffuseColour = glm::vec3(1.0f, 1.0f, 1.0f);
     lightData.lightSpecularColour = glm::vec3(1.f, 1.f, 1.f);
     lightData.objectColour = glm::vec3(1.f, 0.0f, 1.0f);
 

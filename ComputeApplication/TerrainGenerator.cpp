@@ -93,41 +93,41 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
       iX = 0;
       for (float x = normedChunkPos.x - normedHalfChunkDim; x < normedChunkPos.x + normedHalfChunkDim; x += voxelStep, ++p)
       {
-        //float theta = x * 2.0 * static_cast<float>(PI);
-        //float phi = z * 2.0 * static_cast<float>(PI);
-        //float t_amp = 1.0f;
-        //float t_r = 64.f;
-        //
-        //// Encourage ground plane around 0, shift groundplane by heightmap
-        //float terrain = -y + (heightmap[iZ * TrueChunkDim + iX]/* * heightMapHeightInVoxels*/);
-        ////float terrain = -y;
+        float theta = x * 2.0 * static_cast<float>(PI);
+        float phi = z * 2.0 * static_cast<float>(PI);
+        float t_amp = 1.0f;
+        float t_r = 64.f;
+        
+        // Encourage ground plane around 0, shift groundplane by heightmap
+        float terrain = -y + (heightmap[iZ * TrueChunkDim + iX] * heightMapHeightInVoxels);
+        //float terrain = -y;
 
-        //for (int i = 0; i < 1; i++)
-        //{
-        //  glm::vec4 p = glm::vec4(
-        //      123.456
-        //    , -432.912
-        //    , -198.023
-        //    , 543.298) + glm::vec4(
-        //      t_r * std::cos(theta),
-        //      t_r * std::sin(theta),
-        //      t_r * std::cos(phi),
-        //      t_r * std::sin(phi)
-        //    );
-        //  //p = rotM * p;
-        //  //terrain -= (t_amp * glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w, y)))*64.f;
-        //  terrain += (t_amp * noise.GetSimplex(p.x, p.y, p.z, p.w, y))/**64.f*/;
-        //  t_amp *= 0.75f;
-        //  t_r *= 2.4f;
-        //}
-        //terrain = glm::clamp(terrain, -1.f, 1.f); // Clamp density range to [-1,1]
-        //terrain = 1.f - (terrain*.5f) + .5f; // shift range to [0,1];
-        //volume[p].density = static_cast<uint16_t>(terrain * std::numeric_limits<uint16_t>::max());
+        for (int i = 0; i < 4; i++)
+        {
+          glm::vec4 p = glm::vec4(
+              123.456
+            , -432.912
+            , -198.023
+            , 543.298) + glm::vec4(
+              t_r * std::cos(theta),
+              t_r * std::sin(theta),
+              t_r * std::cos(phi),
+              t_r * std::sin(phi)
+            );
+          p = rotM * p;
+          //terrain -= (t_amp * glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w, y)))*64.f;
+          terrain -= (t_amp * noise.GetSimplex(p.x, p.y, p.z, p.w, y))*64.f;
+          t_amp *= 0.75f;
+          t_r *= 2.4f;
+        }
+        terrain = glm::clamp(terrain, -1.f, 1.f); // Clamp density range to [-1,1]
+        terrain = (terrain*.5f) + .5f; // shift range to [0,1];
+        volume[p].density = static_cast<uint16_t>(terrain * std::numeric_limits<uint16_t>::max());
 
-        float v = noise.GetSimplex(x*WorldDimensionsInVoxels, y, z*WorldDimensionsInVoxels, 2874.4567f, 983.102f);
-        v = glm::clamp(v, -1.f, 1.f); // Clamp density range to [-1,1]
-        v = ((v*.5f) + .5f); // shift range to [0,1];
-        volume[p].density = static_cast<uint16_t>(v * std::numeric_limits<uint16_t>::max());
+        //float v = noise.GetSimplex(x*WorldDimensionsInVoxels, y, z*WorldDimensionsInVoxels, 2874.4567f, 983.102f);
+        //v = glm::clamp(v, -1.f, 1.f); // Clamp density range to [-1,1]
+        //v = ((v*.5f) + .5f); // shift range to [0,1];
+        //volume[p].density = static_cast<uint16_t>(v * std::numeric_limits<uint16_t>::max());
       }
     }
   }
