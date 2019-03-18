@@ -17,7 +17,7 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   // Setup some basic data
   gameTime = 0.0;
   settingsLastChangeTimes = { 0.f };
-  lockMouse = true;
+  lockMouse = false;
   //ShowCursor(!lockMouse);
   camera.SetPosition({ 0.f, 32.f, 0.f });
   camera.LookAt({ 0.f, 0.f, 0.f }, { 0.f, 0.f, 1.f }, { 0.f, 1.f, 0.f });  
@@ -121,17 +121,17 @@ bool ComputeApp::Update()
   //recordDrawCalls.precede(draw);
 
   tf.dispatch().get();
-  ImGui_ImplWin32_NewFrame();
-  ImGui::NewFrame();
-  {
-    ImGui::ShowDemoWindow();
+  //ImGui_ImplWin32_NewFrame();
+  //ImGui::NewFrame();
+  //{
+  //  ImGui::ShowDemoWindow();
 
-    ImGui::Begin("Hello, world!");
-    ImGui::Text("Avg %.3f ms/frame (%.1f FPS)", 1000.f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-    ImGui::End();
-  }
-  ImGui::EndFrame();
-  ImGui::Render();
+  //  ImGui::Begin("Hello, world!");
+  //  ImGui::Text("Avg %.3f ms/frame (%.1f FPS)", 1000.f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+  //  ImGui::End();
+  //}
+  //ImGui::EndFrame();
+  //ImGui::Render();
   //ImGui_ImplVulkan_NewFrame();
 
   drawChunks();
@@ -342,9 +342,9 @@ bool ComputeApp::setupTaskflow()
 {
   tfExecutor = std::make_shared<tf::Taskflow::Executor>(std::thread::hardware_concurrency()-1); // maybe -1?
 
-  graphicsTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()-1);
-  computeTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()-1);
-  systemTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()-1);
+  graphicsTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency() - 1);
+  computeTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency() - 1);
+  systemTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency() - 1);
 
   return true;
 }
@@ -1093,7 +1093,7 @@ bool ComputeApp::setupFrameResources()
 
 bool ComputeApp::setupChunkManager()
 {
-  chunkManager = std::make_unique<ChunkManager>(registry.get(), &allocator, &*vulkanDevice);
+  chunkManager = std::make_unique<ChunkManager>(registry.get(), &registryMutex, &allocator, &*vulkanDevice);
 
   return true;
 }
@@ -1116,8 +1116,9 @@ bool ComputeApp::setupSurfaceExtractor()
 
 bool ComputeApp::setupECS()
 {
-  registry = std::make_unique<entt::registry<>>();
-
+  registry = std::make_unique<entt::DefaultRegistry>();
+  registry->reserve(512);
+  
   return true;
 }
 
@@ -1205,13 +1206,17 @@ void ComputeApp::OnMouseEvent()
 
 void ComputeApp::updateUser()
 {
-  bool moveLeft = (KeyboardState.Keys['A'].IsDown || KeyboardState.Keys[VK_LEFT].IsDown);
-  bool moveRight = (KeyboardState.Keys['D'].IsDown || KeyboardState.Keys[VK_RIGHT].IsDown);
-  bool moveForward = (KeyboardState.Keys['W'].IsDown || KeyboardState.Keys[VK_UP].IsDown);
-  bool moveBackwards = (KeyboardState.Keys['S'].IsDown || KeyboardState.Keys[VK_DOWN].IsDown);
+  bool moveLeft = (KeyboardState.Keys['A'].IsDown);
+  bool moveRight = (KeyboardState.Keys['D'].IsDown);
+  bool moveForward = (KeyboardState.Keys['W'].IsDown);
+  bool moveBackwards = (KeyboardState.Keys['S'].IsDown);
   bool moveUp = (KeyboardState.Keys['Q'].IsDown);
   bool moveDown = (KeyboardState.Keys['E'].IsDown);
   bool toggleMouseLock = (KeyboardState.Keys[VK_F1].IsDown);
+  bool lookLeft = KeyboardState.Keys[VK_LEFT].IsDown;
+  bool lookRight = KeyboardState.Keys[VK_RIGHT].IsDown;
+  bool lookUp = KeyboardState.Keys[VK_UP].IsDown;
+  bool lookDown = KeyboardState.Keys[VK_DOWN].IsDown;
 
   if (toggleMouseLock)
   {
@@ -1267,6 +1272,31 @@ void ComputeApp::updateUser()
     //std::cout << mouseDelta.x << ", " << mouseDelta.y << std::endl;
     camera.Turn(-mouseDelta.x, mouseDelta.y);
   }
+  else
+  {
+    if (lookLeft || lookRight)
+    {
+      if (lookLeft && !lookRight)
+      {
+        camera.TurnLeft();
+      }
+      else if (lookRight && !lookLeft)
+      {
+        camera.TurnRight();
+      }
+    }
+    if (lookUp || lookDown)
+    {
+      if (lookUp && !lookDown)
+      {
+        camera.TurnUp();
+      }
+      else if (lookDown && !lookUp)
+      {
+        camera.TurnDown();
+      }
+    }
+  }
 
   //camera.SetPosition(camPos);
 
@@ -1318,6 +1348,7 @@ void ComputeApp::getChunkRenderList()
   chunkRenderList.clear();
   chunkRenderList.reserve(343); // Revise size when frustum culling implemented
   int i = 0;
+  registryMutex.lock();
   registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
     [=, &i=i, &registry=registry, &chunkRenderList=chunkRenderList](const uint32_t entity, auto&&...)
     {
@@ -1343,6 +1374,7 @@ void ComputeApp::getChunkRenderList()
       }      
     }
   );
+  registryMutex.unlock();
 
   vmaFlushAllocation(allocator, modelAlloc, 0, VK_WHOLE_SIZE);
 
@@ -1467,6 +1499,7 @@ bool ComputeApp::drawChunks()
 
       for (int i = 0; i < chunkRenderList.size(); i++)
       {        
+        registryMutex.lock();
         ModelData modelData = registry->get<ModelData>(chunkRenderList[i]);           
 
         uint32_t dynamicOffset = i * static_cast<uint32_t>(dynamicAlignment);
@@ -1476,6 +1509,7 @@ bool ComputeApp::drawChunks()
         VulkanInterface::BindIndexBuffer(commandBuffer, modelData.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
         VulkanInterface::DrawIndexedGeometry(commandBuffer, modelData.indexCount, 1, 0, 0, 0);
+        registryMutex.unlock();
       }
 
       //ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
@@ -1571,7 +1605,11 @@ bool ComputeApp::drawChunks()
 bool ComputeApp::chunkIsWithinFrustum(uint32_t const entity)
 {
   auto[pos, aabb] = registry->get<WorldPosition, AABB>(entity);
-  return frustum.CheckRectangle(pos.pos, { aabb.wdith, aabb.height, aabb.depth });
+  //return frustum.CheckRectangle(pos.pos, { aabb.wdith/4, aabb.height/4, aabb.depth/4 });
+  auto chunkPos = pos.pos;
+  auto camPos = camera.GetPosition();
+  auto diff = camPos - chunkPos;
+  return glm::dot(diff, diff) < (chunkViewDistance*TechnicalChunkDim)*(chunkViewDistance*TechnicalChunkDim);
   //return frustum.CheckSphere(pos.pos, aabb.wdith);
 }
 
@@ -1581,18 +1619,17 @@ void ComputeApp::loadFromChunkCache(EntityHandle handle)
   ChunkCacheData data;
   if (chunkManager->getChunkVolumeDataFromCache(chunkManager->chunkKey(pos), data)) // Retrieve data from cache
   {
-    auto[volume, model] = registry->get<VolumeData, ModelData>(handle);
-    //void * ptr;
-    //vmaMapMemory(*volume.allocator, volume.volumeAllocation, &ptr);
-    //memcpy(ptr, data.data(), data.size());
-    //VmaAllocationInfo info;
-    //vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
-    //vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
-    //vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
-
+    registryMutex.lock();
+    auto & volume = registry->get<VolumeData>(handle);
     volume.volume = data;
+    registryMutex.unlock();
 
-    surfaceExtractor->extractSurface(volume, model, nextFrameIndex);
+    surfaceExtractor->extractSurface(handle, registry.get(), &registryMutex, nextFrameIndex);
+
+    registryMutex.lock();
+    auto & model = registry->get<ModelData>(handle);
+    std::cout << handle << " generated, " << model.indexCount / 3 << " triangles\n";
+    registryMutex.unlock();
   }
   else // Chunk has fallen out of the cache
   {
@@ -1605,25 +1642,19 @@ void ComputeApp::generateChunk(EntityHandle handle)
   if (!ready) return; // Catch if we're about to shutdown
 
   //std::cout << handle << std::endl;
-  auto[volume, pos, model] = registry->get<VolumeData, WorldPosition, ModelData>(handle);
+  auto pos = registry->get<WorldPosition>(handle);
+  ChunkCacheData data = terrainGen->getChunkVolume(pos.pos);
+  registryMutex.lock();
+  auto & volume = registry->get<VolumeData>(handle);
+  volume.volume = data;
+  registryMutex.unlock();
 
-  auto chunkData = terrainGen->getChunkVolume(pos.pos);
-  volume.volume = chunkData;
-  /*if (!volume.init(&allocator, &vulkanPhysicalDevice, &*vulkanDevice))
-  {
-    abort();
-  }*/
+  surfaceExtractor->extractSurface(handle, registry.get(), &registryMutex, nextFrameIndex);
 
-  /*void * ptr;
-  vmaMapMemory(*volume.allocator, volume.volumeAllocation, &ptr);
-  memcpy(ptr, chunkData.data(), chunkData.size());
-  VmaAllocationInfo info;
-  vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
-  vmaFlushAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
-  vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);*/
-
-  surfaceExtractor->extractSurface(volume, model, nextFrameIndex);
+  registryMutex.lock();
+  auto & model = registry->get<ModelData>(handle);
   std::cout << handle << " generated, " << model.indexCount/3 << " triangles\n";
+  registryMutex.unlock();
 }
 
 VkCommandBuffer ComputeApp::drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo, glm::mat4 vp)

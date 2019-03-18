@@ -1,8 +1,9 @@
 #include "SurfaceExtractor.hpp"
 #include "VulkanInterface.hpp"
 #include "vk_mem_alloc.h"
+#include "entt/entity/registry.hpp"
 
-bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & modelData, uint32_t frame)
+bool SurfaceExtractor::extractSurface(uint32_t entity, entt::DefaultRegistry * registry, std::mutex * const registryMutex, uint32_t frame)
 {
   DualMCVoxel dmc;
   std::vector<Vertex> generatedVerts;
@@ -21,14 +22,21 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   //std::array<Voxel, ChunkSize> volumeData;
   //memcpy(volumeData.data(), volumeDataPtr, ChunkSize * sizeof(Voxel));
   //vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
+  registryMutex->lock();
+  auto & volume = registry->get<VolumeData>(entity);
   dmc.buildTris(volume.volume.data(), TrueChunkDim, TrueChunkDim, TrueChunkDim, iso, true, false, generatedVerts, generatedIndices);
+  registryMutex->unlock();
 
   size_t indexCount = generatedIndices.size(), vertexCount;
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;
   if (indexCount == 0)
   {
+    registryMutex->lock();
+    auto & modelData = registry->get<ModelData>(entity);
     modelData.indexCount = 0;
+    registryMutex->unlock();
+
     return false;
   }
   else
@@ -66,6 +74,8 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   auto[mutex, transferCommandBuffer] = commandPools->transferPools.getBuffer(frame);
 
   // Vertex Buffer
+  registryMutex->lock();
+  auto & modelData = registry->get<ModelData>(entity);
   if (!VulkanInterface::CreateBuffer(*modelData.allocator
     , sizeof(Vertex)*vertices.size()
     , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
@@ -78,6 +88,7 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   {
     // TODO: "Failed to create vertex buffer for model data"
     mutex->unlock();
+    registryMutex->unlock();
     return false;
   }
   // Fill Vertex Buffer
@@ -100,6 +111,7 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   {
     // TODO: "Failed to stage vertex data"
     mutex->unlock();
+    registryMutex->unlock();
     return false;
   }
 
@@ -116,6 +128,7 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   {
     // TODO: "Failed to create vertex buffer for model data"
     mutex->unlock();
+    registryMutex->unlock();
     return false;
   }
   // Fill Index Buffer
@@ -138,10 +151,12 @@ bool SurfaceExtractor::extractSurface(VolumeData const & volume, ModelData & mod
   {
     // TODO: "Failed to stage vertex data"
     mutex->unlock();
+    registryMutex->unlock();
     return false;
   }
   modelData.indexCount = indices.size();
   mutex->unlock();
+  registryMutex->unlock();
 
   return true;
 }

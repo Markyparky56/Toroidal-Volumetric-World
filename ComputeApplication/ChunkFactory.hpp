@@ -5,8 +5,9 @@
 class ChunkFactory
 {
 public:
-  ChunkFactory(entt::registry<> * const registry, VmaAllocator * const allocator)
+  ChunkFactory(entt::DefaultRegistry * const registry, std::mutex * const registryMutex, VmaAllocator * const allocator)
     : registry(registry)
+    , registryMutex(registryMutex)
     , allocator(allocator)
   {
   }
@@ -21,6 +22,7 @@ public:
   void DestroyAllChunks();
 
 protected:
-  entt::registry<> * const registry;
+  entt::DefaultRegistry * const registry;
+  std::mutex * const registryMutex;
   VmaAllocator * const allocator;
 };

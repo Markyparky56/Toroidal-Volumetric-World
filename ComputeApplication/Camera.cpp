@@ -193,8 +193,8 @@ void Camera::StrafeRight()
 
   rads = yaw * 0.0174532925f;
 
-  pos.z += sinf(rads) * speed;
-  pos.x -= cosf(rads) * speed;
+  pos.z -= sinf(rads) * speed;
+  pos.x += cosf(rads) * speed;
 }
 
 void Camera::StrafeLeft()
@@ -205,8 +205,8 @@ void Camera::StrafeLeft()
 
   rads = yaw * 0.0174532925f;
 
-  pos.z -= sinf(rads) * speed;
-  pos.x += cosf(rads) * speed;
+  pos.z += sinf(rads) * speed;
+  pos.x -= cosf(rads) * speed;
 }
 
 void Camera::Turn(int x, int y)

@@ -22,8 +22,8 @@ layout(location = 1) out vec3 fragPos;
 
 void main()
 {
-  vertexNormal = mat3(transpose(inverse(model))) * normal;
-  //vertexNormal = normal;
+  //vertexNormal = mat3(transpose(inverse(model))) * normal;
+  vertexNormal = normal;
   fragPos = vec3(model * vec4(position, 1.0));
 
   gl_Position = proj * view * vec4(fragPos, 1);

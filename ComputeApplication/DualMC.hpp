@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <typeinfo>
 #include "Vertex.hpp"
+#include "common.hpp"
 
 //using dualmc::Vertex;
 using dualmc::VertexComponentsType;
@@ -344,6 +345,10 @@ protected:
     v.pos.x += p.pos.x;
     v.pos.y += p.pos.y;
     v.pos.z += p.pos.z;
+
+    // Offset point around centre of chunk
+    //v.pos -= glm::vec3(HalfChunkDim);    
+    v.pos.y -= HalfChunkDim;
   }
   
 };

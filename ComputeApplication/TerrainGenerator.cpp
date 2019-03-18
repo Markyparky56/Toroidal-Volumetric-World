@@ -80,7 +80,7 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
       float f = (height - k * w) / w;
       float s = glm::min(2.f*f, 1.f);
       height = ((k + s) * w);
-
+      height = glm::clamp(height, -1.f, 1.f);
       heightmap[hm_p] = (height*.5f) + .5f; // ensure heightmap range is [0,1]
     }
   }
@@ -102,7 +102,7 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
         float terrain = -y + (heightmap[iZ * TrueChunkDim + iX] * heightMapHeightInVoxels);
         //float terrain = -y;
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 6; i++)
         {
           glm::vec4 p = glm::vec4(
               123.456
@@ -121,7 +121,7 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
           t_r *= 2.4f;
         }
         terrain = glm::clamp(terrain, -1.f, 1.f); // Clamp density range to [-1,1]
-        terrain = (terrain*.5f) + .5f; // shift range to [0,1];
+        terrain = 1.f - ((terrain*.5f) + .5f); // shift range to [0,1];
         volume[p].density = static_cast<uint16_t>(terrain * std::numeric_limits<uint16_t>::max());
 
         //float v = noise.GetSimplex(x*WorldDimensionsInVoxels, y, z*WorldDimensionsInVoxels, 2874.4567f, 983.102f);

@@ -114,7 +114,8 @@ private:
 
   std::unique_ptr<TaskflowCommandPools> commandPools;
   std::unique_ptr<ChunkManager> chunkManager;
-  std::unique_ptr<entt::registry<>> registry;
+  std::unique_ptr<entt::DefaultRegistry> registry;
+  std::mutex registryMutex;
   std::unique_ptr<TerrainGenerator> terrainGen;
   std::unique_ptr<SurfaceExtractor> surfaceExtractor;
   Frustum frustum;

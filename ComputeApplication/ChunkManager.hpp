@@ -8,7 +8,10 @@
 class ChunkManager
 {
 public:
-  ChunkManager(entt::registry<> * const registry, VmaAllocator * const allocator, VkDevice * const logicalDevice);
+  ChunkManager( entt::DefaultRegistry * const registry
+              , std::mutex * const registryMutex
+              , VmaAllocator * const allocator
+              , VkDevice * const logicalDevice);
   ~ChunkManager();
 
   enum class ChunkStatus
@@ -37,7 +40,8 @@ public:
 
 
 private:
-  entt::registry<> * const registry;
+  entt::DefaultRegistry * const registry;
+  std::mutex * const registryMutex;
   VkDevice * const logicalDevice;
   VmaAllocator * const allocator;
   ChunkFactory factory;

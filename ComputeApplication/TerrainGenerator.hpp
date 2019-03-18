@@ -13,6 +13,7 @@ class TerrainGenerator
 public:
   TerrainGenerator()
   {
+    noise.SetSeed(4422);
     noise.SetFractalType(FastNoise::FractalType::FBM);
   }
   ~TerrainGenerator() {}

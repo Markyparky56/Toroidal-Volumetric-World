@@ -7,6 +7,7 @@
 #include "TaskflowCommandPools.hpp"
 #include <stack>
 #include <mutex>
+#include "entt\entity\registry.hpp"
 
 class SurfaceExtractor
 {
@@ -20,7 +21,7 @@ public:
   ~SurfaceExtractor() {}
 
   // TODO: consider whether frame is required, compute should be frame independent
-  bool extractSurface(VolumeData const & volume, ModelData & modelData, uint32_t frame);
+  bool extractSurface(uint32_t entity, entt::DefaultRegistry * registry, std::mutex * const registryMutex, uint32_t frame);
 
 private:
   VkDevice * const logicalDevice;

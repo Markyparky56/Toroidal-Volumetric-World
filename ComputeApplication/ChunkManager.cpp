@@ -3,9 +3,10 @@
 #include "VulkanInterface.Functions.hpp"
 #include "vk_mem_alloc.h"
 
-ChunkManager::ChunkManager(entt::registry<> * const registry, VmaAllocator * const allocator, VkDevice * const logicalDevice)
-  : factory(registry, allocator)
+ChunkManager::ChunkManager(entt::DefaultRegistry * const registry, std::mutex * const registryMutex, VmaAllocator * const allocator, VkDevice * const logicalDevice)
+  : factory(registry, registryMutex, allocator)
   , registry(registry)
+  , registryMutex(registryMutex)
   , logicalDevice(logicalDevice)
   , allocator(allocator)
 {
@@ -106,24 +107,13 @@ void ChunkManager::unloadChunk(KeyType const key)
   EntityHandle handle = map.unloadChunk(key);
   std::cout << "Unload " << handle << "\n";
   ChunkCacheData data;
+  registryMutex->lock();
   VolumeData & volume = registry->get<VolumeData>(handle);
-  //void * ptr;
-  //VkResult result = vmaMapMemory(*allocator, volume.volumeAllocation, &ptr);
-  //if (result == VK_SUCCESS)
-  //{
-    //VmaAllocationInfo info;
-    //vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
-    //vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
-    //memcpy(data.data(), ptr, sizeof(ChunkCacheData));
-    //vmaUnmapMemory(*allocator, volume.volumeAllocation);
-    data = volume.volume;
-    cache.add(key, data);
-    factory.DestroyChunk(handle);
-  //}
-  //else
-  //{
-  //  // PANIC
-  //}
+
+  data = volume.volume;
+  registryMutex->unlock();
+  cache.add(key, data);
+  factory.DestroyChunk(handle);
 }
 
 void ChunkManager::shutdown()
