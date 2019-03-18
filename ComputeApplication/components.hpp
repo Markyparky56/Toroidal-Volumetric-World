@@ -32,6 +32,7 @@ struct VolumeData
   //}
 
   std::array<Voxel, ChunkSize> volume;
+  bool generating;
 
   //void destroy()
   //{
@@ -81,6 +82,8 @@ struct AABB
 {
   float wdith, height, depth;
 };
+
+
 
 //struct Frustum
 //{

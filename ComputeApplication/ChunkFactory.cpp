@@ -7,7 +7,7 @@ uint32_t ChunkFactory::CreateChunkEntity(glm::vec3 pos, float dimX, float dimY, 
   registryMutex->lock();
   auto entity = registry->create();
   registry->assign<WorldPosition>(entity, pos);
-  registry->assign<VolumeData>(entity, std::array<Voxel, ChunkSize>({ 0 }));
+  registry->assign<VolumeData>(entity, std::array<Voxel, ChunkSize>({ 0 }), false);
   registry->assign<ModelData>(entity, VkBuffer(), VkBuffer(), VmaAllocation(), VmaAllocation(), allocator, 0ui32);
   registry->assign<AABB>(entity, dimX, dimY, dimZ);
   registryMutex->unlock();

@@ -75,26 +75,52 @@ void ChunkManager::despawnChunks(glm::vec3 const playerPos)
   uint32_t chunkRadius = chunkDespawnRadius;// TechnicalChunkDim * std::ceilf(chunkDespawnRadius * invTechnicalChunkDim);
  // std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
 
-  for (float z = offsetPlayerPos.z - chunkRadius; z < offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
-  {
-    for (float y = offsetPlayerPos.y - chunkRadius; y < offsetPlayerPos.y + chunkRadius; y += TechnicalChunkDim)
+  //for (float z = offsetPlayerPos.z - chunkRadius; z < offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
+  //{
+  //  for (float y = offsetPlayerPos.y - chunkRadius; y < offsetPlayerPos.y + chunkRadius; y += TechnicalChunkDim)
+  //  {
+  //    for (float x = offsetPlayerPos.x - chunkRadius; x < offsetPlayerPos.x + chunkRadius; x += TechnicalChunkDim)
+  //    {
+  //      glm::vec3 chunkPos = { x,y,z };
+  //      KeyType key = chunkKey(chunkPos);
+  //      if (pointInDespawnRange(offsetPlayerPos, chunkPos))
+  //      {
+  //        ChunkStatus status = chunkStatus(key);
+  //        if (status == ChunkStatus::Loaded)
+  //        {
+  //          unloadChunk(key);
+  //          std::cout << "Unloading " << key << std::endl;
+  //        }
+  //      }
+  //    }
+  //  }
+  //}
+
+  auto view = registry->view<WorldPosition, VolumeData, ModelData, AABB>();
+
+  for (auto chunk : view)
+  { 
+    registryMutex->lock();
+    auto[worldPos, volume] = registry->get<WorldPosition, VolumeData>(chunk);
+    if (volume.generating)
     {
-      for (float x = offsetPlayerPos.x - chunkRadius; x < offsetPlayerPos.x + chunkRadius; x += TechnicalChunkDim)
+      registryMutex->unlock();
+      continue; // Wait until the volume has finished generating
+    }
+    registryMutex->unlock();
+
+    if (pointInDespawnRange(offsetPlayerPos, worldPos.pos))
+    {
+      KeyType key = chunkKey(worldPos.pos);
+      ChunkStatus status = chunkStatus(key);
+      if (status == ChunkStatus::Loaded)
       {
-        glm::vec3 chunkPos = { x,y,z };
-        KeyType key = chunkKey(chunkPos);
-        if (pointInDespawnRange(offsetPlayerPos, chunkPos))
-        {
-          ChunkStatus status = chunkStatus(key);
-          if (status == ChunkStatus::Loaded)
-          {
-            unloadChunk(key);
-            std::cout << "Unloading " << key << std::endl;
-          }
-        }
+        unloadChunk(key);
+        std::cout << "Unloading " << chunk << std::endl;
       }
     }
   }
+
 }
 
 void ChunkManager::loadChunk(KeyType const key, EntityHandle const handle)
@@ -158,5 +184,13 @@ bool ChunkManager::pointInSpawnRange(glm::vec3 const playerPos, glm::vec3 const 
 bool ChunkManager::pointInDespawnRange(glm::vec3 const playerPos, glm::vec3 const point)
 {
   bool result = (point.x - playerPos.x)*(point.x - playerPos.x) + (point.y - playerPos.y)*(point.y - playerPos.y) + (point.z - playerPos.z)*(point.z - playerPos.z) > chunkDespawnRadius * chunkDespawnRadius;
+  if (result)
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
   return result;
 }

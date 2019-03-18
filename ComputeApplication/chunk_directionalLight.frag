@@ -17,37 +17,21 @@ layout(set = 0, binding = 2) uniform lightData {
 // Praise be to opengltutorial.com for their lighting tutorials
 void main()
 {
-//  // ambient
-//  vec3 ambient = lightAmbientColour * objectColour;
-//
-//  // diffuse
-//  vec3 norm = normalize(vertexNormal);
-//  vec3 lightDir = normalize(-lightDir);
-//  float diff = max(dot(norm, lightDir), 0.0);
-//  vec3 diffuse = lightDiffuseColour * diff * objectColour;
-//
-//  // specular
-//  vec3 viewDir = normalize(viewPos - fragPos);
-//  vec3 reflectDir = reflect(-lightDir, norm);
-//  float spec = pow(max(dot(viewDir, reflectDir), 0.0), 0.2); // Hard code shininess until you implement tri-planar texturing
-//  vec3 specular = lightSpecularColour * spec * objectColour;
+  // ambient
+  vec3 ambient = lightAmbientColour * objectColour;
 
-//  vec3 ambient = vec3(0.1,0.1,0.1) * vec3(1.0,1.0,1.0);
-//  vec3 lightdir = -normalize(vec3(-0.5,-0.5,-0.5));
-//  // diffuse
-//  vec3 norm = normalize(vertexNormal);
-//  float diff = max(dot(norm, lightdir), 0.0);
-//  vec3 diffuse = diff * vec3(1.0,1.0,1.0)* vec3(1.0,1.0,1.0);
-
-vec3 ambient = lightAmbientColour;
-
+  // diffuse
   vec3 norm = normalize(vertexNormal);
   vec3 lightDir = normalize(-lightDir);
   float diff = max(dot(norm, lightDir), 0.0);
-  vec3 diffuse = diff * lightDiffuseColour;
+  vec3 diffuse = lightDiffuseColour * diff * objectColour;
 
-  vec3 result = (ambient + diffuse) * objectColour;
-  
-  //vec3 result = ambient + diffuse/* + specular*/;
+  // specular
+  vec3 viewDir = normalize(viewPos - fragPos);
+  vec3 reflectDir = reflect(-lightDir, norm);
+  float spec = pow(max(dot(viewDir, reflectDir), 0.0), 0.2); // Hard code shininess until you implement tri-planar texturing
+  vec3 specular = lightSpecularColour * spec * objectColour;
+ 
+  vec3 result = ambient + diffuse/* + specular*/;
   fragColour = vec4(result, 1.0);
 }

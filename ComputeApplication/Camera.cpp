@@ -34,7 +34,7 @@
 Camera::Camera()
   : pos(0.f, 0.f, 0.f)
   , yaw(0.f), pitch(0.f), roll(0.f)
-  , lookSpeed(4.f)
+  , lookSpeed(8.f)
 {
   view = glm::mat4(1.f);
 }
@@ -113,7 +113,7 @@ void Camera::MoveForward()
 {
   float rads;
 
-  speed = frameTime * 10.f;
+  speed = frameTime * 20.f;
   rads = yaw * 0.0174532925f;
 
   pos.x += sinf(rads) * speed;
@@ -124,7 +124,7 @@ void Camera::MoveBackward()
 {
   float rads;
 
-  speed = frameTime * 10.f;
+  speed = frameTime * 20.f;
   rads = yaw * 0.0174532925f;
 
   pos.x -= sinf(rads) * speed;
@@ -133,21 +133,21 @@ void Camera::MoveBackward()
 
 void Camera::MoveUpward()
 {
-  speed = frameTime * 10.f;
+  speed = frameTime * 20.f;
 
   pos.y += speed;
 }
 
 void Camera::MoveDownward()
 {
-  speed = frameTime * 10.f;
+  speed = frameTime * 20.f;
 
   pos.y -= speed;
 }
 
 void Camera::TurnLeft()
 {
-  speed * frameTime * 25.f;
+  speed = frameTime * 25.f;
 
   yaw -= speed;
 
@@ -189,7 +189,7 @@ void Camera::StrafeRight()
 {
   float rads;
 
-  speed = frameTime * 10.f;
+  speed = frameTime * 20.f;
 
   rads = yaw * 0.0174532925f;
 
@@ -201,7 +201,7 @@ void Camera::StrafeLeft()
 {
   float rads;
 
-  speed = frameTime * 10.f;
+  speed = frameTime * 20.f;
 
   rads = yaw * 0.0174532925f;
 

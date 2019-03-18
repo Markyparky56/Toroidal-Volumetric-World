@@ -30,7 +30,7 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
   uint32_t hm_p = 0;
   for (float z = normedChunkPos.z - normedHalfChunkDim; z < normedChunkPos.z + normedHalfChunkDim; z += voxelStep)
   {
-    for (float x = normedChunkPos.x - normedHalfChunkDim; x < normedChunkPos.x + normedHalfChunkDim; x += voxelStep, hm_p++)
+    for (float x = normedChunkPos.x - normedHalfChunkDim; x < normedChunkPos.x + normedHalfChunkDim; x += voxelStep, ++hm_p)
     {
       float theta = x * 2.0 * static_cast<float>(PI);
       float phi = z * 2.0 * static_cast<float>(PI);
@@ -96,11 +96,11 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
         float theta = x * 2.0 * static_cast<float>(PI);
         float phi = z * 2.0 * static_cast<float>(PI);
         float t_amp = 1.0f;
-        float t_r = 64.f;
+        float t_r = 16.f;
         
         // Encourage ground plane around 0, shift groundplane by heightmap
-        float terrain = -y + (heightmap[iZ * TrueChunkDim + iX] * heightMapHeightInVoxels);
-        //float terrain = -y;
+        //float terrain = -y + (heightmap[iZ * TrueChunkDim + iX] * heightMapHeightInVoxels);
+        float terrain = -y;
 
         for (int i = 0; i < 6; i++)
         {

@@ -1270,7 +1270,7 @@ void ComputeApp::updateUser()
   {  
     mouseDelta = { MouseState.Position.X - swapchain.size.width / 2, MouseState.Position.Y - swapchain.size.height / 2 };
     //std::cout << mouseDelta.x << ", " << mouseDelta.y << std::endl;
-    camera.Turn(-mouseDelta.x, mouseDelta.y);
+    camera.Turn(mouseDelta.x, mouseDelta.y);
   }
   else
   {
@@ -1340,8 +1340,8 @@ void ComputeApp::getChunkRenderList()
 {
   constexpr float screenDepth = static_cast<float>(TechnicalChunkDim * chunkViewDistance);
   camera.GetViewMatrix(view);
-  proj = glm::perspective(glm::radians(80.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.001f, screenDepth);
-  proj[1][1] *= -1; // Correct projection for vulkan
+  proj = glm::perspective(glm::radians(80.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.1f, screenDepth);
+  //proj[1][1] *= -1; // Correct projection for vulkan
 
   frustum.Construct(screenDepth, proj, view);
 
@@ -1557,7 +1557,7 @@ bool ComputeApp::drawChunks()
     lightData.lightDir = glm::vec3(-0.2f, -1.0f, -0.3f);
     lightData.viewPos = camera.GetPosition();
     lightData.lightAmbientColour = glm::vec3(0.2f, 0.2f, 0.2f);
-    lightData.lightDiffuseColour = glm::vec3(1.0f, 1.0f, 1.0f);
+    lightData.lightDiffuseColour = glm::vec3(0.5f, 0.5f, 0.5f);
     lightData.lightSpecularColour = glm::vec3(1.f, 1.f, 1.f);
     lightData.objectColour = glm::vec3(1.f, 0.0f, 1.0f);
 
@@ -1640,20 +1640,30 @@ void ComputeApp::loadFromChunkCache(EntityHandle handle)
 void ComputeApp::generateChunk(EntityHandle handle)
 {
   if (!ready) return; // Catch if we're about to shutdown
+  if (!registry->valid(handle)) return; // Chunk has been unloaded
+  else
+  {
+    registry->get<VolumeData>(handle).generating = true; // Mark volume as generating to stop it being unloaded during generation
+  }
 
   //std::cout << handle << std::endl;
   auto pos = registry->get<WorldPosition>(handle);
   ChunkCacheData data = terrainGen->getChunkVolume(pos.pos);
   registryMutex.lock();
-  auto & volume = registry->get<VolumeData>(handle);
-  volume.volume = data;
+  {
+    auto & volume = registry->get<VolumeData>(handle);
+    volume.volume = data;
+  }
   registryMutex.unlock();
 
   surfaceExtractor->extractSurface(handle, registry.get(), &registryMutex, nextFrameIndex);
 
   registryMutex.lock();
-  auto & model = registry->get<ModelData>(handle);
-  std::cout << handle << " generated, " << model.indexCount/3 << " triangles\n";
+  {
+    auto[model, volume] = registry->get<ModelData, VolumeData>(handle);
+    volume.generating = false;
+    std::cout << handle << " generated, " << model.indexCount / 3 << " triangles\n";
+  }
   registryMutex.unlock();
 }
 
