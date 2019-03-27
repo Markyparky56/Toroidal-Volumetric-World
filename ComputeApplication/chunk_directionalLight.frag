@@ -14,9 +14,11 @@ layout(set = 0, binding = 2) uniform lightData {
   vec3 objectColour;
 };
 
-// Praise be to opengltutorial.com for their lighting tutorials
 void main()
 {
+  float fog = clamp(length((viewPos.xyz - fragPos)*0.0033*1.0), 0.0, 1.0);
+  fog = pow(fog, 1.1);
+
   // ambient
   vec3 ambient = lightAmbientColour * objectColour;
 
@@ -26,12 +28,20 @@ void main()
   float diff = max(dot(norm, lightDir), 0.0);
   vec3 diffuse = lightDiffuseColour * diff * objectColour;
 
-  // specular
-  vec3 viewDir = normalize(viewPos - fragPos);
-  vec3 reflectDir = reflect(-lightDir, norm);
-  float spec = pow(max(dot(viewDir, reflectDir), 0.0), 0.2); // Hard code shininess until you implement tri-planar texturing
-  vec3 specular = lightSpecularColour * spec * objectColour;
- 
-  vec3 result = ambient + diffuse/* + specular*/;
-  fragColour = vec4(result, 1.0);
+  vec3 col = ambient + diffuse;
+
+  if(diff > 0.0)
+  {
+    vec3 view = normalize(viewPos - fragPos);
+    vec3 halfVec = normalize(view + lightDir);
+
+    float shinniness = 120.0;
+    vec3 spec = pow(dot(halfVec, norm), shinniness) * objectColour;
+
+    col += spec;
+  }
+
+  fragColour = vec4(mix(col, vec3(0.5), fog), 1.0);
+  //vec3 result = ambient + diffuse/* + specular*/;
+  //fragColour = vec4(result, 1.0);
 }

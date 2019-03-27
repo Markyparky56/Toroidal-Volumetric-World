@@ -1351,7 +1351,7 @@ void ComputeApp::checkForNewChunks()
 
 void ComputeApp::getChunkRenderList()
 {
-  constexpr float screenDepth = static_cast<float>(TechnicalChunkDim * chunkViewDistance);
+  constexpr float screenDepth = static_cast<float>(TechnicalChunkDim * chunkViewDistance)*2.f;
   camera.GetViewMatrix(view);
   proj = glm::perspective(glm::radians(80.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.1f, screenDepth);
   proj[1][1] *= -1; // Correct projection for vulkan
@@ -1472,7 +1472,7 @@ bool ComputeApp::drawChunks()
       // Draw
       VulkanInterface::BeginRenderPass(commandBuffer, renderPass, framebuffer
         , { {0,0}, swapchain.size } // Render Area (full frame size)
-        , { {0.1f, 0.2f, 0.3f, 1.f}, {1.f, 0.f } } // Clear Color, one for our draw area, one for our depth stencil
+        , { {0.5f, 0.5f, 0.5f, 1.f}, {1.f, 0.f } } // Clear Color, one for our draw area, one for our depth stencil
         //, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
         , VK_SUBPASS_CONTENTS_INLINE
       );

@@ -56,7 +56,7 @@ bool SurfaceExtractor::extractSurface(uint32_t entity, entt::DefaultRegistry * r
   // See: https://github.com/zeux/meshoptimizer/blob/master/demo/main.cpp#L403 
   size_t targetIndexCount = static_cast<size_t>(indices.size() * 0.7f) / 3 * 3;
   float targetError = 1e-3f;
-  //indices.resize(meshopt_simplify(&indices[0], &indices[0], indices.size(), &vertices[0].pos.x, vertices.size(), sizeof(Vertex), targetIndexCount, targetError));
+  indices.resize(meshopt_simplify(&indices[0], &indices[0], indices.size(), &vertices[0].pos.x, vertices.size(), sizeof(Vertex), targetIndexCount, targetError));
 
   // Optimise vertex cache
   meshopt_optimizeVertexCache(&indices[0], &indices[0], indices.size(), vertices.size());

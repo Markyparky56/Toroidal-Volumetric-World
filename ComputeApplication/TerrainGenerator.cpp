@@ -122,7 +122,7 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
             );
           p = rotM * p;
           //terrain -= (t_amp * glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w, y)))*64.f;
-          terrain -= (t_amp * noise.GetSimplex(p.x, p.y, p.z, p.w, y))*64.f;
+          terrain += (t_amp * noise.GetSimplex(p.x, p.y, p.z, p.w, y))*64.f;
           t_amp *= 0.6f;
           t_r *= 2.4f;
         }
