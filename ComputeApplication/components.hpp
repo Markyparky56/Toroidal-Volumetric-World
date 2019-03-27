@@ -2,6 +2,7 @@
 #include <glm\glm.hpp>
 #include "vk_mem_alloc.h"
 #include <array>
+#include <atomic>
 #include "common.hpp"
 #include "voxel.hpp"
 #include "VulkanInterface.hpp"
@@ -80,10 +81,17 @@ struct WorldPosition
 
 struct AABB
 {
-  float wdith, height, depth;
+  float width, height, depth;
 };
 
-
+struct Flags
+{
+  bool needsUnloaded; // Flag set by chunk manager when outside despawn range
+  // Decremented each frame to a minimum of 0, 
+  // Incremented each time it is added to the draw list
+  // If 0 should be safe to unload
+  std::uint32_t framesQueued; 
+};
 
 //struct Frustum
 //{

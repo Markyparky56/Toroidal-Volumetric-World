@@ -21,6 +21,7 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   //ShowCursor(!lockMouse);
   camera.SetPosition({ 0.f, 32.f, 0.f });
   camera.LookAt({ 0.f, 0.f, 0.f }, { 0.f, 0.f, 1.f }, { 0.f, 1.f, 0.f });  
+  nextFrameIndex = 0;
 
   POINT pt;
   pt.x = static_cast<LONG>(screenCentre.x);
@@ -121,18 +122,18 @@ bool ComputeApp::Update()
   //recordDrawCalls.precede(draw);
 
   tf.dispatch().get();
-  //ImGui_ImplWin32_NewFrame();
-  //ImGui::NewFrame();
-  //{
-  //  ImGui::ShowDemoWindow();
+  ImGui_ImplWin32_NewFrame();
+  ImGui::NewFrame();
+  {
+    ImGui::ShowDemoWindow();
 
-  //  ImGui::Begin("Hello, world!");
-  //  ImGui::Text("Avg %.3f ms/frame (%.1f FPS)", 1000.f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-  //  ImGui::End();
-  //}
-  //ImGui::EndFrame();
-  //ImGui::Render();
-  //ImGui_ImplVulkan_NewFrame();
+    ImGui::Begin("Hello, world!");
+    ImGui::Text("Avg %.3f ms/frame (%.1f FPS)", 1000.f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::End();
+  }
+  ImGui::EndFrame();
+  ImGui::Render();
+  ImGui_ImplVulkan_NewFrame();
 
   drawChunks();
   //std::cout << "Draw\t" << nextFrameIndex << std::endl;
@@ -406,7 +407,7 @@ bool ComputeApp::initImGui(HWND hwnd)
   initInfo.PipelineCache = VK_NULL_HANDLE;
   initInfo.DescriptorPool = imGuiDescriptorPool;
   initInfo.Allocator = VK_NULL_HANDLE;
-  initInfo.CheckVkResultFn = [](VkResult err) { 
+  initInfo.CheckVkResultFn = [](VkResult err) {
     if (err == VK_SUCCESS) return; 
     else { 
       std::cout << "ImGui Error (Non-success return value), Code: " << err << std::endl; 
@@ -421,6 +422,8 @@ bool ComputeApp::initImGui(HWND hwnd)
   {
     return false;
   }
+
+  //ImGui::GetIO().Fonts->AddFontDefault();
 
   // Upload fonts since it's not done automatically
   {
@@ -1269,8 +1272,7 @@ void ComputeApp::updateUser()
   if (lockMouse)
   {  
     mouseDelta = { MouseState.Position.X - swapchain.size.width / 2, MouseState.Position.Y - swapchain.size.height / 2 };
-    //std::cout << mouseDelta.x << ", " << mouseDelta.y << std::endl;
-    camera.Turn(mouseDelta.x, mouseDelta.y);
+    camera.Turn(-mouseDelta.x, -mouseDelta.y);
   }
   else
   {
@@ -1300,6 +1302,16 @@ void ComputeApp::updateUser()
 
   //camera.SetPosition(camPos);
 
+  // Wrap position
+ /* glm::vec3 pos = camera.GetPosition();
+  if (pos.x < 0) pos.x = static_cast<float>(WorldDimensionsInVoxels) + pos.x;
+  else if (pos.x > static_cast<float>(WorldDimensionsInVoxels)) pos.x = pos.x - static_cast<float>(WorldDimensionsInVoxels);
+  if (pos.y < 0) pos.y = static_cast<float>(WorldDimensionsInVoxels) + pos.y;
+  else if (pos.y > static_cast<float>(WorldDimensionsInVoxels)) pos.y = pos.y - static_cast<float>(WorldDimensionsInVoxels);
+  if (pos.z < 0) pos.z = static_cast<float>(WorldDimensionsInVoxels) + pos.z;
+  else if (pos.z > static_cast<float>(WorldDimensionsInVoxels)) pos.z = pos.z - static_cast<float>(WorldDimensionsInVoxels);
+  camera.SetPosition(pos);*/
+
   camera.Update();
 
   if (lockMouse)
@@ -1314,6 +1326,7 @@ void ComputeApp::updateUser()
 
 void ComputeApp::checkForNewChunks()
 {
+  VulkanInterface::WaitUntilAllCommandsSubmittedToQueueAreFinished(graphicsQueue); // Ouch
   chunkManager->despawnChunks(camera.GetPosition());
   auto chunkList = chunkManager->getChunkSpawnList(camera.GetPosition());
   for (auto & chunk : chunkList)
@@ -1341,22 +1354,31 @@ void ComputeApp::getChunkRenderList()
   constexpr float screenDepth = static_cast<float>(TechnicalChunkDim * chunkViewDistance);
   camera.GetViewMatrix(view);
   proj = glm::perspective(glm::radians(80.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.1f, screenDepth);
-  //proj[1][1] *= -1; // Correct projection for vulkan
+  proj[1][1] *= -1; // Correct projection for vulkan
 
   frustum.Construct(screenDepth, proj, view);
 
   chunkRenderList.clear();
-  chunkRenderList.reserve(343); // Revise size when frustum culling implemented
+  chunkRenderList.reserve(256); // Revise size when frustum culling implemented
   int i = 0;
   registryMutex.lock();
   registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
     [=, &i=i, &registry=registry, &chunkRenderList=chunkRenderList](const uint32_t entity, auto&&...)
     {
       //if (chunkIsWithinFrustum(entity) && registry->get<ModelData>(entity).indexCount > 0) // dummy check
-      auto[pos, modelData] = registry->get<WorldPosition, ModelData>(entity);
+      auto[pos, modelData, flags] = registry->get<WorldPosition, ModelData, Flags>(entity);
 
-      if (modelData.indexCount > 0 && chunkIsWithinFrustum(entity))
+      // If chunk needs unloaded unload it now before we requeue it for drawing
+      if (flags.framesQueued == 0 && flags.needsUnloaded)
       {
+        //std::cout << "Unloading " << entity << std::endl;
+        //chunkManager->unloadChunk(chunkManager->chunkKey(pos.pos));        
+      }
+      else if (modelData.indexCount > 0 && chunkIsWithinFrustum(entity) && chunkRenderList.size() < 256)
+      {
+        // Increment frames queued
+        flags.framesQueued++;
+
         chunkRenderList.push_back(entity);
 
         // Calculate model matrix for chunk
@@ -1485,7 +1507,7 @@ bool ComputeApp::drawChunks()
       VmaAllocationInfo lightInfo;
       vmaGetAllocationInfo(allocator, lightAlloc, &lightInfo);      
 
-      void * viewprojPtr, *modelPtr, *lightPtr;
+      void * viewprojPtr;
 
       ViewProj viewProj = {
         view,
@@ -1500,6 +1522,14 @@ bool ComputeApp::drawChunks()
       for (int i = 0; i < chunkRenderList.size(); i++)
       {        
         registryMutex.lock();
+        // Hacky
+        //auto pos = registry->get<WorldPosition>(chunkRenderList[i]);
+        //if (registry->get<Flags>(chunkRenderList[i]).needsUnloaded)
+        //{
+        //  chunkManager->unloadChunk(chunkManager->chunkKey(pos.pos));
+        //  continue;
+        //}
+
         ModelData modelData = registry->get<ModelData>(chunkRenderList[i]);           
 
         uint32_t dynamicOffset = i * static_cast<uint32_t>(dynamicAlignment);
@@ -1583,17 +1613,90 @@ bool ComputeApp::drawChunks()
       return false;
     }
     mutex->unlock();
+
+    int prevFrame = nextFrameIndex; // Preserve frame index
+
+    //////////////////////////////////////////
    
-    return VulkanInterface::RenderWithFrameResources(*vulkanDevice
+    static uint32_t frameIndex = 0;
+    FrameResources & currentFrame = frameResources[frameIndex];
+
+    if (!VulkanInterface::WaitForFences(*vulkanDevice, { *currentFrame.drawingFinishedFence }, false, std::numeric_limits<uint64_t>::max()))
+    {
+      return false;
+    }
+
+    if (!VulkanInterface::ResetFences(*vulkanDevice, { *currentFrame.drawingFinishedFence }))
+    {
+      return false;
+    }
+
+    if (!VulkanInterface::PrepareSingleFrameOfAnimation(*vulkanDevice
       , graphicsQueue
       , presentQueue
       , *swapchain.handle
       , {}
+      , *currentFrame.imageAcquiredSemaphore
+      , *currentFrame.readyToPresentSemaphore
+      , *currentFrame.drawingFinishedFence
       , framePrep
-      //, mutex
-      //, commandBuffer
-      , frameResources
-      , nextFrameIndex);
+      , currentFrame.commandBuffer
+      , currentFrame.framebuffer)
+      )
+    {
+      return false;
+    }
+
+    // Spin off a task to execute after the frame has finished drawing
+    //graphicsTaskflow->emplace([=, &registry=registry, registryMutex=&registryMutex]() {
+    //  // Wait for the frame to finish rendering
+    //  if (!VulkanInterface::WaitForFences(*vulkanDevice, { *frameResources[frameIndex].drawingFinishedFence }, false, std::numeric_limits<uint64_t>::max()))
+    //  {
+    //    return false;
+    //  }
+
+    //  //// Reset the command buffer
+    //  //if (!VulkanInterface::ResetCommandBuffer(frameResources[frameIndex].commandBuffer, true))
+    //  //{
+    //  //  return false;
+    //  //}
+
+    //  // Cycle through render list and decrement the queued frame counters
+    //  for (auto entity : chunkRenderList)
+    //  {
+    //    registryMutex->lock();
+
+    //    assert(registry->valid(entity));
+    //    auto & flags = registry->get<Flags>(entity);
+
+    //    flags.framesQueued--;
+    //    assert(flags.framesQueued >= 0);
+
+    //    registryMutex->unlock();
+    //  }
+
+    //  return true;
+    //});
+
+    //graphicsTaskflow->dispatch();  
+
+    frameIndex = (frameIndex + 1) % frameResources.size();
+    nextFrameIndex = frameIndex;
+
+    /////////////////////////////////////////
+
+    //bool renderResult = VulkanInterface::RenderWithFrameResources(*vulkanDevice
+    //  , graphicsQueue
+    //  , presentQueue
+    //  , *swapchain.handle
+    //  , {}
+    //  , framePrep
+    //  //, mutex
+    //  //, commandBuffer
+    //  , frameResources
+    //  , nextFrameIndex);
+
+    return true;
   }
   else
   {
@@ -1605,12 +1708,7 @@ bool ComputeApp::drawChunks()
 bool ComputeApp::chunkIsWithinFrustum(uint32_t const entity)
 {
   auto[pos, aabb] = registry->get<WorldPosition, AABB>(entity);
-  //return frustum.CheckRectangle(pos.pos, { aabb.wdith/4, aabb.height/4, aabb.depth/4 });
-  auto chunkPos = pos.pos;
-  auto camPos = camera.GetPosition();
-  auto diff = camPos - chunkPos;
-  return glm::dot(diff, diff) < (chunkViewDistance*TechnicalChunkDim)*(chunkViewDistance*TechnicalChunkDim);
-  //return frustum.CheckSphere(pos.pos, aabb.wdith);
+  return frustum.CheckCube(pos.pos, 32); // Oversized aabb for frustum check
 }
 
 void ComputeApp::loadFromChunkCache(EntityHandle handle)

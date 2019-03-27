@@ -72,30 +72,6 @@ void ChunkManager::despawnChunks(glm::vec3 const playerPos)
         static_cast<float>(static_cast<double>(playerPos.z) - std::fmod(static_cast<double>(playerPos.z), static_cast<double>(TechnicalChunkDim)))
   };
 
-  uint32_t chunkRadius = chunkDespawnRadius;// TechnicalChunkDim * std::ceilf(chunkDespawnRadius * invTechnicalChunkDim);
- // std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
-
-  //for (float z = offsetPlayerPos.z - chunkRadius; z < offsetPlayerPos.z + chunkRadius; z += TechnicalChunkDim)
-  //{
-  //  for (float y = offsetPlayerPos.y - chunkRadius; y < offsetPlayerPos.y + chunkRadius; y += TechnicalChunkDim)
-  //  {
-  //    for (float x = offsetPlayerPos.x - chunkRadius; x < offsetPlayerPos.x + chunkRadius; x += TechnicalChunkDim)
-  //    {
-  //      glm::vec3 chunkPos = { x,y,z };
-  //      KeyType key = chunkKey(chunkPos);
-  //      if (pointInDespawnRange(offsetPlayerPos, chunkPos))
-  //      {
-  //        ChunkStatus status = chunkStatus(key);
-  //        if (status == ChunkStatus::Loaded)
-  //        {
-  //          unloadChunk(key);
-  //          std::cout << "Unloading " << key << std::endl;
-  //        }
-  //      }
-  //    }
-  //  }
-  //}
-
   auto view = registry->view<WorldPosition, VolumeData, ModelData, AABB>();
 
   for (auto chunk : view)
@@ -115,8 +91,16 @@ void ChunkManager::despawnChunks(glm::vec3 const playerPos)
       ChunkStatus status = chunkStatus(key);
       if (status == ChunkStatus::Loaded)
       {
-        unloadChunk(key);
-        std::cout << "Unloading " << chunk << std::endl;
+        registryMutex->lock();
+        //auto & flags = registry->get<Flags>(chunk);
+        //if (flags.framesQueued == 0)
+        //{
+          unloadChunk(key);
+        //}
+        //flags.needsUnloaded = true;
+        registryMutex->unlock();
+        //unloadChunk(key);
+        //std::cout << "Setting unload for " << chunk << std::endl;
       }
     }
   }
@@ -133,11 +117,11 @@ void ChunkManager::unloadChunk(KeyType const key)
   EntityHandle handle = map.unloadChunk(key);
   std::cout << "Unload " << handle << "\n";
   ChunkCacheData data;
-  registryMutex->lock();
+  //registryMutex->lock();
   VolumeData & volume = registry->get<VolumeData>(handle);
 
   data = volume.volume;
-  registryMutex->unlock();
+  //registryMutex->unlock();
   cache.add(key, data);
   factory.DestroyChunk(handle);
 }

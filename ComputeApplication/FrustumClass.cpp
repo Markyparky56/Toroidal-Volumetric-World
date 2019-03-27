@@ -12,7 +12,7 @@ void Frustum::Construct(float screenDepth, glm::mat4 proj, glm::mat4 view)
   proj[3][2] = -r * zMin;
 
   // Create the frustum matrix from the view matrix and updated projection matrix
-  frustumMatrix = view * proj;
+  frustumMatrix = proj * view;
 
   // Calculate near plane
   planes[0].x = frustumMatrix[0][3] + frustumMatrix[0][2];
@@ -49,7 +49,7 @@ void Frustum::Construct(float screenDepth, glm::mat4 proj, glm::mat4 view)
   planes[4].w = frustumMatrix[3][3] - frustumMatrix[3][1];
   planes[4] = glm::normalize(planes[4]);
 
-  // Calculate top plane
+  // Calculate bottom plane
   planes[5].x = frustumMatrix[0][3] + frustumMatrix[0][1];
   planes[5].y = frustumMatrix[1][3] + frustumMatrix[1][1];
   planes[5].z = frustumMatrix[2][3] + frustumMatrix[2][1];

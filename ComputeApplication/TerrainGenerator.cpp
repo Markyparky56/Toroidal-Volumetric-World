@@ -60,7 +60,7 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
         height = h_amp * (1.f - glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w)));
         h_amp *= 0.8f;
         h_r *= 2.0f;
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < 0; i++)
         {
           glm::vec4 p = glm::vec4(
             h_r * std::cos(theta),
@@ -69,13 +69,13 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
             h_r * std::sin(phi)
           );
           height -= h_amp * (1.f - glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w)));
-          h_amp *= 0.55f;
+          h_amp *= 0.4f;
           h_r *= 2.45f;
         }
       }
       // Apply terracing for some interesting terrain features
       // Via: https://gamedev.stackexchange.com/a/116222/53817
-      float w = 0.125;
+      float w = 0.25;
       float k = glm::floor(height / w);
       float f = (height - k * w) / w;
       float s = glm::min(2.f*f, 1.f);
@@ -85,22 +85,28 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
     }
   }
 
-  uint32_t iX, iZ = 0, p = 0;
-  for (float z = normedChunkPos.z - normedHalfChunkDim; z < normedChunkPos.z + normedHalfChunkDim; z += voxelStep)
+  uint32_t vox = 0;
+  uint32_t iz, iy, ix;
+  iz = 0, iy = 0, ix = 0;
+  for (float z = normedChunkPos.z - normedHalfChunkDim; z < normedChunkPos.z + normedHalfChunkDim; z += voxelStep, ++iz)
   {
-    for (float y = chunkPos.y - HalfChunkDim; y < chunkPos.y + HalfChunkDim; y++)
+    iy = 0;
+    for (float y = chunkPos.y - HalfChunkDim; y < chunkPos.y + HalfChunkDim; y++, ++iy)
     {
-      iX = 0;
-      for (float x = normedChunkPos.x - normedHalfChunkDim; x < normedChunkPos.x + normedHalfChunkDim; x += voxelStep, ++p)
+      ix = 0;
+      for (float x = normedChunkPos.x - normedHalfChunkDim; x < normedChunkPos.x + normedHalfChunkDim; x += voxelStep, ++vox, ++ix)
       {
         float theta = x * 2.0 * static_cast<float>(PI);
         float phi = z * 2.0 * static_cast<float>(PI);
         float t_amp = 1.0f;
         float t_r = 16.f;
-        
+        float h_r = 64.f;
+
+        hm_p = iz * TrueChunkDim + ix; // Calculate heightmap position
+
         // Encourage ground plane around 0, shift groundplane by heightmap
-        //float terrain = -y + (heightmap[iZ * TrueChunkDim + iX] * heightMapHeightInVoxels);
-        float terrain = -y;
+        float terrain = -y + (heightmap[hm_p] * heightMapHeightInVoxels);
+        //float terrain = -y + ((1.f - glm::abs(noise.GetSimplex(h_p.x, h_p.y, h_p.z, h_p.w))) * heightMapHeightInVoxels);
 
         for (int i = 0; i < 6; i++)
         {
@@ -117,12 +123,12 @@ std::array<Voxel, ChunkSize> TerrainGenerator::getChunkVolume(glm::vec3 chunkPos
           p = rotM * p;
           //terrain -= (t_amp * glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w, y)))*64.f;
           terrain -= (t_amp * noise.GetSimplex(p.x, p.y, p.z, p.w, y))*64.f;
-          t_amp *= 0.75f;
+          t_amp *= 0.6f;
           t_r *= 2.4f;
         }
         terrain = glm::clamp(terrain, -1.f, 1.f); // Clamp density range to [-1,1]
-        terrain = 1.f - ((terrain*.5f) + .5f); // shift range to [0,1];
-        volume[p].density = static_cast<uint16_t>(terrain * std::numeric_limits<uint16_t>::max());
+        terrain = ((terrain*.5f) + .5f); // shift range to [0,1];
+        volume[vox].density = static_cast<uint16_t>(terrain * std::numeric_limits<uint16_t>::max());
 
         //float v = noise.GetSimplex(x*WorldDimensionsInVoxels, y, z*WorldDimensionsInVoxels, 2874.4567f, 983.102f);
         //v = glm::clamp(v, -1.f, 1.f); // Clamp density range to [-1,1]

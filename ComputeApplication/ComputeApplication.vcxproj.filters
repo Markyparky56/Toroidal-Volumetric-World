@@ -247,5 +247,8 @@
     <None Include="compileshaders_Release.bat">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="compileshaders_Debug_SomeOptimisations.bat">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

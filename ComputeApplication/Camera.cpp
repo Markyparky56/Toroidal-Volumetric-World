@@ -5,32 +5,6 @@
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-//void Camera::Update()
-//{
-//  float cosRoll, cosPitch, cosYaw;
-//  float sinRoll, sinPitch, sinYaw;
-//
-//  cosRoll = cosf(roll *static_cast<float>(PI) / 180);
-//  cosPitch = cosf(pitch*static_cast<float>(PI) / 180);
-//  cosYaw = cosf(yaw  *static_cast<float>(PI) / 180);
-//  sinRoll = sinf(roll *static_cast<float>(PI) / 180);
-//  sinPitch = sinf(pitch*static_cast<float>(PI) / 180);
-//  sinYaw = sinf(yaw  *static_cast<float>(PI) / 180);
-//
-//  // I have no idea how these work, magic? Probably magic.
-//  forward.x = sinYaw * cosPitch;
-//  forward.y = sinPitch;
-//  forward.z = cosPitch * -cosYaw;
-//
-//  up.x = -cosYaw * sinRoll - sinYaw * sinPitch * cosRoll;
-//  up.y = cosPitch * cosRoll;
-//  up.z = -sinYaw * sinRoll - sinPitch * cosRoll * -cosYaw;
-//
-//  right = glm::cross(forward, up);
-//
-//  lookat = position + forward;
-//}
-
 Camera::Camera()
   : pos(0.f, 0.f, 0.f)
   , yaw(0.f), pitch(0.f), roll(0.f)
@@ -135,14 +109,14 @@ void Camera::MoveUpward()
 {
   speed = frameTime * 20.f;
 
-  pos.y += speed;
+  pos.y -= speed;
 }
 
 void Camera::MoveDownward()
 {
   speed = frameTime * 20.f;
 
-  pos.y -= speed;
+  pos.y += speed;
 }
 
 void Camera::TurnLeft()
@@ -169,20 +143,20 @@ void Camera::TurnUp()
 {
   speed = frameTime * 25.f;
 
-  pitch -= speed;
+  pitch += speed;
 
-  if (pitch > 90.f)
-    pitch = 90.f;
+  if (pitch < -90.f)
+    pitch = -90.f;
 }
 
 void Camera::TurnDown()
 {
   speed = frameTime * 25.f;
 
-  pitch += speed;
+  pitch -= speed;
 
-  if (pitch < -90.f)
-    pitch = -90.f;
+  if (pitch > 90.f)
+    pitch = 90.f;
 }
 
 void Camera::StrafeRight()
@@ -193,8 +167,8 @@ void Camera::StrafeRight()
 
   rads = yaw * 0.0174532925f;
 
-  pos.z -= sinf(rads) * speed;
-  pos.x += cosf(rads) * speed;
+  pos.z += sinf(rads) * speed;
+  pos.x -= cosf(rads) * speed;
 }
 
 void Camera::StrafeLeft()
@@ -205,8 +179,8 @@ void Camera::StrafeLeft()
 
   rads = yaw * 0.0174532925f;
 
-  pos.z += sinf(rads) * speed;
-  pos.x -= cosf(rads) * speed;
+  pos.z -= sinf(rads) * speed;
+  pos.x += cosf(rads) * speed;
 }
 
 void Camera::Turn(int x, int y)

@@ -22,7 +22,7 @@ void main()
 
   // diffuse
   vec3 norm = normalize(vertexNormal);
-  vec3 lightDir = normalize(-lightDir);
+  vec3 lightDir = normalize(lightDir);
   float diff = max(dot(norm, lightDir), 0.0);
   vec3 diffuse = lightDiffuseColour * diff * objectColour;
 
