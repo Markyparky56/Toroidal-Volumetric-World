@@ -9,6 +9,7 @@ static constexpr unsigned int chunkViewDistance = 6;
 static constexpr unsigned int maxChunks = chunkViewDistance * chunkViewDistance * chunkViewDistance;
 static constexpr unsigned int WorldDimension = 32; // In chunks
 static constexpr unsigned int WorldDimensionsInVoxels = WorldDimension * TechnicalChunkDim;
+static constexpr float WorldDimensionsInVoxelsf = static_cast<float>(WorldDimensionsInVoxels);
 static constexpr float heightMapHeightInVoxels = 32.f * 6.f; 
 static constexpr float invWorldDimension = 1.f / static_cast<float>(WorldDimension);
 static constexpr float invWorldDimensionInVoxels = 1.f / static_cast<float>(WorldDimensionsInVoxels);

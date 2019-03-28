@@ -297,8 +297,6 @@
     <ClInclude Include="AppBase.hpp" />
     <ClInclude Include="Camera.hpp" />
     <ClInclude Include="ChunkCache.hpp" />
-    <ClInclude Include="chunkDirectionalLight.frag.spv.h" />
-    <ClInclude Include="chunkDirectionalLight.vert.spv.h" />
     <ClInclude Include="ChunkFactory.hpp" />
     <ClInclude Include="ChunkManager.hpp" />
     <ClInclude Include="ChunkMap.hpp" />
@@ -306,6 +304,7 @@
     <ClInclude Include="components.hpp" />
     <ClInclude Include="ComputeApp.hpp" />
     <ClInclude Include="ComputePipeline.hpp" />
+    <ClInclude Include="coordinatewrap.hpp" />
     <ClInclude Include="DualMC.hpp" />
     <ClInclude Include="FrustumClass.hpp" />
     <ClInclude Include="genNormals.hpp" />

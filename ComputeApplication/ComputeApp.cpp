@@ -1,8 +1,6 @@
 #include "ComputeApp.hpp"
 #include <glm/gtc/matrix_transform.hpp>
-
-//#include "chunkDirectionalLight.vert.spv.h"
-//#include "chunkDirectionalLight.frag.spv.h"
+#include "coordinatewrap.hpp"
 
 static void check_vk_result(VkResult err)
 {
@@ -1312,6 +1310,10 @@ void ComputeApp::updateUser()
   else if (pos.z > static_cast<float>(WorldDimensionsInVoxels)) pos.z = pos.z - static_cast<float>(WorldDimensionsInVoxels);
   camera.SetPosition(pos);*/
 
+  glm::vec3 pos = camera.GetPosition();
+  WrapCoordinates(pos);
+  camera.SetPosition(pos);
+
   camera.Update();
 
   if (lockMouse)
@@ -1331,7 +1333,6 @@ void ComputeApp::checkForNewChunks()
   auto chunkList = chunkManager->getChunkSpawnList(camera.GetPosition());
   for (auto & chunk : chunkList)
   {
-    //std::cout << chunk.first << std::endl;
     if (chunk.second == ChunkManager::ChunkStatus::NotLoadedCached)
     {
       computeTaskflow->emplace([=]() {
@@ -1341,7 +1342,6 @@ void ComputeApp::checkForNewChunks()
     else if (chunk.second == ChunkManager::ChunkStatus::NotLoadedNotCached)
     {      
       computeTaskflow->emplace([=]() {
-        //std::cout << chunk.first << std::endl;
         generateChunk(chunk.first);
       });
     }
@@ -1351,9 +1351,9 @@ void ComputeApp::checkForNewChunks()
 
 void ComputeApp::getChunkRenderList()
 {
-  constexpr float screenDepth = static_cast<float>(TechnicalChunkDim * chunkViewDistance)*2.f;
+  constexpr float screenDepth = static_cast<float>(TechnicalChunkDim * chunkViewDistance)*1.25f;
   camera.GetViewMatrix(view);
-  proj = glm::perspective(glm::radians(80.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.1f, screenDepth);
+  proj = glm::perspective(glm::radians(90.f), static_cast<float>(swapchain.size.width) / static_cast<float>(swapchain.size.height), 0.1f, screenDepth);
   proj[1][1] *= -1; // Correct projection for vulkan
 
   frustum.Construct(screenDepth, proj, view);
@@ -1363,22 +1363,16 @@ void ComputeApp::getChunkRenderList()
   int i = 0;
   registryMutex.lock();
   registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
-    [=, &i=i, &registry=registry, &chunkRenderList=chunkRenderList](const uint32_t entity, auto&&...)
+    [=, &i=i, &registry=registry, &chunkRenderList=chunkRenderList, &camera=camera](const uint32_t entity, auto&&...)
     {
-      //if (chunkIsWithinFrustum(entity) && registry->get<ModelData>(entity).indexCount > 0) // dummy check
-      auto[pos, modelData, flags] = registry->get<WorldPosition, ModelData, Flags>(entity);
+      auto[pos, modelData] = registry->get<WorldPosition, ModelData>(entity);
 
-      // If chunk needs unloaded unload it now before we requeue it for drawing
-      if (flags.framesQueued == 0 && flags.needsUnloaded)
-      {
-        //std::cout << "Unloading " << entity << std::endl;
-        //chunkManager->unloadChunk(chunkManager->chunkKey(pos.pos));        
-      }
-      else if (modelData.indexCount > 0 && chunkIsWithinFrustum(entity) && chunkRenderList.size() < 256)
-      {
-        // Increment frames queued
-        flags.framesQueued++;
+      // Check if we need to shift chunk position by world dimension
+      glm::vec3 chunkPos = pos.pos;
+      CorrectChunkPosition(camera.GetPosition(), chunkPos);
 
+      if (modelData.indexCount > 0 && chunkIsWithinFrustum(entity) && chunkRenderList.size() < 256)
+      {
         chunkRenderList.push_back(entity);
 
         // Calculate model matrix for chunk
@@ -1386,7 +1380,8 @@ void ComputeApp::getChunkRenderList()
         vmaGetAllocationInfo(allocator, modelAlloc, &modelInfo);
         char * chunkDataPtr = static_cast<char*>(modelInfo.pMappedData);
 
-        glm::mat4 model = glm::translate(glm::mat4(1.f), pos.pos);
+
+        glm::mat4 model = glm::translate(glm::mat4(1.f), chunkPos);
 
         PerChunkData data = {
           model
@@ -1399,8 +1394,6 @@ void ComputeApp::getChunkRenderList()
   registryMutex.unlock();
 
   vmaFlushAllocation(allocator, modelAlloc, 0, VK_WHOLE_SIZE);
-
-  //std::cout << chunkRenderList.size() << std::endl;
 }
 
 void ComputeApp::recordChunkDrawCalls()
@@ -1522,14 +1515,6 @@ bool ComputeApp::drawChunks()
       for (int i = 0; i < chunkRenderList.size(); i++)
       {        
         registryMutex.lock();
-        // Hacky
-        //auto pos = registry->get<WorldPosition>(chunkRenderList[i]);
-        //if (registry->get<Flags>(chunkRenderList[i]).needsUnloaded)
-        //{
-        //  chunkManager->unloadChunk(chunkManager->chunkKey(pos.pos));
-        //  continue;
-        //}
-
         ModelData modelData = registry->get<ModelData>(chunkRenderList[i]);           
 
         uint32_t dynamicOffset = i * static_cast<uint32_t>(dynamicAlignment);
@@ -1708,7 +1693,9 @@ bool ComputeApp::drawChunks()
 bool ComputeApp::chunkIsWithinFrustum(uint32_t const entity)
 {
   auto[pos, aabb] = registry->get<WorldPosition, AABB>(entity);
-  return frustum.CheckCube(pos.pos, 32); // Oversized aabb for frustum check
+  glm::vec3 chunkPos = pos.pos;
+  CorrectChunkPosition(camera.GetPosition(), chunkPos);
+  return frustum.CheckCube(chunkPos, 32) || frustum.CheckCube(chunkPos, 16); // Oversized aabb for frustum check
 }
 
 void ComputeApp::loadFromChunkCache(EntityHandle handle)

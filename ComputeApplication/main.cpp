@@ -6,7 +6,7 @@ int main()
     FreeConsole();
 #endif
     ComputeApp app;
-    VulkanInterface::WindowFramework window("Compute Pipeline App", 50, 25, 1280, 800, app);
+    VulkanInterface::WindowFramework window("Compute Pipeline App", 0, 0, 1920, 1080, app);
     window.Render();
 
     return EXIT_SUCCESS;

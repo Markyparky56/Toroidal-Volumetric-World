@@ -17,7 +17,7 @@ layout(set = 0, binding = 2) uniform lightData {
 void main()
 {
   float fog = clamp(length((viewPos.xyz - fragPos)*0.0033*1.0), 0.0, 1.0);
-  fog = pow(fog, 1.1);
+  fog = pow(fog, 1.2);
 
   // ambient
   vec3 ambient = lightAmbientColour * objectColour;
@@ -36,7 +36,7 @@ void main()
     vec3 halfVec = normalize(view + lightDir);
 
     float shinniness = 120.0;
-    vec3 spec = pow(dot(halfVec, norm), shinniness) * objectColour;
+    vec3 spec = pow(dot(halfVec, norm), shinniness) * objectColour * 0.125;
 
     col += spec;
   }

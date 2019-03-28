@@ -2,6 +2,7 @@
 #include "VulkanInterface.hpp"
 #include "VulkanInterface.Functions.hpp"
 #include "vk_mem_alloc.h"
+#include "coordinatewrap.hpp"
 
 ChunkManager::ChunkManager(entt::DefaultRegistry * const registry, std::mutex * const registryMutex, VmaAllocator * const allocator, VkDevice * const logicalDevice)
   : factory(registry, registryMutex, allocator)
@@ -39,6 +40,7 @@ std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> ChunkManager::ge
       for (float x = offsetPlayerPos.x - chunkRadiusf; x < offsetPlayerPos.x + chunkRadiusf; x += static_cast<float>(TechnicalChunkDim))
       {
         glm::vec3 chunkPos = { x,y,z };
+        WrapCoordinates(chunkPos);
         KeyType key = chunkKey(chunkPos);
         if (pointInSpawnRange(offsetPlayerPos, chunkPos))
         {
@@ -92,15 +94,8 @@ void ChunkManager::despawnChunks(glm::vec3 const playerPos)
       if (status == ChunkStatus::Loaded)
       {
         registryMutex->lock();
-        //auto & flags = registry->get<Flags>(chunk);
-        //if (flags.framesQueued == 0)
-        //{
-          unloadChunk(key);
-        //}
-        //flags.needsUnloaded = true;
+        unloadChunk(key);
         registryMutex->unlock();
-        //unloadChunk(key);
-        //std::cout << "Setting unload for " << chunk << std::endl;
       }
     }
   }
@@ -117,11 +112,8 @@ void ChunkManager::unloadChunk(KeyType const key)
   EntityHandle handle = map.unloadChunk(key);
   std::cout << "Unload " << handle << "\n";
   ChunkCacheData data;
-  //registryMutex->lock();
   VolumeData & volume = registry->get<VolumeData>(handle);
-
   data = volume.volume;
-  //registryMutex->unlock();
   cache.add(key, data);
   factory.DestroyChunk(handle);
 }
@@ -161,20 +153,22 @@ ChunkManager::ChunkStatus ChunkManager::chunkStatus(uint64_t const key)
 
 bool ChunkManager::pointInSpawnRange(glm::vec3 const playerPos, glm::vec3 const point)
 {
-  bool result = (point.x - playerPos.x)*(point.x - playerPos.x) + (point.y - playerPos.y)*(point.y - playerPos.y) + (point.z - playerPos.z)*(point.z - playerPos.z) <= chunkSpawnRadius * chunkSpawnRadius;
+  float sqrdDist = sqrdToroidalDistance(playerPos, point);
+
+  bool result = sqrdDist < chunkSpawnRadius*chunkSpawnRadius;
+
+  //bool result = (point.x - playerPos.x)*(point.x - playerPos.x) + (point.y - playerPos.y)*(point.y - playerPos.y) + (point.z - playerPos.z)*(point.z - playerPos.z) <= chunkSpawnRadius * chunkSpawnRadius;
+  
   return result;
 }
 
 bool ChunkManager::pointInDespawnRange(glm::vec3 const playerPos, glm::vec3 const point)
 {
-  bool result = (point.x - playerPos.x)*(point.x - playerPos.x) + (point.y - playerPos.y)*(point.y - playerPos.y) + (point.z - playerPos.z)*(point.z - playerPos.z) > chunkDespawnRadius * chunkDespawnRadius;
-  if (result)
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+  float sqrdDist = sqrdToroidalDistance(playerPos, point);
+
+  bool result = sqrdDist > chunkDespawnRadius * chunkDespawnRadius;
+
+  //bool result = (point.x - playerPos.x)*(point.x - playerPos.x) + (point.y - playerPos.y)*(point.y - playerPos.y) + (point.z - playerPos.z)*(point.z - playerPos.z) > chunkDespawnRadius * chunkDespawnRadius;
+
   return result;
 }
