@@ -215,9 +215,6 @@
     <ClInclude Include="ChunkFactory.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="VmaUsage.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="TaskflowCommandPools.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
