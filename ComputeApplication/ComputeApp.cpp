@@ -1226,6 +1226,10 @@ void ComputeApp::updateUser()
     {
       lockMouse = !lockMouse;
       settingsLastChangeTimes.toggleMouseLock = static_cast<float>(gameTime);
+      if (lockMouse)
+        while (ShowCursor(FALSE) > 0);
+      else 
+        ShowCursor(TRUE);
     }
   }
 
