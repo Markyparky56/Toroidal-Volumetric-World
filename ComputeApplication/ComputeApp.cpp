@@ -103,9 +103,9 @@ bool ComputeApp::Update()
     return false;
   }*/
 
-  tf::Taskflow tf(std::thread::hardware_concurrency());
+  //tf::Taskflow tf(std::thread::hardware_concurrency());
 
-  auto[userUpdate, spawnChunks, renderList/*, recordDrawCalls*/] = tf.emplace(
+  auto[userUpdate, spawnChunks, renderList/*, recordDrawCalls*/] = updateTaskflow->emplace(
     [&]() { updateUser(); },
     [&]() { checkForNewChunks(); },
     [&]() { getChunkRenderList(); }
@@ -119,7 +119,7 @@ bool ComputeApp::Update()
   //renderList.precede(recordDrawCalls);
   //recordDrawCalls.precede(draw);
 
-  tf.dispatch().get();
+  updateTaskflow->dispatch().get();
   ImGui_ImplWin32_NewFrame();
   ImGui::NewFrame();
   {
@@ -339,11 +339,12 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
 
 bool ComputeApp::setupTaskflow()
 {
-  tfExecutor = std::make_shared<tf::Taskflow::Executor>(std::thread::hardware_concurrency()-1); // maybe -1?
+  tfExecutor = std::make_shared<tf::Taskflow::Executor>(std::thread::hardware_concurrency()); // maybe -1?
 
-  graphicsTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency() - 1);
-  computeTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency() - 1);
-  systemTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency() - 1);
+  updateTaskflow = std::make_unique<tf::Taskflow>(2);
+  graphicsTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()-2);
+  computeTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency()-2);
+  systemTaskflow = std::make_unique<tf::Taskflow>(std::thread::hardware_concurrency());
 
   return true;
 }
@@ -1328,8 +1329,14 @@ void ComputeApp::updateUser()
 
 void ComputeApp::checkForNewChunks()
 {
-  VulkanInterface::WaitUntilAllCommandsSubmittedToQueueAreFinished(graphicsQueue); // Ouch
-  chunkManager->despawnChunks(camera.GetPosition());
+  static float despawnTimer = 0.f;
+  despawnTimer += TimerState.GetDeltaTime();
+  if (despawnTimer > 1.f)
+  {
+    VulkanInterface::WaitUntilAllCommandsSubmittedToQueueAreFinished(graphicsQueue); // Ouch
+    chunkManager->despawnChunks(camera.GetPosition());
+    despawnTimer = 0.f;
+  }
   auto chunkList = chunkManager->getChunkSpawnList(camera.GetPosition());
   for (auto & chunk : chunkList)
   {

@@ -60,27 +60,31 @@ inline float sqrdDistance(glm::vec3 const p0, glm::vec3 const p1)
 inline void CorrectChunkPosition(glm::vec3 const playerPos, glm::vec3 & chunkPos)
 {
   constexpr float halfWorldDim = WorldDimensionsInVoxelsf / 2.f;
+  constexpr float halfDimSqrd = halfWorldDim * halfWorldDim;
   glm::vec3 deltas = glm::abs(playerPos - chunkPos);
-  if (deltas.x > halfWorldDim)
+  float distSqrd = glm::dot(deltas, deltas);
+  if (distSqrd > halfDimSqrd)
   {
-    if (playerPos.x > halfWorldDim)
+    if (playerPos.x < halfWorldDim && playerPos.z < halfWorldDim)
     {
-      chunkPos.x = WorldDimensionsInVoxelsf - chunkPos.x;
+      if (chunkPos.x > halfWorldDim) chunkPos.x -= WorldDimensionsInVoxelsf;
+      if (chunkPos.z > halfWorldDim) chunkPos.z -= WorldDimensionsInVoxelsf;
     }
-    else
+    else if (playerPos.x > halfWorldDim && playerPos.z < halfWorldDim)
     {
-      chunkPos.x = WorldDimensionsInVoxelsf + chunkPos.x;
+      if (chunkPos.x < halfWorldDim) chunkPos.x += WorldDimensionsInVoxelsf;
+      if (chunkPos.z > halfWorldDim) chunkPos.z -= WorldDimensionsInVoxelsf;
+    }
+    else if (playerPos.x < halfWorldDim && playerPos.z > halfWorldDim)
+    {
+      if (chunkPos.x > halfWorldDim) chunkPos.x -= WorldDimensionsInVoxelsf;
+      if (chunkPos.z < halfWorldDim) chunkPos.z += WorldDimensionsInVoxelsf;
+    }
+    else// if (playerPos.x > halfWorldDim && playerPos.z > halfWorldDim)
+    {
+      if (chunkPos.x < halfWorldDim) chunkPos.x += WorldDimensionsInVoxelsf;
+      if (chunkPos.z < halfWorldDim) chunkPos.z += WorldDimensionsInVoxelsf;
     }
   }
-  if (deltas.z > halfWorldDim)
-  {
-    if (playerPos.z < halfWorldDim)
-    {
-      chunkPos.z = WorldDimensionsInVoxelsf - chunkPos.z;
-    }
-    else
-    {
-      chunkPos.z = WorldDimensionsInVoxelsf + chunkPos.z;
-    }
-  }
+  
 }
