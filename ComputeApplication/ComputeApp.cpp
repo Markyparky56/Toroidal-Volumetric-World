@@ -120,6 +120,15 @@ bool ComputeApp::Update()
   //recordDrawCalls.precede(draw);
 
   updateTaskflow->dispatch().get();
+  {
+    static float updateRefreshTimer = 0.f;
+    updateRefreshTimer += TimerState.GetDeltaTime();
+    if (updateRefreshTimer > 30.f)
+    {
+      updateTaskflow.reset(new tf::Taskflow(2));
+      updateRefreshTimer = 0.f;
+    }
+  }
   ImGui_ImplWin32_NewFrame();
   ImGui::NewFrame();
   {
@@ -1341,8 +1350,6 @@ void ComputeApp::checkForNewChunks()
     VulkanInterface::WaitUntilAllCommandsSubmittedToQueueAreFinished(graphicsQueue); // Ouch
     chunkManager->despawnChunks(camera.GetPosition());
     despawnTimer = 0.f;
-
-    std::cout << "Num topologies: " << computeTaskflow->num_topologies() << std::endl;
   }
   auto chunkList = chunkManager->getChunkSpawnList(camera.GetPosition());
   for (auto & chunk : chunkList)
@@ -1757,7 +1764,18 @@ bool ComputeApp::chunkIsWithinFrustum(uint32_t const entity)
 
 void ComputeApp::loadFromChunkCache(EntityHandle handle)
 {
-  auto pos = registry->get<WorldPosition>(handle).pos;
+  registryMutex.lock();
+  glm::vec3 pos;
+  if (registry->valid(handle)) // Verify handle is still valid
+  {
+    pos = registry->get<WorldPosition>(handle).pos;
+  }
+  else
+  {
+    registryMutex.unlock();
+    return;
+  }
+  registryMutex.unlock();
   ChunkCacheData data;
   if (chunkManager->getChunkVolumeDataFromCache(chunkManager->chunkKey(pos), data)) // Retrieve data from cache
   {

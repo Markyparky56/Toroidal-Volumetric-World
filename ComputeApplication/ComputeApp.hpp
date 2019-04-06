@@ -60,7 +60,10 @@ private:
   VkCommandBuffer drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo, glm::mat4 vp);
 
   // cpp-taskflow taskflows and shared executor
-  std::unique_ptr<tf::Taskflow> updateTaskflow, graphicsTaskflow, computeTaskflow, systemTaskflow;
+  std::unique_ptr<tf::Taskflow> updateTaskflow
+                              , graphicsTaskflow
+                              , computeTaskflow
+                              , systemTaskflow;
   std::shared_ptr<tf::Taskflow::Executor> tfExecutor;
 
   // Vulkan Memory Allocator
