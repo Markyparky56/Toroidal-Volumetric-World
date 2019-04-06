@@ -679,62 +679,57 @@ bool ComputeApp::setupGraphicsPipeline()
   //  }
   //);
 
-  // Create buffers
-  //if (!VulkanInterface::CreateUniformBuffer(allocator, sizeof(glm::mat4), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, viewprojUBuffer, VMA_MEMORY, viewprojAlloc))
-  //{
-  //  return false;
-  //}
+  // 1 for each frame index
+  viewprojUBuffers.resize(3);
+  modelUBuffers.resize(3);
+  lightUBuffers.resize(3);
+  viewprojAllocs.resize(3);
+  modelAllocs.resize(3);
+  lightAllocs.resize(3);
 
-  if (!VulkanInterface::CreateBuffer(allocator
-    , sizeof(ViewProj)
-    , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-    , viewprojUBuffer
-    , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
-    , VMA_MEMORY_USAGE_UNKNOWN
-    , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-    , VK_NULL_HANDLE, viewprojAlloc))
+  for (int i = 0; i < 3; i++)
   {
-    return false;
-  }
+    if (!VulkanInterface::CreateBuffer(allocator
+      , sizeof(ViewProj)
+      , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+      , viewprojUBuffers[i]
+      , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
+      , VMA_MEMORY_USAGE_UNKNOWN
+      , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+      , VK_NULL_HANDLE, viewprojAllocs[i]))
+    {
+      return false;
+    }
 
-  //if (!VulkanInterface::CreateUniformBuffer(allocator, sizeof(glm::mat4), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, modelUBuffer, VMA_MEMORY_USAGE_, modelAlloc))
-  //{
-  //  return false;
-  //}
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(vulkanPhysicalDevice, &props);
+    size_t deviceAlignment = props.limits.minUniformBufferOffsetAlignment;
+    dynamicAlignment = (sizeof(PerChunkData) / deviceAlignment) * deviceAlignment + ((sizeof(PerChunkData) % deviceAlignment) > 0 ? deviceAlignment : 0);
 
-  VkPhysicalDeviceProperties props;
-  vkGetPhysicalDeviceProperties(vulkanPhysicalDevice, &props);
-  size_t deviceAlignment = props.limits.minUniformBufferOffsetAlignment;
-  dynamicAlignment = (sizeof(PerChunkData) / deviceAlignment) * deviceAlignment + ((sizeof(PerChunkData) % deviceAlignment) > 0 ? deviceAlignment : 0);
+    // Always mapped model buffer for easy copy
+    if (!VulkanInterface::CreateBuffer(allocator
+      , dynamicAlignment * 256
+      , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+      , modelUBuffers[i]
+      , VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
+      , VMA_MEMORY_USAGE_UNKNOWN
+      , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+      , VK_NULL_HANDLE, modelAllocs[i]))
+    {
+      return false;
+    }
 
-  // Always mapped model buffer for easy copy
-  if (!VulkanInterface::CreateBuffer(allocator
-    , dynamicAlignment*256
-    , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-    , modelUBuffer
-    , VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
-    , VMA_MEMORY_USAGE_UNKNOWN
-    , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-    , VK_NULL_HANDLE, modelAlloc))
-  {
-    return false;
-  }
-
-  //if (!VulkanInterface::CreateUniformBuffer(allocator, sizeof(LightData), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, lightUBuffer, VMA_MEMORY_USAGE_UNKNOWN, lightAlloc))
-  //{
-  //  return false;
-  //}
-
-  if (!VulkanInterface::CreateBuffer(allocator
-    , sizeof(LightData)
-    , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-    , lightUBuffer
-    , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
-    , VMA_MEMORY_USAGE_UNKNOWN
-    , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-    , VK_NULL_HANDLE, lightAlloc))
-  {
-    return false;
+    if (!VulkanInterface::CreateBuffer(allocator
+      , sizeof(LightData)
+      , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+      , lightUBuffers[i]
+      , VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT
+      , VMA_MEMORY_USAGE_UNKNOWN
+      , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+      , VK_NULL_HANDLE, lightAllocs[i]))
+    {
+      return false;
+    }
   }
 
   // Descriptor set with uniform buffer
@@ -769,64 +764,67 @@ bool ComputeApp::setupGraphicsPipeline()
 
   VkDescriptorPoolSize descriptorPoolSizeUB = {
       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType     type
-      2                                           // uint32_t             descriptorCount
+      2*3                                           // uint32_t             descriptorCount
   };
   VkDescriptorPoolSize descriptorPoolSizeUBD = {
       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,          // VkDescriptorType     type
-      1                                           // uint32_t             descriptorCount
+      1*3                                           // uint32_t             descriptorCount
   };
 
-  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, false, 1, { descriptorPoolSizeUB, descriptorPoolSizeUBD }, descriptorPool))
+  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, false, 3, { descriptorPoolSizeUB, descriptorPoolSizeUBD }, descriptorPool))
   {
     return false;
   }
 
-  if (!VulkanInterface::AllocateDescriptorSets(*vulkanDevice, descriptorPool, { descriptorSetLayout }, descriptorSets))
+  if (!VulkanInterface::AllocateDescriptorSets(*vulkanDevice, descriptorPool, { descriptorSetLayout, descriptorSetLayout, descriptorSetLayout }, descriptorSets))
   {
     return false;
   }
 
-  VulkanInterface::BufferDescriptorInfo viewProjDescriptorUpdate = {
-      descriptorSets[0],                          // VkDescriptorSet                      TargetDescriptorSet
-      0,                                          // uint32_t                             TargetDescriptorBinding
-      0,                                          // uint32_t                             TargetArrayElement
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType                     TargetDescriptorType
-      {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
-        {
-          viewprojUBuffer,                        // VkBuffer                             buffer
-          0,                                      // VkDeviceSize                         offset
-          VK_WHOLE_SIZE                           // VkDeviceSize                         range
+  for (int i = 0; i < 3; i++)
+  {
+    VulkanInterface::BufferDescriptorInfo viewProjDescriptorUpdate = {
+        descriptorSets[i],                          // VkDescriptorSet                      TargetDescriptorSet
+        0,                                          // uint32_t                             TargetDescriptorBinding
+        0,                                          // uint32_t                             TargetArrayElement
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType                     TargetDescriptorType
+        {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
+          {
+            viewprojUBuffers[0],                    // VkBuffer                             buffer
+            0,                                      // VkDeviceSize                         offset
+            VK_WHOLE_SIZE                           // VkDeviceSize                         range
+          }
         }
-      }
-  };
-  VulkanInterface::BufferDescriptorInfo modelDescriptorUpdate = {
-      descriptorSets[0],                          // VkDescriptorSet                      TargetDescriptorSet
-      1,                                          // uint32_t                             TargetDescriptorBinding
-      0,                                          // uint32_t                             TargetArrayElement
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,          // VkDescriptorType                     TargetDescriptorType
-      {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
-        {
-          modelUBuffer,                           // VkBuffer                             buffer
-          0,                                      // VkDeviceSize                         offset
-          VK_WHOLE_SIZE                           // VkDeviceSize                         range
+    };
+    VulkanInterface::BufferDescriptorInfo modelDescriptorUpdate = {
+        descriptorSets[i],                          // VkDescriptorSet                      TargetDescriptorSet
+        1,                                          // uint32_t                             TargetDescriptorBinding
+        0,                                          // uint32_t                             TargetArrayElement
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,  // VkDescriptorType                     TargetDescriptorType
+        {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
+          {
+            modelUBuffers[0],                       // VkBuffer                             buffer
+            0,                                      // VkDeviceSize                         offset
+            VK_WHOLE_SIZE                           // VkDeviceSize                         range
+          }
         }
-      }
-  };
-  VulkanInterface::BufferDescriptorInfo lightDescriptorUpdate = {
-      descriptorSets[0],                          // VkDescriptorSet                      TargetDescriptorSet
-      2,                                          // uint32_t                             TargetDescriptorBinding
-      0,                                          // uint32_t                             TargetArrayElement
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType                     TargetDescriptorType
-      {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
-        {
-          lightUBuffer,                           // VkBuffer                             buffer
-          0,                                      // VkDeviceSize                         offset
-          VK_WHOLE_SIZE                           // VkDeviceSize                         range
+    };
+    VulkanInterface::BufferDescriptorInfo lightDescriptorUpdate = {
+        descriptorSets[i],                          // VkDescriptorSet                      TargetDescriptorSet
+        2,                                          // uint32_t                             TargetDescriptorBinding
+        0,                                          // uint32_t                             TargetArrayElement
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType                     TargetDescriptorType
+        {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
+          {
+            lightUBuffers[0],                       // VkBuffer                             buffer
+            0,                                      // VkDeviceSize                         offset
+            VK_WHOLE_SIZE                           // VkDeviceSize                         range
+          }
         }
-      }
-  };
+    };
 
-  VulkanInterface::UpdateDescriptorSets(*vulkanDevice, {}, { viewProjDescriptorUpdate, modelDescriptorUpdate, lightDescriptorUpdate }, {}, {});
+    VulkanInterface::UpdateDescriptorSets(*vulkanDevice, {}, { viewProjDescriptorUpdate, modelDescriptorUpdate, lightDescriptorUpdate }, {}, {});
+  }  
 
   std::vector<unsigned char> vertex_shader_spirv;
   if (!VulkanInterface::GetBinaryFileContents("Data/vert.spv", vertex_shader_spirv)) {
@@ -963,7 +961,7 @@ bool ComputeApp::setupGraphicsPipeline()
   //pushConstantRangeFragment.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
   if (!VulkanInterface::CreatePipelineLayout(*vulkanDevice
-    , { descriptorSetLayout}
+    , { descriptorSetLayout, descriptorSetLayout, descriptorSetLayout }
     , { /*pushConstantRangeFragment*/ }
     , graphicsPipelineLayout)
     ) 
@@ -1145,9 +1143,12 @@ void ComputeApp::shutdownChunkManager()
 
 void ComputeApp::shutdownGraphicsPipeline()
 {
-  vmaDestroyBuffer(allocator, viewprojUBuffer, viewprojAlloc);
-  vmaDestroyBuffer(allocator, modelUBuffer, modelAlloc);
-  vmaDestroyBuffer(allocator, lightUBuffer, lightAlloc);
+  for (int i = 0; i < 3; i++)
+  {
+    vmaDestroyBuffer(allocator, viewprojUBuffers[i], viewprojAllocs[i]);
+    vmaDestroyBuffer(allocator, modelUBuffers[i], modelAllocs[i]);
+    vmaDestroyBuffer(allocator, lightUBuffers[i], lightAllocs[i]);
+  }
   //graphicsPipeline->cleanup();
 }
 
@@ -1340,6 +1341,8 @@ void ComputeApp::checkForNewChunks()
     VulkanInterface::WaitUntilAllCommandsSubmittedToQueueAreFinished(graphicsQueue); // Ouch
     chunkManager->despawnChunks(camera.GetPosition());
     despawnTimer = 0.f;
+
+    std::cout << "Num topologies: " << computeTaskflow->num_topologies() << std::endl;
   }
   auto chunkList = chunkManager->getChunkSpawnList(camera.GetPosition());
   for (auto & chunk : chunkList)
@@ -1388,7 +1391,7 @@ void ComputeApp::getChunkRenderList()
 
         // Calculate model matrix for chunk
         VmaAllocationInfo modelInfo;
-        vmaGetAllocationInfo(allocator, modelAlloc, &modelInfo);
+        vmaGetAllocationInfo(allocator, modelAllocs[nextFrameIndex], &modelInfo);
         char * chunkDataPtr = static_cast<char*>(modelInfo.pMappedData);
 
 
@@ -1404,7 +1407,50 @@ void ComputeApp::getChunkRenderList()
   );
   registryMutex.unlock();
 
-  vmaFlushAllocation(allocator, modelAlloc, 0, VK_WHOLE_SIZE);
+  vmaFlushAllocation(allocator, modelAllocs[nextFrameIndex], 0, VK_WHOLE_SIZE);
+
+  VulkanInterface::BufferDescriptorInfo viewProjDescriptorUpdate = {
+    descriptorSets[nextFrameIndex],             // VkDescriptorSet                      TargetDescriptorSet
+    0,                                          // uint32_t                             TargetDescriptorBinding
+    0,                                          // uint32_t                             TargetArrayElement
+    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType                     TargetDescriptorType
+    {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
+      {
+        viewprojUBuffers[nextFrameIndex],       // VkBuffer                             buffer
+        0,                                      // VkDeviceSize                         offset
+        VK_WHOLE_SIZE                           // VkDeviceSize                         range
+      }
+    }
+  };
+  VulkanInterface::BufferDescriptorInfo modelDescriptorUpdate = {
+      descriptorSets[nextFrameIndex],             // VkDescriptorSet                      TargetDescriptorSet
+      1,                                          // uint32_t                             TargetDescriptorBinding
+      0,                                          // uint32_t                             TargetArrayElement
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,  // VkDescriptorType                     TargetDescriptorType
+      {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
+        {
+          modelUBuffers[nextFrameIndex],          // VkBuffer                             buffer
+          0,                                      // VkDeviceSize                         offset
+          VK_WHOLE_SIZE                           // VkDeviceSize                         range
+        }
+      }
+  };
+  VulkanInterface::BufferDescriptorInfo lightDescriptorUpdate = {
+      descriptorSets[nextFrameIndex],             // VkDescriptorSet                      TargetDescriptorSet
+      2,                                          // uint32_t                             TargetDescriptorBinding
+      0,                                          // uint32_t                             TargetArrayElement
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,          // VkDescriptorType                     TargetDescriptorType
+      {                                           // std::vector<VkDescriptorBufferInfo>  BufferInfos
+        {
+          lightUBuffers[nextFrameIndex],          // VkBuffer                             buffer
+          0,                                      // VkDeviceSize                         offset
+          VK_WHOLE_SIZE                           // VkDeviceSize                         range
+        }
+      }
+  };
+
+  VulkanInterface::WaitForFences(*vulkanDevice, { *frameResources[nextFrameIndex].drawingFinishedFence }, false, std::numeric_limits<uint64_t>::max());
+  VulkanInterface::UpdateDescriptorSets(*vulkanDevice, {}, { viewProjDescriptorUpdate, modelDescriptorUpdate, lightDescriptorUpdate }, {}, {});
 }
 
 void ComputeApp::recordChunkDrawCalls()
@@ -1507,9 +1553,9 @@ bool ComputeApp::drawChunks()
       VulkanInterface::SetScissorStateDynamically(commandBuffer, 0, { scissor });      
 
       VmaAllocationInfo viewprojInfo;
-      vmaGetAllocationInfo(allocator, viewprojAlloc, &viewprojInfo);      
+      vmaGetAllocationInfo(allocator, viewprojAllocs[imageIndex], &viewprojInfo);
       VmaAllocationInfo lightInfo;
-      vmaGetAllocationInfo(allocator, lightAlloc, &lightInfo);      
+      vmaGetAllocationInfo(allocator, lightAllocs[imageIndex], &lightInfo);
 
       void * viewprojPtr;
 
@@ -1518,10 +1564,10 @@ bool ComputeApp::drawChunks()
         proj
       };
 
-      vmaMapMemory(allocator, viewprojAlloc, &viewprojPtr);      
+      vmaMapMemory(allocator, viewprojAllocs[imageIndex], &viewprojPtr);      
       memcpy(viewprojPtr, &viewProj, sizeof(ViewProj));
-      vmaUnmapMemory(allocator, viewprojAlloc);
-      vmaFlushAllocation(allocator, viewprojAlloc, 0, VK_WHOLE_SIZE);
+      vmaUnmapMemory(allocator, viewprojAllocs[imageIndex]);
+      vmaFlushAllocation(allocator, viewprojAllocs[imageIndex], 0, VK_WHOLE_SIZE);
 
       for (int i = 0; i < chunkRenderList.size(); i++)
       {        
@@ -1529,7 +1575,7 @@ bool ComputeApp::drawChunks()
         ModelData modelData = registry->get<ModelData>(chunkRenderList[i]);           
 
         uint32_t dynamicOffset = i * static_cast<uint32_t>(dynamicAlignment);
-        VulkanInterface::BindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineLayout, 0, descriptorSets, { dynamicOffset });
+        VulkanInterface::BindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineLayout, 0, { descriptorSets[imageIndex] }, { dynamicOffset });
 
         VulkanInterface::BindVertexBuffers(commandBuffer, 0, { {modelData.vertexBuffer, 0} });
         VulkanInterface::BindIndexBuffer(commandBuffer, modelData.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
@@ -1594,7 +1640,7 @@ bool ComputeApp::drawChunks()
       , allocator
       , sizeof(LightData)
       , &lightData
-      , lightUBuffer
+      , lightUBuffers[nextFrameIndex]
       , 0
       , 0
       , VK_ACCESS_UNIFORM_READ_BIT

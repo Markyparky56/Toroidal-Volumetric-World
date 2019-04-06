@@ -104,8 +104,8 @@ private:
   VkDescriptorSetLayout descriptorSetLayout;
   VkDescriptorPool descriptorPool;
   std::vector<VkDescriptorSet> descriptorSets;
-  VkBuffer viewprojUBuffer, modelUBuffer, lightUBuffer;
-  VmaAllocation viewprojAlloc, modelAlloc, lightAlloc;
+  std::vector<VkBuffer> viewprojUBuffers, modelUBuffers, lightUBuffers;
+  std::vector<VmaAllocation> viewprojAllocs, modelAllocs, lightAllocs;
 
   VkPipeline graphicsPipeline;
   VkPipelineLayout graphicsPipelineLayout;
