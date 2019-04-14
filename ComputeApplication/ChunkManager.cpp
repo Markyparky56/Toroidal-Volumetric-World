@@ -119,8 +119,9 @@ void ChunkManager::unloadChunk(KeyType const key)
   factory.DestroyChunk(handle);
 }
 
-void ChunkManager::shutdown()
+void ChunkManager::clear()
 {
+  map.clear();
   factory.DestroyAllChunks();
   cache.clear();
 }

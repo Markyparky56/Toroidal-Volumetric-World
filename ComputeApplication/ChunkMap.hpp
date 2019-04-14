@@ -34,6 +34,11 @@ public:
     return map[key];
   }
 
+  void clear()
+  {
+    map.clear();
+  }
+
 protected:
   std::unordered_map<KeyType, EntityHandle> map; // Map tracks loaded chunks  
 };

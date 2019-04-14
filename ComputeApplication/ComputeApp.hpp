@@ -141,12 +141,14 @@ private:
   static constexpr float cameraSpeed = 1.f;
   glm::vec2 screenCentre;
   bool lockMouse = true;
+  bool reseedTerrain = false;
   glm::ivec2 mouseDelta;
   double gameTime;
   float buttonPressGracePeriod = 0.2f;
   struct SettingsLastChangeTimes
   {
     float toggleMouseLock;
+    float reseed;
   } settingsLastChangeTimes;
   struct CamRot {
     float roll, yaw, pitch;

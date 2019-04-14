@@ -35,7 +35,7 @@ public:
   // Remove a chunk from the chunk map, caching its volume data and destroying its entity in the registry
   void unloadChunk(KeyType const key);
 
-  void shutdown();
+  void clear();
 
 
 private:

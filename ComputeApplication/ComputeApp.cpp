@@ -2,6 +2,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "coordinatewrap.hpp"
 #include "syncout.hpp"
+#include <random>
 
 static void check_vk_result(VkResult err)
 {
@@ -17,6 +18,7 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   gameTime = 0.0;
   settingsLastChangeTimes = { 0.f };
   lockMouse = false;
+  reseedTerrain = false;
   //ShowCursor(!lockMouse);
   camera.SetPosition({ 0.f, 32.f, 0.f });
   camera.LookAt({ 0.f, 0.f, 0.f }, { 0.f, 0.f, 1.f }, { 0.f, 1.f, 0.f });  
@@ -68,7 +70,6 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   vma.precede(chunkmanager);
   vma.precede(frameres);
   renderpass.precede(gpipeline);
-  //renderpass.precede(imgui);
   ecs.precede(chunkmanager);
   commandBuffers.precede(surface);
   commandBuffers.precede(frameres);
@@ -76,15 +77,6 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
 
   // Execute and wait for completion
   systemTaskflow->dispatch().get();  
-
-  //resVMA = initialiseVulkanMemoryAllocator();
-  //resRenderpass = setupRenderPass();
-  //resImGui = initImGui(windowParameters.HWnd);
-  //resGpipe = setupGraphicsPipeline();
-  //resCmdBufs = setupCommandPoolAndBuffers();
-  //resECS = setupECS();
-  //resChnkMngr = setupChunkManager();
-  //resTerGen = setupTerrainGenerator();
 
   if (!resVMA || !resImGui || !resCmdBufs || !resRenderpass || !resGpipe || !resChnkMngr || !resTerGen || !resSurface || !resECS)
   {
@@ -115,27 +107,25 @@ bool ComputeApp::Update()
 {
   gameTime += TimerState.GetDeltaTime();
 
-  // Massive memory leak
-  /*if (!commandPools->graphicsPools.resetFramePools(nextFrameIndex))
+  if (reseedTerrain)
   {
-    return false;
-  }*/
+    vkDeviceWaitIdle(*vulkanDevice); // Wait for idle (eck)
+    computeTaskflow->wait_for_all(); // Flush compute tasks
+    chunkManager->clear(); // Destroy old chunks
+    terrainGen->SetSeed(std::random_device()()); // Reseed terrain generator
+    reseedTerrain = false;
+    // Then continue as usual
+  }
 
-  //tf::Taskflow tf(std::thread::hardware_concurrency());
-
-  auto[userUpdate, spawnChunks, renderList/*, recordDrawCalls*/] = updateTaskflow->emplace(
+  auto[userUpdate, spawnChunks, renderList] = updateTaskflow->emplace(
     [&]() { updateUser(); },
     [&]() { checkForNewChunks(); },
     [&]() { getChunkRenderList(); }
-    //[&]() { recordChunkDrawCalls(); } 
   );
 
   userUpdate.precede(spawnChunks);
   userUpdate.precede(renderList);
   spawnChunks.precede(renderList);
-  //spawnChunks.precede(renderList);
-  //renderList.precede(recordDrawCalls);
-  //recordDrawCalls.precede(draw);
 
   updateTaskflow->dispatch().get();
   {
@@ -161,10 +151,6 @@ bool ComputeApp::Update()
   //ImGui_ImplVulkan_NewFrame();
 
   drawChunks();
-  //std::cout << "Draw\t" << nextFrameIndex << std::endl;
-  //std::cout << systemTaskflow->num_topologies() << std::endl;
-  //std::cout << graphicsTaskflow->num_topologies() << std::endl;
-  //std::cout << computeTaskflow->num_topologies() << std::endl;
 
   return true;
 }
@@ -1165,7 +1151,7 @@ void ComputeApp::shutdownVulkanMemoryAllocator()
 
 void ComputeApp::shutdownChunkManager()
 {
-  chunkManager->shutdown();
+  chunkManager->clear();
 }
 
 void ComputeApp::shutdownGraphicsPipeline()
@@ -1247,6 +1233,16 @@ void ComputeApp::updateUser()
   bool lookRight = KeyboardState.Keys[VK_RIGHT].IsDown;
   bool lookUp = KeyboardState.Keys[VK_UP].IsDown;
   bool lookDown = KeyboardState.Keys[VK_DOWN].IsDown;
+  bool reseed = (KeyboardState.Keys[VK_F2].IsDown);
+
+  if (reseed)
+  {
+    if (gameTime >= settingsLastChangeTimes.reseed + buttonPressGracePeriod)
+    {
+      reseedTerrain = true;
+      settingsLastChangeTimes.reseed = static_cast<float>(gameTime);
+    }
+  }
 
   if (toggleMouseLock)
   {

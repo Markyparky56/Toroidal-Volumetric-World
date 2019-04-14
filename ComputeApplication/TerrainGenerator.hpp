@@ -16,13 +16,9 @@ class TerrainGenerator
   using Volume = std::array<Voxel, ChunkSize>;
   using HeightMap = std::array<float, TrueChunkDim*TrueChunkDim>;
 
-public:
-  TerrainGenerator()
-  {
-    noise.SetSeed(4422);
-    noise.SetFractalType(FastNoise::FractalType::FBM);
-  }
-  ~TerrainGenerator() {}
+public:/*
+  TerrainGenerator() {}
+  ~TerrainGenerator() {}*/
 
   void SetSeed(int seed)
   {
