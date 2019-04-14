@@ -1,5 +1,5 @@
 #include "ChunkFactory.hpp"
-
+#include "syncout.hpp"
 uint32_t ChunkFactory::CreateChunkEntity(glm::vec3 pos, float dimX, float dimY, float dimZ)
 {
   assert(allocator != nullptr);
@@ -28,7 +28,7 @@ void ChunkFactory::DestroyChunk(uint32_t entityHandle)
 void ChunkFactory::DestroyAllChunks()
 {
   registryMutex->lock();
-  std::cout << "Destroy All Chunks!" << std::endl;
+  syncout() << "Destroy All Chunks!" << std::endl;
   registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
     [&](const uint32_t entity, auto&&...)
     {

@@ -3,6 +3,7 @@
 #include "VulkanInterface.Functions.hpp"
 #include "vk_mem_alloc.h"
 #include "coordinatewrap.hpp"
+#include "syncout.hpp"
 
 ChunkManager::ChunkManager(entt::DefaultRegistry * const registry, std::mutex * const registryMutex, VmaAllocator * const allocator, VkDevice * const logicalDevice)
   : factory(registry, registryMutex, allocator)
@@ -110,7 +111,7 @@ void ChunkManager::loadChunk(KeyType const key, EntityHandle const handle)
 void ChunkManager::unloadChunk(KeyType const key)
 {
   EntityHandle handle = map.unloadChunk(key);
-  std::cout << "Unload " << handle << "\n";
+  syncout() << "Unload " << handle << "\n";
   ChunkCacheData data;
   VolumeData & volume = registry->get<VolumeData>(handle);
   data = volume.volume;

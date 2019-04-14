@@ -13,14 +13,18 @@
 #include "SurfaceExtractor.hpp"
 #include "TaskflowCommandPools.hpp"
 #include "FrustumClass.hpp"
+#include "metrics.hpp"
 
 #include <stack>
 #include <array>
+
+
 
 class ComputeApp : public AppBase
 {
 public:
   bool Initialise(VulkanInterface::WindowParameters windowParameters) override;
+  bool InitMetrics();
   bool Update() override;
   bool Resize() override;
 
@@ -57,7 +61,14 @@ private:
   bool chunkIsWithinFrustum(uint32_t const entity);
   void loadFromChunkCache(EntityHandle handle);
   void generateChunk(EntityHandle handle);
+  void loadFromChunkCache(EntityHandle handle, logEntryData & logData);
+  void generateChunk(EntityHandle handle, logEntryData & logData);
   VkCommandBuffer drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo, glm::mat4 vp);
+
+  // Metrics
+  bool logging;
+  std::ofstream logFile;
+
 
   // cpp-taskflow taskflows and shared executor
   std::unique_ptr<tf::Taskflow> updateTaskflow

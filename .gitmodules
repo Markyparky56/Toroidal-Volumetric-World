@@ -29,3 +29,6 @@ url=https://github.com/Markyparky56/imgui
 [submodule "external/FastNoise"]
 	path = external/FastNoise
 	url = https://github.com/Markyparky56/FastNoise.git
+[submodule "external/dlog"]
+	path = external/dlog
+	url = https://gitlab.com/cantordust/dlog.git

@@ -310,9 +310,11 @@
     <ClInclude Include="genNormals.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="HybridComputePipeline.hpp" />
+    <ClInclude Include="metrics.hpp" />
     <ClInclude Include="PipelineBase.hpp" />
     <ClInclude Include="ReservedMap.hpp" />
     <ClInclude Include="SurfaceExtractor.hpp" />
+    <ClInclude Include="syncout.hpp" />
     <ClInclude Include="TaskflowCommandPools.hpp" />
     <ClInclude Include="TerrainGenerator.hpp" />
     <ClInclude Include="UniqueHandle.hpp" />

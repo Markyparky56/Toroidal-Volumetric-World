@@ -1,6 +1,7 @@
 #include "ComputeApp.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include "coordinatewrap.hpp"
+#include "syncout.hpp"
 
 static void check_vk_result(VkResult err)
 {
@@ -91,6 +92,23 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   }
 
   return true;
+}
+
+bool ComputeApp::InitMetrics()
+{
+  logging = true;
+  logFile = createLogFile();
+  
+  if (!logFile.is_open())
+  {
+    return false;
+  }
+  else
+  {
+    // Write data headings to first line, csv format
+    logFile << "handle,registered,start,heightStart,heightEnd,volumeStart,volumeEnd,surfaceStart,surfaceEnd,end,heightElapsed,volumeElapsed,surfaceElapsed,timeElapsed,timeSinceRegistered" << std::endl;
+    return true;
+  }
 }
 
 bool ComputeApp::Update()
@@ -233,7 +251,7 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
     VkPhysicalDeviceFeatures features;
     VkPhysicalDeviceProperties properties;
     VulkanInterface::GetFeaturesAndPropertiesOfPhysicalDevice(physicalDevice, features, properties);
-    std::cout << "Checking Device " << properties.deviceName << std::endl;
+    syncout() << "Checking Device " << properties.deviceName << std::endl;
 
     // Try to find a device which supports all our desired capabilities (graphics, compute, present);
     // Make sure we have graphics on this devie
@@ -1353,18 +1371,50 @@ void ComputeApp::checkForNewChunks()
   }
   auto chunkList = chunkManager->getChunkSpawnList(camera.GetPosition());
   for (auto & chunk : chunkList)
-  {
+  {    
     if (chunk.second == ChunkManager::ChunkStatus::NotLoadedCached)
     {
-      computeTaskflow->emplace([=]() {
-        loadFromChunkCache(chunk.first);
-      });
+      if (logging)
+      {
+        tp registered = hr_clock::now();
+        computeTaskflow->emplace([=, &logFile = logFile]() {
+          logEntryData data;
+          data.registered = registered;         
+
+          loadFromChunkCache(chunk.first, data);
+
+          data.end = hr_clock::now();
+          insertEntry(logFile, data);
+        });
+      }
+      else
+      {
+        computeTaskflow->emplace([=]() {
+          loadFromChunkCache(chunk.first);
+        });
+      }
     }
     else if (chunk.second == ChunkManager::ChunkStatus::NotLoadedNotCached)
-    {      
-      computeTaskflow->emplace([=]() {
-        generateChunk(chunk.first);
-      });
+    { 
+      if (logging)
+      {
+        tp registered = hr_clock::now();
+        computeTaskflow->emplace([=, &logFile = logFile]() {
+          logEntryData data;
+          data.registered = registered;
+
+          generateChunk(chunk.first, data);
+
+          data.end = hr_clock::now();
+          insertEntry(logFile, data);
+        });
+      }
+      else
+      {
+        computeTaskflow->emplace([=]() {
+          generateChunk(chunk.first);
+        });
+      }
     }
   }
   computeTaskflow->dispatch();
@@ -1788,7 +1838,7 @@ void ComputeApp::loadFromChunkCache(EntityHandle handle)
 
     registryMutex.lock();
     auto & model = registry->get<ModelData>(handle);
-    std::cout << handle << " generated, " << model.indexCount / 3 << " triangles\n";
+    syncout() << handle << " generated, " << model.indexCount / 3 << " triangles\n";
     registryMutex.unlock();
   }
   else // Chunk has fallen out of the cache
@@ -1822,7 +1872,78 @@ void ComputeApp::generateChunk(EntityHandle handle)
   {
     auto[model, volume] = registry->get<ModelData, VolumeData>(handle);
     volume.generating = false;
-    std::cout << handle << " generated, " << model.indexCount / 3 << " triangles\n";
+    syncout() << handle << " generated, " << model.indexCount / 3 << " triangles\n";
+  }
+  registryMutex.unlock();
+}
+
+void ComputeApp::loadFromChunkCache(EntityHandle handle, logEntryData & logData)
+{
+  registryMutex.lock();
+  glm::vec3 pos;
+  if (registry->valid(handle)) // Verify handle is still valid
+  {
+    pos = registry->get<WorldPosition>(handle).pos;
+    logData.key = chunkManager->chunkKey(pos);
+  }
+  else
+  {
+    registryMutex.unlock();
+    return;
+  }
+  registryMutex.unlock();
+  ChunkCacheData data;
+  if (chunkManager->getChunkVolumeDataFromCache(chunkManager->chunkKey(pos), data)) // Retrieve data from cache
+  {
+    registryMutex.lock();
+    auto & volume = registry->get<VolumeData>(handle);
+    volume.volume = data;
+    registryMutex.unlock();
+
+    surfaceExtractor->extractSurface(handle, registry.get(), &registryMutex, nextFrameIndex);
+
+    registryMutex.lock();
+    auto & model = registry->get<ModelData>(handle);
+    syncout() << handle << " generated, " << model.indexCount / 3 << " triangles\n";
+    registryMutex.unlock();
+  }
+  else // Chunk has fallen out of the cache
+  {
+    generateChunk(handle, logData);
+  }
+}
+
+void ComputeApp::generateChunk(EntityHandle handle, logEntryData & logData)
+{ 
+  if (!ready) return; // Catch if we're about to shutdown
+  if (!registry->valid(handle)) return; // Chunk has been unloaded
+  else
+  {
+    registry->get<VolumeData>(handle).generating = true; // Mark volume as generating to stop it being unloaded during generation
+  }
+
+  logData.start = hr_clock::now();
+
+  //std::cout << handle << std::endl;
+  auto pos = registry->get<WorldPosition>(handle);
+  logData.key = chunkManager->chunkKey(pos.pos);
+  ChunkCacheData data = terrainGen->getChunkVolume(pos.pos, logData);
+  registryMutex.lock();
+  {
+    auto & volume = registry->get<VolumeData>(handle);
+    volume.volume = data;
+  }
+  registryMutex.unlock();
+
+  logData.surfaceStart = hr_clock::now();
+  surfaceExtractor->extractSurface(handle, registry.get(), &registryMutex, nextFrameIndex);
+  logData.surfaceEnd = hr_clock::now();
+
+  registryMutex.lock();
+  {
+    auto[model, volume] = registry->get<ModelData, VolumeData>(handle);
+    volume.generating = false;
+    syncout() << handle << " generated, " << model.indexCount / 3 << " triangles\n";
   }
   registryMutex.unlock();
 }
@@ -1909,6 +2030,17 @@ void ComputeApp::Shutdown()
       [&]() { shutdownChunkManager(); },
       [&]() { shutdownGraphicsPipeline(); }
     );
+
+    tf::Task saveLogFile;
+    if (logging)
+    {
+      systemTaskflow->emplace(
+        [=, &logFile=logFile, &computeTaskflow=computeTaskflow]() {
+          computeTaskflow->wait_for_all();
+          logFile.close();
+        }
+      );
+    }
 
     // Task dependencies
     vma.precede(vulkan);

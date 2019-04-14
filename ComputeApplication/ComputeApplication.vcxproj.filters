@@ -224,6 +224,12 @@
     <ClInclude Include="coordinatewrap.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="metrics.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="syncout.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ListOfVulkanFunctions.inl">
