@@ -75,7 +75,7 @@ void TerrainGenerator::genHeightMap(HeightMap& heightmap, glm::vec3 normedChunkP
       }
       // Apply terracing for some interesting terrain features
       // Via: https://gamedev.stackexchange.com/a/116222/53817
-      float w = 0.25;
+      float w = 0.2;
       float k = glm::floor(height / w);
       float f = (height - k * w) / w;
       float s = glm::min(2.f*f, 1.f);

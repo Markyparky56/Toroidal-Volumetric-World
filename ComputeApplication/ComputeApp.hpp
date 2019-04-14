@@ -3,9 +3,9 @@
 #include "GraphicsPipeline.hpp"
 #include "taskflow\taskflow.hpp"
 #include "vk_mem_alloc.h"
-#include "imgui.h"
-#include "imgui_impl_win32.h"
-#include "imgui_impl_vulkan.h"
+//#include "imgui.h"
+//#include "imgui_impl_win32.h"
+//#include "imgui_impl_vulkan.h"
 #include "common.hpp"
 #include "ChunkManager.hpp"
 #include "Camera.hpp"
@@ -17,8 +17,6 @@
 
 #include <stack>
 #include <array>
-
-
 
 class ComputeApp : public AppBase
 {

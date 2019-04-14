@@ -106,7 +106,7 @@ bool ComputeApp::InitMetrics()
   else
   {
     // Write data headings to first line, csv format
-    logFile << "handle,registered,start,heightStart,heightEnd,volumeStart,volumeEnd,surfaceStart,surfaceEnd,end,heightElapsed,volumeElapsed,surfaceElapsed,timeElapsed,timeSinceRegistered" << std::endl;
+    logFile << "key,heightElapsed,volumeElapsed,surfaceElapsed,timeElapsed,timeSinceRegistered" << std::endl;
     return true;
   }
 }
@@ -147,18 +147,18 @@ bool ComputeApp::Update()
       updateRefreshTimer = 0.f;
     }
   }
-  ImGui_ImplWin32_NewFrame();
-  ImGui::NewFrame();
-  {
-    ImGui::ShowDemoWindow();
+  //ImGui_ImplWin32_NewFrame();
+  //ImGui::NewFrame();
+  //{
+  //  ImGui::ShowDemoWindow();
 
-    ImGui::Begin("Hello, world!");
-    ImGui::Text("Avg %.3f ms/frame (%.1f FPS)", 1000.f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-    ImGui::End();
-  }
-  ImGui::EndFrame();
-  ImGui::Render();
-  ImGui_ImplVulkan_NewFrame();
+  //  ImGui::Begin("Hello, world!");
+  //  ImGui::Text("Avg %.3f ms/frame (%.1f FPS)", 1000.f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+  //  ImGui::End();
+  //}
+  //ImGui::EndFrame();
+  //ImGui::Render();
+  //ImGui_ImplVulkan_NewFrame();
 
   drawChunks();
   //std::cout << "Draw\t" << nextFrameIndex << std::endl;
@@ -171,7 +171,7 @@ bool ComputeApp::Update()
 
 bool ComputeApp::Resize()
 {
-  ImGui_ImplVulkan_InvalidateDeviceObjects();
+  //ImGui_ImplVulkan_InvalidateDeviceObjects();
   if (!createSwapchain(
     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
     , true
@@ -190,7 +190,7 @@ bool ComputeApp::Resize()
   {
     return false;
   }
-  ImGui_ImplVulkan_CreateDeviceObjects();
+  //ImGui_ImplVulkan_CreateDeviceObjects();
   return true;
 }
 
@@ -395,116 +395,116 @@ bool ComputeApp::initialiseVulkanMemoryAllocator()
 
 bool ComputeApp::initImGui(HWND hwnd)
 {
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-
-  ImGui::StyleColorsDark();
-
-  if (!ImGui_ImplWin32_Init(hwnd))
-  {
-    return false;
-  }
-  
-  std::vector<VkDescriptorPoolSize> poolSizes = 
-  {
-    { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-    { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-    { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-    { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-    { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-    { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-  };
-  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, true, 1000 * static_cast<uint32_t>(poolSizes.size()), poolSizes, imGuiDescriptorPool))
-  {
-    return false;
-  }  
-
-  ImGui_ImplVulkan_InitInfo initInfo = { 0 };
-  initInfo.Instance = *vulkanInstance;
-  initInfo.PhysicalDevice = vulkanPhysicalDevice;
-  initInfo.Device = *vulkanDevice;
-  initInfo.QueueFamily = graphicsQueueParameters.familyIndex;
-  initInfo.Queue = graphicsQueue;
-  initInfo.PipelineCache = VK_NULL_HANDLE;
-  initInfo.DescriptorPool = imGuiDescriptorPool;
-  initInfo.Allocator = VK_NULL_HANDLE;
-  initInfo.CheckVkResultFn = [](VkResult err) {
-    if (err == VK_SUCCESS) return; 
-    else { 
-      std::cout << "ImGui Error (Non-success return value), Code: " << err << std::endl; 
-#if defined(_DEBUG)
-      if (err < 0) 
-        abort(); 
-#endif
-    }
-  };
-
-  if (!ImGui_ImplVulkan_Init(&initInfo, renderPass))
-  {
-    return false;
-  }
-
-  //ImGui::GetIO().Fonts->AddFontDefault();
-
-  // Upload fonts since it's not done automatically
-  {
-    VkCommandBuffer cbuf = frameResources[0].commandBuffer;
-
-    VkResult err;
-    VkCommandBufferBeginInfo begin_info = {};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    err = vkBeginCommandBuffer(cbuf, &begin_info);
-    check_vk_result(err);
-
-    ImGui_ImplVulkan_CreateFontsTexture(cbuf);
-
-    VkSubmitInfo end_info = {};
-    end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    end_info.commandBufferCount = 1;
-    end_info.pCommandBuffers = &cbuf;
-    err = vkEndCommandBuffer(cbuf);
-    check_vk_result(err);
-    err = vkQueueSubmit(graphicsQueue, 1, &end_info, VK_NULL_HANDLE);
-    check_vk_result(err);
-
-    err = vkDeviceWaitIdle(*vulkanDevice);
-    check_vk_result(err);
-    ImGui_ImplVulkan_InvalidateFontUploadObjects();
-
-    /*
-    if (!VulkanInterface::BeginCommandBufferRecordingOp(cbuf, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
-    {
-      return false;
-    }
-
-    if (!ImGui_ImplVulkan_CreateFontsTexture(cbuf))
-    {
-      return false;
-    }
-
-    if (!VulkanInterface::EndCommandBufferRecordingOp(cbuf))
-    {
-      return false;
-    }
-
-    if (!VulkanInterface::SubmitCommandBuffersToQueue(graphicsQueue, {}, { cbuf }, {}, {}))
-    {
-      return false;
-    }
-
-    VkResult res = vkDeviceWaitIdle(*vulkanDevice);
-    if (res != VK_SUCCESS)
-    {
-      return false;
-    }
-    ImGui_ImplVulkan_InvalidateFontUploadObjects();*/
-  }
+//  IMGUI_CHECKVERSION();
+//  ImGui::CreateContext();
+//
+//  ImGui::StyleColorsDark();
+//
+//  if (!ImGui_ImplWin32_Init(hwnd))
+//  {
+//    return false;
+//  }
+//  
+//  std::vector<VkDescriptorPoolSize> poolSizes = 
+//  {
+//    { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+//    { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+//    { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+//    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+//    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+//    { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+//  };
+//  if (!VulkanInterface::CreateDescriptorPool(*vulkanDevice, true, 1000 * static_cast<uint32_t>(poolSizes.size()), poolSizes, imGuiDescriptorPool))
+//  {
+//    return false;
+//  }  
+//
+//  ImGui_ImplVulkan_InitInfo initInfo = { 0 };
+//  initInfo.Instance = *vulkanInstance;
+//  initInfo.PhysicalDevice = vulkanPhysicalDevice;
+//  initInfo.Device = *vulkanDevice;
+//  initInfo.QueueFamily = graphicsQueueParameters.familyIndex;
+//  initInfo.Queue = graphicsQueue;
+//  initInfo.PipelineCache = VK_NULL_HANDLE;
+//  initInfo.DescriptorPool = imGuiDescriptorPool;
+//  initInfo.Allocator = VK_NULL_HANDLE;
+//  initInfo.CheckVkResultFn = [](VkResult err) {
+//    if (err == VK_SUCCESS) return; 
+//    else { 
+//      std::cout << "ImGui Error (Non-success return value), Code: " << err << std::endl; 
+//#if defined(_DEBUG)
+//      if (err < 0) 
+//        abort(); 
+//#endif
+//    }
+//  };
+//
+//  if (!ImGui_ImplVulkan_Init(&initInfo, renderPass))
+//  {
+//    return false;
+//  }
+//
+//  //ImGui::GetIO().Fonts->AddFontDefault();
+//
+//  // Upload fonts since it's not done automatically
+//  {
+//    VkCommandBuffer cbuf = frameResources[0].commandBuffer;
+//
+//    VkResult err;
+//    VkCommandBufferBeginInfo begin_info = {};
+//    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+//    begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+//    err = vkBeginCommandBuffer(cbuf, &begin_info);
+//    check_vk_result(err);
+//
+//    ImGui_ImplVulkan_CreateFontsTexture(cbuf);
+//
+//    VkSubmitInfo end_info = {};
+//    end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+//    end_info.commandBufferCount = 1;
+//    end_info.pCommandBuffers = &cbuf;
+//    err = vkEndCommandBuffer(cbuf);
+//    check_vk_result(err);
+//    err = vkQueueSubmit(graphicsQueue, 1, &end_info, VK_NULL_HANDLE);
+//    check_vk_result(err);
+//
+//    err = vkDeviceWaitIdle(*vulkanDevice);
+//    check_vk_result(err);
+//    ImGui_ImplVulkan_InvalidateFontUploadObjects();
+//
+//    /*
+//    if (!VulkanInterface::BeginCommandBufferRecordingOp(cbuf, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr))
+//    {
+//      return false;
+//    }
+//
+//    if (!ImGui_ImplVulkan_CreateFontsTexture(cbuf))
+//    {
+//      return false;
+//    }
+//
+//    if (!VulkanInterface::EndCommandBufferRecordingOp(cbuf))
+//    {
+//      return false;
+//    }
+//
+//    if (!VulkanInterface::SubmitCommandBuffersToQueue(graphicsQueue, {}, { cbuf }, {}, {}))
+//    {
+//      return false;
+//    }
+//
+//    VkResult res = vkDeviceWaitIdle(*vulkanDevice);
+//    if (res != VK_SUCCESS)
+//    {
+//      return false;
+//    }
+//    ImGui_ImplVulkan_InvalidateFontUploadObjects();*/
+//  }
 
   return true;
 }
@@ -1181,9 +1181,9 @@ void ComputeApp::shutdownGraphicsPipeline()
 
 void ComputeApp::shutdownImGui()
 {
-  ImGui_ImplVulkan_Shutdown();
-  ImGui_ImplWin32_Shutdown();
-  ImGui::DestroyContext();
+  //ImGui_ImplVulkan_Shutdown();
+  //ImGui_ImplWin32_Shutdown();
+  //ImGui::DestroyContext();
 }
 
 void ComputeApp::cleanupVulkan()
@@ -1430,9 +1430,17 @@ void ComputeApp::getChunkRenderList()
   frustum.Construct(screenDepth, proj, view);
 
   chunkRenderList.clear();
-  chunkRenderList.reserve(256); // Revise size when frustum culling implemented
+  chunkRenderList.reserve(512); // Revise size when frustum culling implemented
   int i = 0;
   registryMutex.lock();
+  //auto chunkListView = registry->view<WorldPosition, VolumeData, ModelData, AABB>();
+  //std::vector<unsigned int> chunkList;
+
+  // Sort chunks by world position so if we truncate the renderlist we preserve the closest chunks
+  registry->sort<WorldPosition>([&](auto const & lhs, auto const & rhs) {
+    return sqrdToroidalDistance(camera.GetPosition(), lhs.pos) < sqrdToroidalDistance(camera.GetPosition(), rhs.pos);
+  });
+
   registry->view<WorldPosition, VolumeData, ModelData, AABB>().each(
     [=, &i=i, &registry=registry, &chunkRenderList=chunkRenderList, &camera=camera](const uint32_t entity, auto&&...)
     {
@@ -1906,6 +1914,8 @@ void ComputeApp::loadFromChunkCache(EntityHandle handle, logEntryData & logData)
     auto & model = registry->get<ModelData>(handle);
     syncout() << handle << " generated, " << model.indexCount / 3 << " triangles\n";
     registryMutex.unlock();
+
+    logData.loadedFromCache = true;
   }
   else // Chunk has fallen out of the cache
   {
@@ -1923,6 +1933,7 @@ void ComputeApp::generateChunk(EntityHandle handle, logEntryData & logData)
   }
 
   logData.start = hr_clock::now();
+  logData.loadedFromCache = false;
 
   //std::cout << handle << std::endl;
   auto pos = registry->get<WorldPosition>(handle);

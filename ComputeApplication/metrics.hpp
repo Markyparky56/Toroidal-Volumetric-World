@@ -32,21 +32,15 @@ struct logEntryData
     , surfaceEnd // When surface is finished
     , end;
   uint64_t key;
+  bool loadedFromCache;
 };
 
 inline void insertEntry(std::ofstream & logFile
   , logEntryData const data)
 {
-  synclog(logFile) << data.key << ","
-          << duration_cast<nanoseconds>(data.registered.time_since_epoch()).count()    << ","
-          << duration_cast<nanoseconds>(data.start.time_since_epoch()).count()         << ","
-          << duration_cast<nanoseconds>(data.heightStart.time_since_epoch()).count()   << ","
-          << duration_cast<nanoseconds>(data.heightEnd.time_since_epoch()).count()     << ","
-          << duration_cast<nanoseconds>(data.volumeStart.time_since_epoch()).count()   << ","
-          << duration_cast<nanoseconds>(data.volumeEnd.time_since_epoch()).count()     << ","
-          << duration_cast<nanoseconds>(data.surfaceStart.time_since_epoch()).count()  << ","
-          << duration_cast<nanoseconds>(data.surfaceEnd.time_since_epoch()).count()    << ","
-          << duration_cast<nanoseconds>(data.end.time_since_epoch()).count()           << ","
+  if (data.loadedFromCache) return; // Cached data isn't important
+
+  synclog(logFile) << data.key << ","          
           // Some calculated data points
           << duration_cast<nanoseconds>(data.heightEnd - data.heightStart).count()   << "," // heightElapsed
           << duration_cast<nanoseconds>(data.volumeEnd - data.volumeStart).count()   << "," // volumeElapsed
