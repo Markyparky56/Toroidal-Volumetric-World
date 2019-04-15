@@ -6,7 +6,10 @@
 #include <array>
 using ChunkCacheData = std::array<Voxel, ChunkSize>;
 
-
+// ReservedMap class intended to be used with cpp-cache, takes a template
+// parameter with an initial size to reserve on construction. Should 
+// mean that the map doesn't have to reallocate or allocate additional 
+// space during runtime
 template<class Key
   , class T
   , uint32_t SizeToReserve

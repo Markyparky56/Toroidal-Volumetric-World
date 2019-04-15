@@ -61,7 +61,6 @@ private:
   void generateChunk(EntityHandle handle);
   void loadFromChunkCache(EntityHandle handle, logEntryData & logData);
   void generateChunk(EntityHandle handle, logEntryData & logData);
-  VkCommandBuffer drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo, glm::mat4 vp);
 
   // Metrics
   bool logging;

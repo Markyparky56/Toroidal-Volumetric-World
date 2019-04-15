@@ -504,95 +504,7 @@ bool ComputeApp::setupCommandPoolAndBuffers()
     , graphicsQueueParameters.familyIndex
     , graphicsQueueParameters.familyIndex
     , numWorkers);
-  /*
-  // Create Graphics Command Pool
-  for (int i = 0; i < numWorkers; i++)
-  {
-    graphicsCommandPools.push_back(VkCommandPool());
-    if (!VulkanInterface::CreateCommandPool(*vulkanDevice
-      , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-      , graphicsQueueParameters.familyIndex
-      , graphicsCommandPools[i]))
-    {
-      return false;
-    }
-  }
-  // Allocate an extra one for frameResources
-  graphicsCommandPools.push_back(VkCommandPool());
-  if (!VulkanInterface::CreateCommandPool(*vulkanDevice
-    , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-    , graphicsQueueParameters.familyIndex
-    , graphicsCommandPools[numWorkers]))
-  {
-    return false;
-  }
 
-  // Allocate primary command buffers for frame resources
-  if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
-    , graphicsCommandPools[numWorkers]
-    , VK_COMMAND_BUFFER_LEVEL_PRIMARY
-    , numFrames
-    , frameCommandBuffers))
-  {
-    return false;
-  }
-
-  for (int i = 0; i < graphicsCommandPools.size(); i++)
-  {
-    chunkCommandBuffersVecs.push_back(std::vector<VkCommandBuffer>());
-    // Allocate command buffers for chunk models, note: secondary command buffers
-    if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
-      , graphicsCommandPools[i]
-      , VK_COMMAND_BUFFER_LEVEL_SECONDARY
-      , maxChunks*numFrames // Excessive amount
-      , chunkCommandBuffersVecs[i]))
-    {
-      return false;
-    }
-  }
-
-  // Setup command buffer stacks
-  for (uint32_t i = 0; i < numFrames; i++)
-  {
-    for (uint32_t buffer = maxChunks*i; buffer < maxChunks; buffer++)
-    {
-      chunkCommandBufferStacks[i].push(&chunkCommandBuffersVec[buffer]);
-    }
-  }
-
-  // Create command pools for transfer command buffers
-  for (int i = 0; i < graphicsTaskflow->num_workers(); i++)
-  {
-    if (!VulkanInterface::CreateCommandPool(*vulkanDevice
-      , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-      , graphicsQueueParameters.familyIndex // Ideally this should have its own dedicated transfer queue
-      , transferCommandPools[i]))
-    {
-      return false;
-    }
-  }
-
-  for (int i = 0; i < transferCommandPools.size(); i++)
-  {  
-    // Allocate transfer command buffers
-    if (!VulkanInterface::AllocateCommandBuffers(*vulkanDevice
-      , transferCommandPools[i]
-      , VK_COMMAND_BUFFER_LEVEL_PRIMARY
-      , tfExecutor->num_workers()
-      , transferCommandBuffers))
-    {
-      return false;
-    }
-  }
-
-  // Setup transfer command buffer stack
-  for(auto & buffer : transferCommandBuffers)
-  {
-    transferCommandBuffersStack.push(&buffer);
-  }
-
-  // TODO: Compute command pool and buffers
-  */
   return true;
 }
 
@@ -674,24 +586,6 @@ bool ComputeApp::setupRenderPass()
 
 bool ComputeApp::setupGraphicsPipeline()
 {
-  //graphicsPipeline = std::make_unique<GraphicsPipeline>(&(*vulkanDevice), &renderPass, "Data/vert.spv", "Data/frag.spv");
-  //std::vector<VkDescriptorPoolSize> poolSizes = {
-  //  { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
-  //};
-  //graphicsPipeline->setupDescriptorPool(poolSizes);
-  //graphicsPipeline->layoutBindings.push_back(
-  //  { 
-  //    VkDescriptorSetLayoutBinding
-  //    {
-  //      0,
-  //      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-  //      1,
-  //      VK_SHADER_STAGE_VERTEX_BIT,
-  //      nullptr
-  //    } 
-  //  }
-  //);
-
   // 1 for each frame index
   viewprojUBuffers.resize(3);
   modelUBuffers.resize(3);
@@ -963,16 +857,6 @@ bool ComputeApp::setupGraphicsPipeline()
   VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
   VulkanInterface::SpecifyPipelineDynamicStates(dynamic_states, dynamic_state_create_info);
 
-  //VkPushConstantRange pushConstantRangeVertex;
-  //pushConstantRangeVertex.offset = 0;
-  //pushConstantRangeVertex.size = sizeof(PushConstantVertexShaderObject);
-  //pushConstantRangeVertex.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-  //VkPushConstantRange pushConstantRangeFragment;
-  //pushConstantRangeFragment.offset = 0;
-  //pushConstantRangeFragment.size = sizeof(PushConstantFragmentShaderObject);
-  //pushConstantRangeFragment.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
   if (!VulkanInterface::CreatePipelineLayout(*vulkanDevice
     , { descriptorSetLayout, descriptorSetLayout, descriptorSetLayout }
     , { /*pushConstantRangeFragment*/ }
@@ -1056,9 +940,6 @@ bool ComputeApp::setupFrameResources()
       return false;
     }
 
-    //auto cbuf = commandPools->framePools.getBuffer(i);
-    
-
     frameResources.push_back(
       {
         frameResourcesCmdBuffers[i],
@@ -1069,8 +950,6 @@ bool ComputeApp::setupFrameResources()
         VulkanHandle(VkFramebuffer)()
       }
     );
-
-    //cbuf.first->unlock();
 
     VmaAllocation depthAllocation;
 
@@ -1327,18 +1206,6 @@ void ComputeApp::updateUser()
     }
   }
 
-  //camera.SetPosition(camPos);
-
-  // Wrap position
- /* glm::vec3 pos = camera.GetPosition();
-  if (pos.x < 0) pos.x = static_cast<float>(WorldDimensionsInVoxels) + pos.x;
-  else if (pos.x > static_cast<float>(WorldDimensionsInVoxels)) pos.x = pos.x - static_cast<float>(WorldDimensionsInVoxels);
-  if (pos.y < 0) pos.y = static_cast<float>(WorldDimensionsInVoxels) + pos.y;
-  else if (pos.y > static_cast<float>(WorldDimensionsInVoxels)) pos.y = pos.y - static_cast<float>(WorldDimensionsInVoxels);
-  if (pos.z < 0) pos.z = static_cast<float>(WorldDimensionsInVoxels) + pos.z;
-  else if (pos.z > static_cast<float>(WorldDimensionsInVoxels)) pos.z = pos.z - static_cast<float>(WorldDimensionsInVoxels);
-  camera.SetPosition(pos);*/
-
   glm::vec3 pos = camera.GetPosition();
   WrapCoordinates(pos);
   camera.SetPosition(pos);
@@ -1426,11 +1293,9 @@ void ComputeApp::getChunkRenderList()
   frustum.Construct(screenDepth, proj, view);
 
   chunkRenderList.clear();
-  chunkRenderList.reserve(512); // Revise size when frustum culling implemented
+  chunkRenderList.reserve(256); // Revise size when frustum culling implemented
   int i = 0;
   registryMutex.lock();
-  //auto chunkListView = registry->view<WorldPosition, VolumeData, ModelData, AABB>();
-  //std::vector<unsigned int> chunkList;
 
   // Sort chunks by world position so if we truncate the renderlist we preserve the closest chunks
   registry->sort<WorldPosition>([&](auto const & lhs, auto const & rhs) {
@@ -1670,19 +1535,14 @@ bool ComputeApp::drawChunks()
 
       if (!VulkanInterface::EndCommandBufferRecordingOp(commandBuffer))
       {
-        //mutex->unlock();
         return false;
       }
 
     }
 
-    //mutex->unlock();
     return true;
   };
 
-  //auto ret = commandPools->framePools.getBuffer(nextFrameIndex);
-  //std::mutex * const mutex = ret.first;
-  //VkCommandBuffer * const commandBuffer = frameResources[;
 
   if (chunkRenderList.size() > 0)
   {
@@ -1953,73 +1813,6 @@ void ComputeApp::generateChunk(EntityHandle handle, logEntryData & logData)
     syncout() << handle << " generated, " << model.indexCount / 3 << " triangles\n";
   }
   registryMutex.unlock();
-}
-
-VkCommandBuffer ComputeApp::drawChunkOp(EntityHandle chunk, VkCommandBufferInheritanceInfo * const inheritanceInfo, glm::mat4 vp)
-{
-  //WorldPosition pos = registry->get<WorldPosition>(chunk); // Should position be part of model data? Like a transform component?
-  //ModelData modelData = registry->get<ModelData>(chunk);
-
-  //auto[mutex, cmdBuf] = commandPools->graphicsPools.getBuffer(nextFrameIndex);
-
-  ////VkCommandBuffer * cmdBuf = chunkCommandBufferStacks[nextFrameIndex].top();
-  ////                           chunkCommandBufferStacks[nextFrameIndex].pop();
-
-  //if (!VulkanInterface::BeginCommandBufferRecordingOp(*cmdBuf, VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT, inheritanceInfo))
-  //{
-  //  mutex->unlock();
-  //  return false;
-  //}
-
-  //VulkanInterface::BindPipelineObject(*cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-  //VkViewport viewport = {
-  //  0.f,
-  //  0.f,
-  //  static_cast<float>(swapchain.size.width),
-  //  static_cast<float>(swapchain.size.height),
-  //  0.f,
-  //  1.f
-  //};
-  //VulkanInterface::SetViewportStateDynamically(*cmdBuf, 0, { viewport });
-
-  //VkRect2D scissor = {
-  //  {
-  //    0, 0
-  //  },
-  //  {
-  //    swapchain.size.width,
-  //    swapchain.size.height
-  //  }
-  //};
-  //VulkanInterface::SetScissorStateDynamically(*cmdBuf, 0, { scissor });
-
-  //PushConstantObject push;
-
-  //glm::mat4 model = glm::translate(glm::mat4(1.f), pos.pos);
-  //push.mvp = vp * model;
-
-  //VulkanInterface::BindVertexBuffers(*cmdBuf, 0, { {modelData.vertexBuffer, 0} });
-  //VulkanInterface::BindIndexBuffer(*cmdBuf, modelData.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-  //VulkanInterface::ProvideDataToShadersThroughPushConstants(
-  //   *cmdBuf
-  //  , graphicsPipelineLayout
-  //  , VK_SHADER_STAGE_VERTEX_BIT
-  //  , 0
-  //  , sizeof(PushConstantObject)
-  //  , &push);
-
-  //VulkanInterface::DrawIndexedGeometry(*cmdBuf, modelData.indexCount, 1, 0, 0, 0);
-
-  //if (!VulkanInterface::EndCommandBufferRecordingOp(*cmdBuf))
-  //{
-  //  mutex->unlock();
-  //  return false;
-  //}
-
-  //mutex->unlock();
-  //return *cmdBuf;
-  return VK_NULL_HANDLE;
 }
 
 void ComputeApp::Shutdown()
