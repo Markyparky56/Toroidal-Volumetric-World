@@ -214,7 +214,7 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
   }
 
   // If we're in debug we can attach out debug callback function now
-#if defined(_DEBUG)
+#if defined(_DEBUG) || defined(RELEASE_MODE_VALIDATION_LAYERS)
   if (!VulkanInterface::SetupDebugCallback(*vulkanInstance, debugCallback, callback))
   {
     return false;
@@ -501,7 +501,6 @@ bool ComputeApp::setupCommandPoolAndBuffers()
 
   commandPools = std::make_unique<TaskflowCommandPools>(
     &*vulkanDevice
-    , graphicsQueueParameters.familyIndex
     , graphicsQueueParameters.familyIndex
     , numWorkers);
 
@@ -1085,7 +1084,7 @@ void ComputeApp::cleanupVulkan()
 
   vkDestroyDevice(*vulkanDevice, nullptr); *vulkanDevice = VK_NULL_HANDLE;
 
-#if defined(_DEBUG)
+#if defined(_DEBUG) || defined(RELEASE_MODE_VALIDATION_LAYERS)
   vkDestroyDebugUtilsMessengerEXT(*vulkanInstance, callback, nullptr); callback = VK_NULL_HANDLE;
 #endif
 

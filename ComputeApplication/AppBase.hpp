@@ -89,7 +89,7 @@ protected:
 
 
   std::vector<char const *> desiredLayers = {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(RELEASE_MODE_VALIDATION_LAYERS)
   "VK_LAYER_LUNARG_standard_validation"
 #endif
   };

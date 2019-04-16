@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[])
 {
-#if !defined(_DEBUG) && defined(_WIN32)
+#if !defined(_DEBUG) && defined(_WIN32)  && !defined(RELEASE_MODE_VALIDATION_LAYERS)
     FreeConsole();
 #endif
 
