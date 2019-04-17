@@ -243,17 +243,20 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
     // Make sure we have graphics on this devie
     if (!VulkanInterface::SelectIndexOfQueueFamilyWithDesiredCapabilities(physicalDevice, VK_QUEUE_GRAPHICS_BIT, graphicsQueueParameters.familyIndex))
     {
+      syncout() << "Does not support Graphics Queue" << std::endl;
       continue;
     }
 
-    // Make sure we have compute on this device
-    if (!VulkanInterface::SelectIndexOfQueueFamilyWithDesiredCapabilities(physicalDevice, VK_QUEUE_COMPUTE_BIT, computeQueueParameters.familyIndex))
-    {
-      continue;
-    }
+    //// Make sure we have compute on this device
+    //if (!VulkanInterface::SelectIndexOfQueueFamilyWithDesiredCapabilities(physicalDevice, VK_QUEUE_COMPUTE_BIT, computeQueueParameters.familyIndex))
+    //{
+    //  syncout() << "Does not support Compute Queue" << std::endl;
+    //  continue;
+    //}
 
     if (!VulkanInterface::SelectQueueFamilyThatSupportsPresentationToGivenSurface(physicalDevice, *presentationSurface, presentQueueParameters.familyIndex))
     {
+      syncout() << "Does not support present" << std::endl;
       continue;
     }
 
@@ -262,7 +265,10 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
     // We want to reserve one for rendering and allocate the rest for compute
     uint32_t numComputeThreads = numConcurrentThreads - 1;
     if (numComputeThreads < 1)
+    {
+      syncout() << "Number of compute threads is too low" << std::endl;
       return false; // Bail, this isn't going to end well with a single thread    
+    }
 
     if (graphicsQueueParameters.familyIndex == computeQueueParameters.familyIndex
       && graphicsQueueParameters.familyIndex == presentQueueParameters.familyIndex)
@@ -277,31 +283,33 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
       std::vector<VkQueueFamilyProperties> queueFamilies;
       if (!VulkanInterface::CheckAvailableQueueFamiliesAndTheirProperties(physicalDevice, queueFamilies))
       {
+        syncout() << "Failed to check available queue families" << std::endl;
         return false;
       }
 
-      if (queueFamilies[graphicsQueueParameters.familyIndex].queueCount < numComputeThreads)
-      {
-        numComputeThreads = queueFamilies[graphicsQueueParameters.familyIndex].queueCount - 2; // again, save one for dedicated graphics work
-        if (numComputeThreads < 1)
-        {
-          return false; // Nope. Nope. Nope.
-        }
-      }
+      //if (queueFamilies[graphicsQueueParameters.familyIndex].queueCount < numComputeThreads)
+      //{
+      //  numComputeThreads = queueFamilies[graphicsQueueParameters.familyIndex].queueCount - 2; // again, save one for dedicated graphics work
+      //  if (numComputeThreads < 1)
+      //  {
+      //    return false; // Nope. Nope. Nope.
+      //  }
+      //}
 
-      for (uint32_t i = 0; i < numComputeThreads; i++)
-      {
-        queuePriorities.push_back(computeQueuePriority);
-      }
+      //for (uint32_t i = 0; i < numComputeThreads; i++)
+      //{
+      //  queuePriorities.push_back(computeQueuePriority);
+      //}
 
       // Construct requestedQueues vector
       std::vector<VulkanInterface::QueueInfo> requestedQueues = {
-        {graphicsQueueParameters.familyIndex, queuePriorities} // One graphics queue, numComputeThreads queues
+        {graphicsQueueParameters.familyIndex, queuePriorities} // One graphics queue, one transfer queue
       };
 
       VulkanInterface::InitVulkanHandle(vulkanDevice);
       if (!VulkanInterface::CreateLogicalDevice(physicalDevice, requestedQueues, desiredDeviceExtensions, desiredLayers, &desiredDeviceFeatures, *vulkanDevice))
       {
+        syncout() << "Failed to create logical device" << std::endl;
         // Try again, maybe there's a better device?
         continue;
       }
@@ -317,24 +325,28 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
         // Retrieve "present queue" handle
         vkGetDeviceQueue(*vulkanDevice, presentQueueParameters.familyIndex, 0, &presentQueue);
         // Retrieve compute queue handles
-        computeQueues.resize(numComputeThreads, VK_NULL_HANDLE);
-        for (uint32_t i = 2; i < numComputeThreads; i++)
-        {
-          vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, i, &computeQueues[i - 1]);
-        }
+        //computeQueues.resize(numComputeThreads, VK_NULL_HANDLE);
+        //for (uint32_t i = 2; i < numComputeThreads; i++)
+        //{
+        //  vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, i, &computeQueues[i - 1]);
+        //}
+        break;
       }
     }
     else // A more involved setup... coming soon to an application near you
     {
+      syncout() << "Unsupported graphics card :(" << std::endl;
+
       std::vector<float> gQueuePriorities = { 1.f };
       std::vector<float> cQueuePriorities = {};
-      
+
       continue;
     }
   }
   // Check we actually created a device...
   if (!vulkanDevice)
   {
+    syncout() << "Failed to create a vulkan device" << std::endl;
     cleanupVulkan();
     return false;
   }
@@ -344,6 +356,7 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
                       , true
                       , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))
   {
+    syncout() << "Failed to create swapchain" << std::endl;
     return false;
   }
 

@@ -45,8 +45,8 @@ void TerrainGenerator::genHeightMap(HeightMap& heightmap, glm::vec3 normedChunkP
   {
     for (float x = normedChunkPos.x - normedHalfChunkDim; x < normedChunkPos.x + normedHalfChunkDim; x += voxelStep, ++hm_p)
     {
-      float theta = x * 2.0 * static_cast<float>(PI);
-      float phi = z * 2.0 * static_cast<float>(PI);
+      float theta = x * 2.0f * static_cast<float>(PI);
+      float phi = z * 2.0f * static_cast<float>(PI);
       float h_amp = 1.0f;
       float h_r = 64.f;
       float height = 0.0f;
@@ -115,8 +115,8 @@ void TerrainGenerator::genVolume(HeightMap& heightmap, Volume& volume, glm::vec3
       ix = 0;
       for (float x = normedChunkPos.x - normedHalfChunkDim; x < normedChunkPos.x + normedHalfChunkDim; x += voxelStep, ++vox, ++ix)
       {
-        float theta = x * 2.0 * static_cast<float>(PI);
-        float phi = z * 2.0 * static_cast<float>(PI);
+        float theta = x * 2.0f * static_cast<float>(PI);
+        float phi = z * 2.0f * static_cast<float>(PI);
         float t_amp = 1.0f;
         float t_r = 16.f;
         float h_r = 64.f;
