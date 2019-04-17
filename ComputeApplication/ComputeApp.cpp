@@ -109,9 +109,12 @@ bool ComputeApp::Update()
 
   if (reseedTerrain)
   {
+    syncout() << "Reseeding terrain, wait for device idle\n";
     vkDeviceWaitIdle(*vulkanDevice); // Wait for idle (eck)
+    syncout() << "Waiting for compute taskflow to complete\n";
     computeTaskflow->wait_for_all(); // Flush compute tasks
     chunkManager->clear(); // Destroy old chunks
+    syncout() << "Reseeding terrain generator" << std::endl;
     terrainGen->SetSeed(std::random_device()()); // Reseed terrain generator
     reseedTerrain = false;
     // Then continue as usual
@@ -272,12 +275,11 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
 
     if (graphicsQueueParameters.familyIndex == computeQueueParameters.familyIndex
       && graphicsQueueParameters.familyIndex == presentQueueParameters.familyIndex)
-      // Yay, probably a nVidia GPU, all queues are capable at doing everything, only possible thing to improve on this 
+      // Yay, probably a nvidia GPU, all queues are capable at doing everything, only possible thing to improve on this 
       // is to find if we have a dedicated transfer queue and work out how to use that properly. 
       // Will use the same queue family for all commands for now.
     {
-      const float computeQueuePriority = 1.f; // Unsure what priority compute queues should have versus the graphics queue, stick with 1.f for now
-      std::vector<float> queuePriorities = { 1.f, 1.f }; // One for the graphics queue, one for transfer
+      std::vector<float> queuePriorities = { 1.f, 1.f, 1.f }; // One for the graphics queue, one for transfer, one for the present queue
 
       // Check how many compute queues we can have
       std::vector<VkQueueFamilyProperties> queueFamilies;
@@ -286,20 +288,6 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
         syncout() << "Failed to check available queue families" << std::endl;
         return false;
       }
-
-      //if (queueFamilies[graphicsQueueParameters.familyIndex].queueCount < numComputeThreads)
-      //{
-      //  numComputeThreads = queueFamilies[graphicsQueueParameters.familyIndex].queueCount - 2; // again, save one for dedicated graphics work
-      //  if (numComputeThreads < 1)
-      //  {
-      //    return false; // Nope. Nope. Nope.
-      //  }
-      //}
-
-      //for (uint32_t i = 0; i < numComputeThreads; i++)
-      //{
-      //  queuePriorities.push_back(computeQueuePriority);
-      //}
 
       // Construct requestedQueues vector
       std::vector<VulkanInterface::QueueInfo> requestedQueues = {
@@ -323,23 +311,13 @@ bool ComputeApp::setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters
         // TODO: Find optimal transfer queue
         vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 1, &transferQueue);
         // Retrieve "present queue" handle
-        vkGetDeviceQueue(*vulkanDevice, presentQueueParameters.familyIndex, 0, &presentQueue);
-        // Retrieve compute queue handles
-        //computeQueues.resize(numComputeThreads, VK_NULL_HANDLE);
-        //for (uint32_t i = 2; i < numComputeThreads; i++)
-        //{
-        //  vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, i, &computeQueues[i - 1]);
-        //}
+        vkGetDeviceQueue(*vulkanDevice, graphicsQueueParameters.familyIndex, 2, &presentQueue);
         break;
       }
     }
     else // A more involved setup... coming soon to an application near you
     {
       syncout() << "Unsupported graphics card :(" << std::endl;
-
-      std::vector<float> gQueuePriorities = { 1.f };
-      std::vector<float> cQueuePriorities = {};
-
       continue;
     }
   }
@@ -1128,7 +1106,7 @@ void ComputeApp::updateUser()
 
   if (reseed)
   {
-    if (gameTime >= settingsLastChangeTimes.reseed + buttonPressGracePeriod)
+    if (gameTime >= settingsLastChangeTimes.reseed + 5.f)
     {
       reseedTerrain = true;
       settingsLastChangeTimes.reseed = static_cast<float>(gameTime);
