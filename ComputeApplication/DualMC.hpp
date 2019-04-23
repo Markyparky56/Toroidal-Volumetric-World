@@ -17,10 +17,10 @@ class DualMCVoxel : public dualmc::DualMC<Voxel>
 
 public:
   void buildTris(
-    Voxel const * data,
+    Voxel const * _data,
     int32_t const dimX, int32_t const dimY, int32_t const dimZ,
     VolumeDataType const iso,
-    bool const generateManifold,
+    bool const _generateManifold,
     bool const generateSoup,
     std::vector<Vertex> & vertices,
     std::vector<TriIndexType> & tris
@@ -30,14 +30,14 @@ public:
     this->dims[0] = dimX;
     this->dims[1] = dimY;
     this->dims[2] = dimZ;
-    this->data = data;
-    this->generateManifold = generateManifold;
+    this->data = _data;
+    this->generateManifold = _generateManifold;
 
     // clear vertices and quad indices
     vertices.clear();
     tris.clear();
 
-    // generate quad soup or shared vertices quad list
+    // Generate soup not supported, not needed by the application currently
     if (generateSoup) {
       //buildTriSoup(iso, vertices, tris);
     }

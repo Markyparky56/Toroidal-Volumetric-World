@@ -152,7 +152,7 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters, VkI
   return true;
 }
 
-bool AppBase::createSwapchain(VkImageUsageFlags swapchainImageUsage, bool useDepth, VkImageUsageFlags depthAttacmentUsage)
+bool AppBase::createSwapchain(VkImageUsageFlags swapchainImageUsage, bool /*useDepth*/, VkImageUsageFlags /*depthAttacmentUsage*/)
 {
   VulkanInterface::WaitForAllSubmittedCommandsToBeFinished(*vulkanDevice);
   ready = false;

@@ -56,10 +56,10 @@ void Camera::Update()
   }
 }
 
-void Camera::LookAt(glm::vec3 pos, glm::vec3 target, glm::vec3 up)
+void Camera::LookAt(glm::vec3 _pos, glm::vec3 target, glm::vec3 up)
 {
-  glm::vec3 lookAt = glm::normalize(target + pos);
-  view = glm::lookAt(pos, lookAt, up);
+  glm::vec3 lookAt = glm::normalize(target + _pos);
+  view = glm::lookAt(_pos, lookAt, up);
 }
 
 void Camera::GetViewMatrix(glm::mat4 & out)

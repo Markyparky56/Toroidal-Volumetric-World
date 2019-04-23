@@ -30,7 +30,7 @@ std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> ChunkManager::ge
   };
 
   //uint32_t chunkRadius = TechnicalChunkDim * std::ceilf(chunkSpawnRadius * invTechnicalChunkDim);
-  constexpr uint32_t chunkRadius = chunkSpawnRadius;// (TechnicalChunkDim * chunkSpawnDistance) / 2;
+  constexpr uint32_t chunkRadius = static_cast<uint32_t>(chunkSpawnRadius);// (TechnicalChunkDim * chunkSpawnDistance) / 2;
   constexpr float chunkRadiusf = static_cast<float>(chunkRadius);
   std::vector<std::pair<EntityHandle, ChunkManager::ChunkStatus>> chunkList;
 

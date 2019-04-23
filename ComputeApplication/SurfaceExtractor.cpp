@@ -68,7 +68,7 @@ bool SurfaceExtractor::extractSurface(uint32_t entity, entt::DefaultRegistry * r
   vertices.resize(meshopt_optimizeVertexFetch(&vertices[0], &indices[0], indices.size(), &vertices[0], vertices.size(), sizeof(Vertex)));
 
   // Generate normals
-  generateNormals(vertices.data(), vertices.size(), indices.data(), indices.size());
+  generateNormals(vertices.data(), static_cast<uint32_t>(vertices.size()), indices.data(), static_cast<uint32_t>(indices.size()));
 
   // Fill model data
   auto[mutex, transferCommandBuffer] = commandPools->transferPools.getBuffer(frame);
@@ -154,7 +154,7 @@ bool SurfaceExtractor::extractSurface(uint32_t entity, entt::DefaultRegistry * r
     registryMutex->unlock();
     return false;
   }
-  modelData.indexCount = indices.size();
+  modelData.indexCount = static_cast<uint32_t>(indices.size());
   mutex->unlock();
   registryMutex->unlock();
 

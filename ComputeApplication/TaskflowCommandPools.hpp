@@ -33,9 +33,9 @@ public:
       buffers = std::vector<std::array<VkCommandBuffer, 3>>(numWorkers);
       mutexes = std::vector<std::mutex>(numWorkers);
 
-      for (int thread = 0; thread < numWorkers; thread++)
+      for (uint32_t thread = 0; thread < numWorkers; thread++)
       {
-        for (int frame = 0; frame < 3; frame++)
+        for (uint32_t frame = 0; frame < 3; frame++)
         {
           // Setup pool
           VkCommandPool & pool = pools[thread][frame];

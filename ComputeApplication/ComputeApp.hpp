@@ -32,7 +32,6 @@ private:
   bool setupVulkanAndCreateSwapchain(VulkanInterface::WindowParameters windowParameters);
   bool setupTaskflow();
   bool initialiseVulkanMemoryAllocator();
-  bool initImGui(HWND hwnd);
   bool setupCommandPoolAndBuffers();
   bool setupRenderPass();
   bool setupGraphicsPipeline();
@@ -46,14 +45,12 @@ private:
   void shutdownVulkanMemoryAllocator();
   void shutdownChunkManager();
   void shutdownGraphicsPipeline();
-  void shutdownImGui();
   void cleanupVulkan();
 
   // App logic
   void updateUser();
   void checkForNewChunks();
   void getChunkRenderList();
-  void recordChunkDrawCalls();
   bool drawChunks();
 
   bool chunkIsWithinFrustum(uint32_t const entity);
@@ -89,22 +86,8 @@ private:
   VkCommandPool frameResourcesCmdPool;
   std::vector<VkCommandBuffer> frameResourcesCmdBuffers;
 
-  //std::vector<VkCommandPool> transferCommandPools;
-  //std::vector<std::mutex> transferCommmandPoolMutexes;
-  //std::vector<VkCommandBuffer> transferCommandBuffers;
-  //std::mutex transferCBufVecMutex;
-
-  //std::vector<VkCommandPool> graphicsCommandPools;
-  //std::vector<std::mutex> graphicsCommandPoolMutexes;
-  //std::vector<VkCommandBuffer> frameCommandBuffers;
-  //std::vector<std::vector<VkCommandBuffer>> chunkCommandBuffersVecs;
-  //std::vector<std::array<std::stack<VkCommandBuffer*>, numFrames>> chunkCommandBufferStacks;
-  //std::vector<std::vector<VkCommandBuffer
-  //std::mutex chunkCBufStackMutex;
-
   std::vector<VkCommandBuffer> recordedChunkDrawCalls;
 
-  //uint32_t graphicsQueueFamily, presentQueueFamily, computeQueueFamily;
   VkQueue graphicsQueue, presentQueue, transferQueue;
   std::vector<VkQueue> computeQueues;
   std::mutex graphicsQMutex, transferQMutex;
@@ -120,8 +103,6 @@ private:
 
   VkPipeline graphicsPipeline;
   VkPipelineLayout graphicsPipelineLayout;
-  //VkBuffer uniformBuffer;
-  //VkDeviceMemory uniformBufferMemory;
 
   std::unique_ptr<TaskflowCommandPools> commandPools;
   std::unique_ptr<ChunkManager> chunkManager;

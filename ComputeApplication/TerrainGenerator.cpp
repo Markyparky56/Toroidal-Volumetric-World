@@ -51,15 +51,17 @@ void TerrainGenerator::genHeightMap(HeightMap& heightmap, glm::vec3 normedChunkP
       float h_r = 64.f;
       float height = 0.0f;
       {
-        glm::vec4 p = glm::vec4(
-          h_r * std::cos(theta),
-          h_r * std::sin(theta),
-          h_r * std::cos(phi),
-          h_r * std::sin(phi)
-        );
-        height = h_amp * (1.f - glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w)));
-        h_amp *= 0.8f;
-        h_r *= 2.0f;
+        {
+          glm::vec4 p = glm::vec4(
+            h_r * std::cos(theta),
+            h_r * std::sin(theta),
+            h_r * std::cos(phi),
+            h_r * std::sin(phi)
+          );
+          height = h_amp * (1.f - glm::abs(noise.GetSimplex(p.x, p.y, p.z, p.w)));
+          h_amp *= 0.8f;
+          h_r *= 2.0f;
+        }
         for (int i = 0; i < 1; i++)
         {
           glm::vec4 p = glm::vec4(
@@ -75,7 +77,7 @@ void TerrainGenerator::genHeightMap(HeightMap& heightmap, glm::vec3 normedChunkP
       }
       // Apply terracing for some interesting terrain features
       // Via: https://gamedev.stackexchange.com/a/116222/53817
-      float w = 0.2;
+      float w = 0.2f;
       float k = glm::floor(height / w);
       float f = (height - k * w) / w;
       float s = glm::min(2.f*f, 1.f);
@@ -119,7 +121,6 @@ void TerrainGenerator::genVolume(HeightMap& heightmap, Volume& volume, glm::vec3
         float phi = z * 2.0f * static_cast<float>(PI);
         float t_amp = 1.0f;
         float t_r = 16.f;
-        float h_r = 64.f;
 
         uint32_t hm_p = iz * TrueChunkDim + ix; // Calculate heightmap position
 

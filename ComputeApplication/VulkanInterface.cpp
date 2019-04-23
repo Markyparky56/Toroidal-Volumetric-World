@@ -1218,7 +1218,7 @@ return true;
     for (uint32_t type = 0; type < physicalDeviceMemoryProperties.memoryTypeCount; type++)
     {
       if ((memoryRequirements.memoryTypeBits & (1 << type))
-      && ((physicalDeviceMemoryProperties.memoryTypes[type].propertyFlags & memoryProperties) == memoryProperties))
+      && ((physicalDeviceMemoryProperties.memoryTypes[type].propertyFlags & memoryProperties) == static_cast<uint32_t>(memoryProperties)))
       {
         VkMemoryAllocateInfo bufferMemoryAllocateInfo = {
           VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -1363,7 +1363,7 @@ return true;
     for (uint32_t type = 0; type < physicalDeviceMemoryProperties.memoryTypeCount; type++)
     {
       if ((memoryRequirements.memoryTypeBits & (1 << type))
-      && ((physicalDeviceMemoryProperties.memoryTypes[type].propertyFlags & memoryProperties) == memoryProperties))
+      && ((physicalDeviceMemoryProperties.memoryTypes[type].propertyFlags & memoryProperties) == static_cast<uint32_t>(memoryProperties)))
       {
         VkMemoryAllocateInfo imageMemoryAllocateInfo = {
           VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
