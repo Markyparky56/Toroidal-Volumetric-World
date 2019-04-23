@@ -19,7 +19,6 @@ uint32_t ChunkFactory::CreateChunkEntity(glm::vec3 pos, float dimX, float dimY, 
 void ChunkFactory::DestroyChunk(uint32_t entityHandle)
 {
   auto[volume, model] = registry->get<VolumeData, ModelData>(entityHandle);
-  //volume.destroy();
   model.destroy();
 
   registry->destroy(entityHandle);
@@ -33,7 +32,6 @@ void ChunkFactory::DestroyAllChunks()
     [&](const uint32_t entity, auto&&...)
     {
       auto[volume, model] = registry->get<VolumeData, ModelData>(entity);
-      //volume.destroy();
       model.destroy();
       registry->destroy(entity);
     }
