@@ -123,20 +123,20 @@ void Camera::TurnLeft()
 {
   speed = frameTime * 25.f;
 
-  yaw -= speed;
+  yaw += speed;
 
-  if (yaw < 0.f)
-    yaw += 360.f;
+  if (yaw > 360.f)
+    yaw -= 360.f;
 }
 
 void Camera::TurnRight()
 {
   speed = frameTime * 25.f;
 
-  yaw += speed;
+  yaw -= speed;
 
-  if (yaw > 360.f)
-    yaw -= 360.f;
+  if (yaw < 0.f)
+    yaw += 360.f;
 }
 
 void Camera::TurnUp()

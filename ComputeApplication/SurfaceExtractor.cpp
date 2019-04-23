@@ -11,17 +11,6 @@ bool SurfaceExtractor::extractSurface(uint32_t entity, entt::DefaultRegistry * r
 
   constexpr uint16_t iso = static_cast<uint16_t>(0.5f * std::numeric_limits<uint16_t>::max());
 
-  //void * volumeDataPtr;
-  //if (vmaMapMemory(*volume.allocator, volume.volumeAllocation, &volumeDataPtr) != VK_SUCCESS)
-  //{
-  //  return false;
-  //}
-  //VmaAllocationInfo info;
-  //vmaGetAllocationInfo(*volume.allocator, volume.volumeAllocation, &info);
-  //vmaInvalidateAllocation(*volume.allocator, volume.volumeAllocation, 0, VK_WHOLE_SIZE);
-  //std::array<Voxel, ChunkSize> volumeData;
-  //memcpy(volumeData.data(), volumeDataPtr, ChunkSize * sizeof(Voxel));
-  //vmaUnmapMemory(*volume.allocator, volume.volumeAllocation);
   registryMutex->lock();
   auto & volume = registry->get<VolumeData>(entity);
   dmc.buildTris(volume.volume.data(), TrueChunkDim, TrueChunkDim, TrueChunkDim, iso, true, false, generatedVerts, generatedIndices);

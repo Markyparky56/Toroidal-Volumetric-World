@@ -298,42 +298,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\external\FastNoise\FastNoise.cpp" />
-    <ClCompile Include="..\external\imgui\examples\imgui_impl_vulkan.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_ValidationLayers|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_SomeOptimisations|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\examples\imgui_impl_win32.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_ValidationLayers|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_SomeOptimisations|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\imgui.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_ValidationLayers|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_SomeOptimisations|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\imgui_demo.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_ValidationLayers|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_SomeOptimisations|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\imgui_draw.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_ValidationLayers|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_SomeOptimisations|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\imgui_widgets.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_ValidationLayers|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_SomeOptimisations|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="..\external\meshoptimizer\src\allocator.cpp" />
     <ClCompile Include="..\external\meshoptimizer\src\clusterizer.cpp" />
     <ClCompile Include="..\external\meshoptimizer\src\indexcodec.cpp" />
@@ -352,9 +316,7 @@
     <ClCompile Include="ChunkFactory.cpp" />
     <ClCompile Include="ChunkManager.cpp" />
     <ClCompile Include="ComputeApp.cpp" />
-    <ClCompile Include="ComputePipeline.cpp" />
     <ClCompile Include="FrustumClass.cpp" />
-    <ClCompile Include="GraphicsPipeline.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SurfaceExtractor.cpp" />
     <ClCompile Include="TerrainGenerator.cpp">
@@ -387,15 +349,11 @@
     <ClInclude Include="common.hpp" />
     <ClInclude Include="components.hpp" />
     <ClInclude Include="ComputeApp.hpp" />
-    <ClInclude Include="ComputePipeline.hpp" />
     <ClInclude Include="coordinatewrap.hpp" />
     <ClInclude Include="DualMC.hpp" />
     <ClInclude Include="FrustumClass.hpp" />
     <ClInclude Include="genNormals.hpp" />
-    <ClInclude Include="GraphicsPipeline.hpp" />
-    <ClInclude Include="HybridComputePipeline.hpp" />
     <ClInclude Include="metrics.hpp" />
-    <ClInclude Include="PipelineBase.hpp" />
     <ClInclude Include="ReservedMap.hpp" />
     <ClInclude Include="SurfaceExtractor.hpp" />
     <ClInclude Include="syncout.hpp" />

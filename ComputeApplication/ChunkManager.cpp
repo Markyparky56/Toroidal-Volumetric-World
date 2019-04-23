@@ -158,8 +158,6 @@ bool ChunkManager::pointInSpawnRange(glm::vec3 const playerPos, glm::vec3 const 
   float sqrdDist = sqrdToroidalDistance(playerPos, point);
 
   bool result = sqrdDist < chunkSpawnRadius*chunkSpawnRadius;
-
-  //bool result = (point.x - playerPos.x)*(point.x - playerPos.x) + (point.y - playerPos.y)*(point.y - playerPos.y) + (point.z - playerPos.z)*(point.z - playerPos.z) <= chunkSpawnRadius * chunkSpawnRadius;
   
   return result;
 }
@@ -169,8 +167,6 @@ bool ChunkManager::pointInDespawnRange(glm::vec3 const playerPos, glm::vec3 cons
   float sqrdDist = sqrdToroidalDistance(playerPos, point);
 
   bool result = sqrdDist > chunkDespawnRadius * chunkDespawnRadius;
-
-  //bool result = (point.x - playerPos.x)*(point.x - playerPos.x) + (point.y - playerPos.y)*(point.y - playerPos.y) + (point.z - playerPos.z)*(point.z - playerPos.z) > chunkDespawnRadius * chunkDespawnRadius;
 
   return result;
 }

@@ -137,13 +137,6 @@ bool AppBase::initVulkan(VulkanInterface::WindowParameters windowParameters, VkI
     return false;
   }
 
-  //// Prepare Frame Resources
-  //VulkanInterface::InitVulkanHandle(*vulkanDevice, commandPool);
-  //if (!VulkanInterface::CreateCommandPool(*vulkanDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, graphicsQueue.familyIndex, *commandPool))
-  //{
-  //  return false;
-  //}
-
   if (!createSwapchain(swapchainImageUsage, useDepth, depthAttachmentUsage))
   {
     return false;

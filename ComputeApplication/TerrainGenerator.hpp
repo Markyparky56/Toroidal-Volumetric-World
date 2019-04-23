@@ -9,17 +9,13 @@
 #include <glm/common.hpp>
 #include <glm/mat4x4.hpp>
 #include "metrics.hpp"
-//#include "ComputePipeline.hpp" // Coming soon(tm)
 
 class TerrainGenerator
 {
   using Volume = std::array<Voxel, ChunkSize>;
   using HeightMap = std::array<float, TrueChunkDim*TrueChunkDim>;
 
-public:/*
-  TerrainGenerator() {}
-  ~TerrainGenerator() {}*/
-
+public:
   void SetSeed(int seed)
   {
     noise.SetSeed(seed);

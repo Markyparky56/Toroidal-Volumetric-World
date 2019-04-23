@@ -1,11 +1,7 @@
 #pragma once
 #include "AppBase.hpp"
-#include "GraphicsPipeline.hpp"
 #include "taskflow\taskflow.hpp"
 #include "vk_mem_alloc.h"
-//#include "imgui.h"
-//#include "imgui_impl_win32.h"
-//#include "imgui_impl_vulkan.h"
 #include "common.hpp"
 #include "ChunkManager.hpp"
 #include "Camera.hpp"
@@ -76,10 +72,6 @@ private:
 
   // ImGui gets a dedicated descriptor pool with everything
   VkDescriptorPool imGuiDescriptorPool;
-
-  //std::unique_ptr<GraphicsPipeline> graphicsPipeline; // This could feasibly be a vector if we ever want a more complex render setup
-                                     // But having explicitly named pipelines would probably be better
-
 
   VkRenderPass renderPass;
   std::vector<VulkanInterface::FrameResources> frameResources;

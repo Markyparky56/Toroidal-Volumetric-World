@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\imgui">
-      <UniqueIdentifier>{8b7f64cc-6ecd-474b-a136-afaa31fb07f9}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\meshoptimiser">
       <UniqueIdentifier>{2c371b01-07bb-491b-9c40-acdee2d0be35}</UniqueIdentifier>
     </Filter>
@@ -50,27 +47,6 @@
     </ClCompile>
     <ClCompile Include="ComputeApp.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GraphicsPipeline.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\imgui.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\imgui_demo.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\imgui_draw.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\imgui_widgets.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\examples\imgui_impl_vulkan.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\external\imgui\examples\imgui_impl_win32.cpp">
-      <Filter>Source Files\imgui</Filter>
     </ClCompile>
     <ClCompile Include="..\external\meshoptimizer\src\allocator.cpp">
       <Filter>Source Files\meshoptimiser</Filter>
@@ -120,9 +96,6 @@
     <ClCompile Include="..\external\FastNoise\FastNoise.cpp">
       <Filter>Source Files\FastNoise</Filter>
     </ClCompile>
-    <ClCompile Include="ComputePipeline.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ChunkFactory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -146,12 +119,6 @@
     <ClInclude Include="AppBase.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GraphicsPipeline.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="PipelineBase.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="UniqueHandle.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -165,12 +132,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="VulkanInterface.VulkanHandle.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="HybridComputePipeline.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ComputePipeline.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="components.hpp">
