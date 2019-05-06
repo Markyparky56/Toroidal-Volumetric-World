@@ -1,7 +1,4 @@
 #pragma once
-#include "imgui.h"
-#include "imgui_impl_win32.h"
-#include "imgui_impl_vulkan.h"
 #ifdef _WIN32
 #include <Windows.h>
 #endif

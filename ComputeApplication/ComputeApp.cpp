@@ -12,7 +12,8 @@ bool ComputeApp::Initialise(VulkanInterface::WindowParameters windowParameters)
   lockMouse = false;
   reseedTerrain = false;
   camera.SetPosition({ 0.f, 32.f, 0.f });
-  camera.LookAt({ 0.f, 0.f, 0.f }, { 0.f, 0.f, 1.f }, { 0.f, 1.f, 0.f });  
+  camera.LookAt({ 0.f, 0.f, 0.f }, { 0.f, 0.f, -1.f }, { 0.f, 1.f, 0.f });  
+  camera.SetRotation(0.f, 180.f, 0.f);
   nextFrameIndex = 0;
 
   POINT pt;
